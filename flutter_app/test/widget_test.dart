@@ -10,7 +10,7 @@ void main() {
       ProviderScope(
         overrides: [
           taskRepositoryProvider.overrideWithValue(PreviewTaskRepository()),
-          currentUserIdProvider.overrideWithValue('preview-user'),
+          currentUserIdProvider.overrideWith((ref) async => 'preview-user'),
         ],
         child: const LifeTraceExecuteApp(),
       ),
