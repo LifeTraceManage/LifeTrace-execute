@@ -4,7 +4,35 @@ import 'cloud_contract.dart';
 import 'cloud_http_transport.dart';
 import 'sync_models.dart';
 
-class LifeTraceSyncClient {
+abstract interface class SyncClient {
+  Future<PushBatchResult> push({
+    required String baseUrl,
+    required String accessToken,
+    required SyncClientContext client,
+    required List<OutgoingSyncChange> changes,
+  });
+
+  Future<PullBatchResult> pull({
+    required String baseUrl,
+    required String accessToken,
+    required SyncClientContext client,
+    required String? afterCursor,
+    int limit = 100,
+    List<String>? entityTypes,
+  });
+
+  Future<SnapshotPageResult> snapshot({
+    required String baseUrl,
+    required String accessToken,
+    required SyncClientContext client,
+    String? snapshotId,
+    String? pageToken,
+    List<String>? entityTypes,
+    int pageSize = 200,
+  });
+}
+
+class LifeTraceSyncClient implements SyncClient {
   LifeTraceSyncClient({CloudHttpTransport? transport, Uuid? uuid})
       : _transport = transport ?? CloudHttpTransport(),
         _uuid = uuid ?? const Uuid();
@@ -12,6 +40,7 @@ class LifeTraceSyncClient {
   final CloudHttpTransport _transport;
   final Uuid _uuid;
 
+  @override
   Future<PushBatchResult> push({
     required String baseUrl,
     required String accessToken,
@@ -40,6 +69,7 @@ class LifeTraceSyncClient {
     );
   }
 
+  @override
   Future<PullBatchResult> pull({
     required String baseUrl,
     required String accessToken,
@@ -87,6 +117,7 @@ class LifeTraceSyncClient {
     );
   }
 
+  @override
   Future<SnapshotPageResult> snapshot({
     required String baseUrl,
     required String accessToken,
