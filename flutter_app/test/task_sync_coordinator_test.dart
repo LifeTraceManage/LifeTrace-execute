@@ -22,7 +22,7 @@ void main() {
     repository = DriftTaskRepository(database);
   });
 
-  tearDown(() => database.close());
+  tearDown(() async => database.close());
 
   test('snapshot bootstrap and pull apply upsert and tombstone', () async {
     final client = _FakeSyncClient(
@@ -73,7 +73,7 @@ void main() {
       ],
     );
 
-    final summary = await _coordinator(client).syncNow();
+    final summary = await coordinatorFor(database, client).syncNow();
 
     expect(summary.snapshotItems, 1);
     expect(summary.pulled, 2);
@@ -98,12 +98,12 @@ void main() {
     );
 
     final client = _FakeSyncClient(
-      snapshots: [_emptySnapshot()],
-      pulls: [_emptyPull('22')],
+      snapshots: [emptySnapshot()],
+      pulls: [emptyPull('22')],
       acceptAllPushes: true,
     );
 
-    final summary = await _coordinator(client).syncNow();
+    final summary = await coordinatorFor(database, client).syncNow();
 
     expect(summary.pushed, 2);
     expect(client.pushBatches, hasLength(2));
@@ -128,8 +128,8 @@ void main() {
     );
 
     final client = _FakeSyncClient(
-      snapshots: [_emptySnapshot()],
-      pulls: [_emptyPull('31')],
+      snapshots: [emptySnapshot()],
+      pulls: [emptyPull('31')],
       pushHandler: (changes) => PushBatchResult(
         requestId: 'push-conflict',
         serverTime: '2026-09-11T00:02:00.000Z',
@@ -150,7 +150,7 @@ void main() {
       ),
     );
 
-    final summary = await _coordinator(client).syncNow();
+    final summary = await coordinatorFor(database, client).syncNow();
 
     expect(summary.conflicts, 1);
     final conflicts = await database.select(database.syncConflicts).get();
@@ -163,15 +163,15 @@ void main() {
     expect(outbox.every((item) => item.errorCode == 'SYNC_CONFLICT'), isTrue);
   });
 
-  test('rejected push is retained and blocked with server error', () async {
+  test('rejected push remains blocked with server error', () async {
     final created = await repository.createTask(
       userId: 'user-1',
       deviceId: 'device-1',
       title: 'Will reject',
     );
     final client = _FakeSyncClient(
-      snapshots: [_emptySnapshot()],
-      pulls: [_emptyPull('41')],
+      snapshots: [emptySnapshot()],
+      pulls: [emptyPull('41')],
       pushHandler: (changes) => PushBatchResult(
         requestId: 'push-rejected',
         serverTime: '2026-09-11T00:03:00.000Z',
@@ -188,7 +188,7 @@ void main() {
       ),
     );
 
-    final summary = await _coordinator(client).syncNow();
+    final summary = await coordinatorFor(database, client).syncNow();
 
     expect(summary.rejected, 1);
     final row = (await database.select(database.syncOutbox).get()).single;
@@ -197,15 +197,14 @@ void main() {
     expect(row.errorMessage, 'bad task');
   });
 
-  test('transport failure keeps local change and records retryable failure', () async {
+  test('transport failure keeps local change and retry metadata', () async {
     await repository.createTask(
       userId: 'user-1',
       deviceId: 'device-1',
       title: 'Offline safe',
     );
     final client = _FakeSyncClient(
-      snapshots: [_emptySnapshot()],
-      pulls: [_emptyPull('51')],
+      snapshots: [emptySnapshot()],
       pushError: const CloudApiException(
         statusCode: 503,
         code: 'TEMPORARY',
@@ -214,7 +213,10 @@ void main() {
       ),
     );
 
-    await expectLater(_coordinator(client).syncNow(), throwsA(isA<CloudApiException>()));
+    await expectLater(
+      coordinatorFor(database, client).syncNow(),
+      throwsA(isA<CloudApiException>()),
+    );
 
     expect(await database.select(database.tasks).get(), hasLength(1));
     final row = (await database.select(database.syncOutbox).get()).single;
@@ -223,7 +225,7 @@ void main() {
     expect(row.errorCode, 'TEMPORARY');
   });
 
-  test('pull does not overwrite an entity that still has local outbox', () async {
+  test('pull does not overwrite an entity with a local outbox', () async {
     final created = await repository.createTask(
       userId: 'user-1',
       deviceId: 'device-1',
@@ -263,21 +265,21 @@ void main() {
       ],
     );
 
-    await _coordinator(client).syncNow();
+    await coordinatorFor(database, client).syncNow();
 
     final task = (await database.select(database.tasks).get()).single;
     expect(task.title, 'Keep local');
-    expect(task.serverVersion, isNull);
+    expect(task.serverVersion, null);
   });
 
   test('concurrent syncNow calls share one in-flight operation', () async {
     final gate = Completer<void>();
     final client = _FakeSyncClient(
-      snapshots: [_emptySnapshot()],
-      pulls: [_emptyPull('71')],
+      snapshots: [emptySnapshot()],
+      pulls: [emptyPull('71')],
       snapshotGate: gate,
     );
-    final coordinator = _coordinator(client);
+    final coordinator = coordinatorFor(database, client);
 
     final first = coordinator.syncNow();
     final second = coordinator.syncNow();
@@ -286,17 +288,21 @@ void main() {
     await Future.wait([first, second]);
     expect(client.snapshotCalls, 1);
   });
-
-  TaskSyncCoordinator _coordinator(_FakeSyncClient client) => TaskSyncCoordinator(
-        database: database,
-        sessionManager: _FakeSessionAccess(_session()),
-        syncClient: client,
-        deviceIdLoader: () async => 'device-1',
-        clientVersion: 'test',
-      );
 }
 
-StoredCloudSession _session() => const StoredCloudSession(
+TaskSyncCoordinator coordinatorFor(
+  AppDatabase database,
+  _FakeSyncClient client,
+) =>
+    TaskSyncCoordinator(
+      database: database,
+      sessionManager: _FakeSessionAccess(testSession()),
+      syncClient: client,
+      deviceIdLoader: () async => 'device-1',
+      clientVersion: 'test',
+    );
+
+StoredCloudSession testSession() => const StoredCloudSession(
       baseUrl: 'https://cloud.example.com',
       accessToken: 'token',
       accessTokenExpiresAtEpochSeconds: 9999999999,
@@ -329,7 +335,7 @@ Map<String, dynamic> _payload(String id, String title) => {
       'completedAt': null,
     };
 
-SnapshotPageResult _emptySnapshot() => const SnapshotPageResult(
+SnapshotPageResult emptySnapshot() => const SnapshotPageResult(
       requestId: 'snapshot-empty',
       snapshotId: 'snapshot-empty',
       snapshotCursor: '20',
@@ -338,7 +344,7 @@ SnapshotPageResult _emptySnapshot() => const SnapshotPageResult(
       serverTime: '2026-09-11T00:00:00.000Z',
     );
 
-PullBatchResult _emptyPull(String cursor) => PullBatchResult(
+PullBatchResult emptyPull(String cursor) => PullBatchResult(
       requestId: 'pull-empty-$cursor',
       serverTime: '2026-09-11T00:10:00.000Z',
       changes: const [],
@@ -347,7 +353,8 @@ PullBatchResult _emptyPull(String cursor) => PullBatchResult(
     );
 
 class _FakeSessionAccess implements CloudSessionAccess {
-  _FakeSessionAccess(this.session);
+  const _FakeSessionAccess(this.session);
+
   final StoredCloudSession session;
 
   @override
@@ -375,6 +382,7 @@ class _FakeSyncClient implements SyncClient {
   final bool acceptAllPushes;
   final Completer<void>? snapshotGate;
   final List<List<OutgoingSyncChange>> pushBatches = [];
+
   int snapshotCalls = 0;
   int _snapshotIndex = 0;
   int _pullIndex = 0;
@@ -388,17 +396,19 @@ class _FakeSyncClient implements SyncClient {
     required List<OutgoingSyncChange> changes,
   }) async {
     pushBatches.add(List.unmodifiable(changes));
-    if (pushError != null) throw pushError!;
+    final failure = pushError;
+    if (failure != null) throw failure;
     final handler = pushHandler;
     if (handler != null) return handler(changes);
     if (!acceptAllPushes) {
-      return PushBatchResult(
+      return const PushBatchResult(
         requestId: 'push-empty',
         serverTime: '2026-09-11T00:00:00.000Z',
         latestCursor: '0',
-        results: const [],
+        results: [],
       );
     }
+
     final results = <PushChangeResult>[];
     for (final change in changes) {
       _acceptedVersion++;
@@ -431,7 +441,7 @@ class _FakeSyncClient implements SyncClient {
     int limit = 100,
     List<String>? entityTypes,
   }) async {
-    if (_pullIndex >= pulls.length) return _emptyPull(afterCursor ?? '0');
+    if (_pullIndex >= pulls.length) return emptyPull(afterCursor ?? '0');
     return pulls[_pullIndex++];
   }
 
@@ -446,8 +456,9 @@ class _FakeSyncClient implements SyncClient {
     int pageSize = 200,
   }) async {
     snapshotCalls++;
-    if (snapshotGate != null) await snapshotGate!.future;
-    if (_snapshotIndex >= snapshots.length) return _emptySnapshot();
+    final gate = snapshotGate;
+    if (gate != null) await gate.future;
+    if (_snapshotIndex >= snapshots.length) return emptySnapshot();
     return snapshots[_snapshotIndex++];
   }
 }
