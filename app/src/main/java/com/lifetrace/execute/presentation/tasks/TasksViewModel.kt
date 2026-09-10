@@ -7,10 +7,12 @@ import com.lifetrace.execute.core.cloud.DeviceIdentityStore
 import com.lifetrace.execute.core.cloud.SecureSessionStore
 import com.lifetrace.execute.data.local.LifeTraceExecuteDatabase
 import com.lifetrace.execute.data.local.SyncConflictEntity
+import com.lifetrace.execute.data.repository.ProjectRepository
 import com.lifetrace.execute.data.repository.TaskRepository
 import com.lifetrace.execute.data.sync.SyncScheduler
 import com.lifetrace.execute.data.sync.TaskConflictResolver
 import com.lifetrace.execute.data.sync.TaskSyncCoordinator
+import com.lifetrace.execute.domain.project.ExecutionProject
 import com.lifetrace.execute.domain.task.ExecutionTask
 import com.lifetrace.execute.domain.task.ExecutionTaskPriority
 import com.lifetrace.execute.domain.task.ExecutionTaskStatus
@@ -34,6 +36,7 @@ data class TaskConflictUi(
 data class TasksUiState(
     val connected: Boolean = false,
     val tasks: List<ExecutionTask> = emptyList(),
+    val projects: List<ExecutionProject> = emptyList(),
     val loading: Boolean = true,
     val syncing: Boolean = false,
     val pendingSyncCount: Int = 0,
@@ -47,6 +50,7 @@ data class TasksUiState(
 
 private data class TaskObservation(
     val tasks: List<ExecutionTask>,
+    val projects: List<ExecutionProject>,
     val pendingSyncCount: Int,
     val blockedSyncCount: Int,
     val conflicts: List<TaskConflictUi>,
@@ -57,6 +61,7 @@ class TasksViewModel(application: Application) : AndroidViewModel(application) {
     private val database = LifeTraceExecuteDatabase.get(application)
     private val dao = database.dao()
     private val repository = TaskRepository(database)
+    private val projectRepository = ProjectRepository(database)
     private val sessionStore = SecureSessionStore(application)
     private val deviceIdentityStore = DeviceIdentityStore(application)
     private val syncCoordinator = TaskSyncCoordinator(application, database = database)
@@ -84,6 +89,7 @@ class TasksViewModel(application: Application) : AndroidViewModel(application) {
             _state.value = TasksUiState(
                 connected = false,
                 tasks = emptyList(),
+                projects = emptyList(),
                 loading = false,
             )
             return
@@ -97,20 +103,26 @@ class TasksViewModel(application: Application) : AndroidViewModel(application) {
         observeJob = viewModelScope.launch {
             combine(
                 repository.observeTasks(userId),
+                projectRepository.observeProjects(userId),
                 dao.observePendingOutboxCount(userId),
                 dao.observeBlockedOutboxCount(userId),
                 dao.observeConflicts(userId),
-            ) { tasks, pending, blocked, conflicts ->
+            ) { tasks, projects, pending, blocked, conflicts ->
+                val taskConflicts = conflicts
+                    .filter { it.entityType == TaskRepository.ENTITY_TYPE }
+                    .map { it.toUi(tasks) }
                 TaskObservation(
                     tasks = tasks,
+                    projects = projects,
                     pendingSyncCount = pending,
                     blockedSyncCount = blocked,
-                    conflicts = conflicts.map { it.toUi(tasks) },
+                    conflicts = taskConflicts,
                 )
             }.collect { observation ->
                 _state.value = _state.value.copy(
                     connected = true,
                     tasks = observation.tasks,
+                    projects = observation.projects,
                     pendingSyncCount = observation.pendingSyncCount,
                     blockedSyncCount = observation.blockedSyncCount,
                     conflictCount = observation.conflicts.size,
@@ -124,6 +136,7 @@ class TasksViewModel(application: Application) : AndroidViewModel(application) {
     fun createTask(
         title: String,
         description: String?,
+        projectId: String?,
         priority: ExecutionTaskPriority,
         dueAt: String?,
         scheduledAt: String?,
@@ -139,6 +152,7 @@ class TasksViewModel(application: Application) : AndroidViewModel(application) {
                     deviceId = deviceIdentityStore.deviceId(),
                     title = title,
                     description = description,
+                    projectId = projectId,
                     priority = priority,
                     dueAt = dueAt,
                     scheduledAt = scheduledAt,
@@ -158,6 +172,7 @@ class TasksViewModel(application: Application) : AndroidViewModel(application) {
         task: ExecutionTask,
         title: String,
         description: String?,
+        projectId: String?,
         status: ExecutionTaskStatus,
         priority: ExecutionTaskPriority,
         dueAt: String?,
@@ -170,6 +185,7 @@ class TasksViewModel(application: Application) : AndroidViewModel(application) {
                     deviceId = deviceIdentityStore.deviceId(),
                     title = title,
                     description = description,
+                    projectId = projectId,
                     status = status,
                     priority = priority,
                     dueAt = dueAt,
