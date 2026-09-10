@@ -35,6 +35,24 @@ jobs:
       - name: Bootstrap Android and Web platform files
         run: flutter create . --platforms=android,web --org com.lifetrace --project-name lifetrace_execute
 
+      - name: Preserve production Android applicationId
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          gradle = Path('android/app/build.gradle.kts')
+          text = gradle.read_text()
+          text = text.replace('com.lifetrace.lifetrace_execute', 'com.lifetrace.execute')
+          gradle.write_text(text)
+
+          old = Path('android/app/src/main/kotlin/com/lifetrace/lifetrace_execute/MainActivity.kt')
+          new = Path('android/app/src/main/kotlin/com/lifetrace/execute/MainActivity.kt')
+          if old.exists():
+              new.parent.mkdir(parents=True, exist_ok=True)
+              new.write_text(old.read_text().replace('package com.lifetrace.lifetrace_execute', 'package com.lifetrace.execute'))
+              old.unlink()
+          PY
+
       - name: Get dependencies
         run: flutter pub get
 
