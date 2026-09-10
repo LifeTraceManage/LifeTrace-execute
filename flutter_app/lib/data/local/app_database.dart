@@ -72,7 +72,7 @@ class SyncConflicts extends Table {
 
 @DriftDatabase(tables: [Tasks, SyncOutbox, SyncState, SyncConflicts])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase(QueryExecutor executor) : super(executor);
+  AppDatabase(super.executor);
   AppDatabase.production() : super(openProductionConnection());
 
   @override
