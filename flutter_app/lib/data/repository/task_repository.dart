@@ -6,6 +6,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/task/execution_task.dart';
 import '../local/app_database.dart' as db;
+import 'task_database_mapper.dart';
+import 'task_wire_mapper.dart';
 
 abstract interface class TaskRepository {
   Stream<List<ExecutionTask>> watchTasks(String userId);
@@ -50,7 +52,7 @@ class DriftTaskRepository implements TaskRepository {
       ..where((table) => table.userId.equals(userId))
       ..orderBy([(table) => OrderingTerm.desc(table.updatedAt)]);
     return query.watch().map(
-          (rows) => rows.map(_toDomain).toList(growable: false),
+          (rows) => rows.map(TaskDatabaseMapper.fromRow).toList(growable: false),
         );
   }
 
@@ -159,14 +161,16 @@ class DriftTaskRepository implements TaskRepository {
   }
 
   Future<void> _writeLocalChange(ExecutionTask task) async {
-    final payload = jsonEncode(_toPayload(task));
+    final payload = jsonEncode(TaskWireMapper.toPayload(task));
     final dependencies = jsonEncode([
       if (task.projectId != null)
         {'entityType': 'execution.project', 'entityId': task.projectId},
     ]);
 
     await database.transaction(() async {
-      await database.into(database.tasks).insertOnConflictUpdate(_toRow(task));
+      await database
+          .into(database.tasks)
+          .insertOnConflictUpdate(TaskDatabaseMapper.toRow(task));
       await database.into(database.syncOutbox).insert(
             db.SyncOutboxCompanion.insert(
               changeId: _uuid.v4(),
@@ -183,58 +187,6 @@ class DriftTaskRepository implements TaskRepository {
           );
     });
   }
-
-  db.Task _toRow(ExecutionTask task) => db.Task(
-        id: task.id,
-        userId: task.userId,
-        title: task.title,
-        description: task.description,
-        projectId: task.projectId,
-        status: task.status.wireValue,
-        priority: task.priority.wireValue,
-        dueAt: task.dueAt,
-        scheduledAt: task.scheduledAt,
-        completedAt: task.completedAt,
-        createdAt: task.createdAt,
-        updatedAt: task.updatedAt,
-        localVersion: task.localVersion,
-        serverVersion: task.serverVersion,
-        modifiedByDevice: task.modifiedByDevice,
-      );
-
-  ExecutionTask _toDomain(db.Task row) => ExecutionTask(
-        id: row.id,
-        userId: row.userId,
-        title: row.title,
-        description: row.description,
-        projectId: row.projectId,
-        status: ExecutionTaskStatus.fromWire(row.status),
-        priority: ExecutionTaskPriority.fromWire(row.priority),
-        dueAt: row.dueAt,
-        scheduledAt: row.scheduledAt,
-        completedAt: row.completedAt,
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-        localVersion: row.localVersion,
-        serverVersion: row.serverVersion,
-        modifiedByDevice: row.modifiedByDevice,
-      );
-
-  Map<String, Object?> _toPayload(ExecutionTask task) => {
-        'meta': {'id': task.id, 'schemaVersion': 1},
-        'userId': task.userId,
-        'title': task.title,
-        'description': task.description,
-        'projectId': task.projectId,
-        'status': task.status.wireValue,
-        'priority': task.priority.wireValue,
-        'dueAt': task.dueAt,
-        'scheduledAt': task.scheduledAt,
-        'completedAt': task.completedAt,
-        'createdAt': task.createdAt,
-        'updatedAt': task.updatedAt,
-        'modifiedByDevice': task.modifiedByDevice,
-      };
 
   static String? _clean(String? value) {
     final clean = value?.trim();
