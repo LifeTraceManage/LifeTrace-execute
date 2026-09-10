@@ -1,12 +1,13 @@
 name: Deploy Flutter Preview to GitHub Pages
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - Flutter Preview CI
+    types:
+      - completed
     branches:
       - feature/flutter-high-fidelity-preview
-    paths:
-      - "flutter-preview/**"
-      - ".github/workflows/flutter-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -20,13 +21,16 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: flutter-preview
     steps:
-      - name: Checkout
+      - name: Checkout preview branch
         uses: actions/checkout@v4
+        with:
+          ref: feature/flutter-high-fidelity-preview
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -40,12 +44,6 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Analyze
-        run: flutter analyze
-
-      - name: Test
-        run: flutter test
-
       - name: Build Flutter Web
         run: flutter build web --release --base-href "/LifeTrace-execute/"
 
@@ -58,6 +56,7 @@ jobs:
           path: flutter-preview/build/web
 
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
