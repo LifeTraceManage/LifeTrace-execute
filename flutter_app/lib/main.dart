@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -123,17 +124,48 @@ class PhoneStatusBar extends StatelessWidget {
       );
 }
 
-class Shell extends StatefulWidget {
+class Shell extends ConsumerStatefulWidget {
   const Shell({super.key, this.simulateSystemChrome = false});
 
   final bool simulateSystemChrome;
 
   @override
-  State<Shell> createState() => _ShellState();
+  ConsumerState<Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<Shell> {
+class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
   int i = 0;
+
+  bool get _runsOnProductionAndroid =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    if (_runsOnProductionAndroid) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncSilently());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_runsOnProductionAndroid && state == AppLifecycleState.resumed) {
+      _syncSilently();
+    }
+  }
+
+  void _syncSilently() {
+    unawaited(
+      ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
