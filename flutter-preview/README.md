@@ -8,7 +8,7 @@ This folder is **design/prototype code**, not the production data layer. The pro
 
 https://lifetracemanage.github.io/LifeTrace-execute/
 
-The preview is automatically rebuilt and deployed from the `feature/flutter-high-fidelity-preview` branch through GitHub Actions.
+The preview is automatically validated from the `feature/flutter-high-fidelity-preview` branch and then deployed to GitHub Pages by a workflow hosted on the default branch. This keeps the `github-pages` environment compatible with GitHub Pages deployment protection while still publishing the preview branch.
 
 ## Run locally
 
