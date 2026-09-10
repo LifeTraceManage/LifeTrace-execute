@@ -1,0 +1,51 @@
+name: Flutter Production CI
+
+on:
+  push:
+    branches:
+      - refactor/flutter-production
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/flutter-production-ci.yml"
+      - "docs/development/FLUTTER_REFACTOR_PLAN.md"
+  pull_request:
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/flutter-production-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-production:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Bootstrap Android and Web platform files
+        run: flutter create . --platforms=android,web --org com.lifetrace --project-name lifetrace_execute
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build Android debug APK
+        run: flutter build apk --debug
+
+      - name: Build Web preview
+        run: flutter build web --release --target lib/web_preview_main.dart --base-href "/LifeTrace-execute/"
