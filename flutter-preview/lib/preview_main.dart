@@ -10,14 +10,18 @@ void main() {
 
 /// Web-only preview host.
 ///
-/// - Desktop browsers: always render the whole app navigator inside a fixed
-///   360×800 mobile viewport, so every pushed route keeps phone dimensions.
-/// - Narrow/mobile browsers: use the normal full-screen mobile layout.
+/// Desktop browsers render the full navigator inside a real 360×800 logical
+/// phone screen. The dark bezel is outside that logical viewport and therefore
+/// does not change any mobile layout metrics. Narrow/mobile browsers render the
+/// same app full-screen without the desktop presentation shell.
 class ExecuteWebPreview extends StatelessWidget {
   const ExecuteWebPreview({super.key});
 
-  static const double _phoneWidth = 360;
-  static const double _phoneHeight = 800;
+  static const double _screenWidth = 360;
+  static const double _screenHeight = 800;
+  static const double _bezel = 6;
+  static const double _deviceWidth = _screenWidth + _bezel * 2;
+  static const double _deviceHeight = _screenHeight + _bezel * 2;
   static const double _desktopBreakpoint = 600;
   static const double _outerPadding = 24;
 
@@ -26,48 +30,7 @@ class ExecuteWebPreview extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'LifeTrace Execute',
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: execute.C.bg,
-        colorScheme: const ColorScheme.light(
-          primary: execute.C.p,
-          surface: execute.C.surface,
-          onSurface: execute.C.ink,
-          outline: execute.C.border,
-          error: execute.C.red,
-        ),
-        textTheme: const TextTheme(
-          headlineMedium: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-            height: 1.15,
-          ),
-          titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-          titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          bodyMedium: TextStyle(fontSize: 13),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: execute.C.soft,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(0, 52),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        ),
-        navigationBarTheme: const NavigationBarThemeData(
-          height: 72,
-          backgroundColor: execute.C.surface,
-          indicatorColor: execute.C.ps,
-        ),
-      ),
+      theme: execute.buildTheme(),
       builder: (context, child) {
         final navigator = child ?? const SizedBox.shrink();
         final viewport = MediaQuery.sizeOf(context);
@@ -87,13 +50,13 @@ class ExecuteWebPreview extends StatelessWidget {
         final scale = math.min(
           1.0,
           math.min(
-            availableWidth / _phoneWidth,
-            availableHeight / _phoneHeight,
+            availableWidth / _deviceWidth,
+            availableHeight / _deviceHeight,
           ),
         );
 
         final phoneMediaQuery = MediaQuery.of(context).copyWith(
-          size: const Size(_phoneWidth, _phoneHeight),
+          size: const Size(_screenWidth, _screenHeight),
           padding: EdgeInsets.zero,
           viewPadding: EdgeInsets.zero,
           viewInsets: EdgeInsets.zero,
@@ -103,30 +66,36 @@ class ExecuteWebPreview extends StatelessWidget {
           color: const Color(0xFFEEF2F7),
           child: Center(
             child: SizedBox(
-              width: _phoneWidth * scale,
-              height: _phoneHeight * scale,
+              width: _deviceWidth * scale,
+              height: _deviceHeight * scale,
               child: FittedBox(
                 fit: BoxFit.contain,
                 alignment: Alignment.center,
                 child: Container(
-                  width: _phoneWidth,
-                  height: _phoneHeight,
-                  clipBehavior: Clip.antiAlias,
+                  width: _deviceWidth,
+                  height: _deviceHeight,
+                  padding: const EdgeInsets.all(_bezel),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: const Color(0xFFD8DEE8)),
+                    color: const Color(0xFF171A1F),
+                    borderRadius: BorderRadius.circular(36),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x260F172A),
+                        color: Color(0x300F172A),
                         blurRadius: 36,
                         offset: Offset(0, 16),
                       ),
                     ],
                   ),
-                  child: MediaQuery(
-                    data: phoneMediaQuery,
-                    child: navigator,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(30),
+                    child: SizedBox(
+                      width: _screenWidth,
+                      height: _screenHeight,
+                      child: MediaQuery(
+                        data: phoneMediaQuery,
+                        child: navigator,
+                      ),
+                    ),
                   ),
                 ),
               ),
