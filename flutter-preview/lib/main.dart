@@ -195,7 +195,7 @@ class _FocusState extends State<Focus>{
  static const total=1500;int left=total;Timer? t;bool run=false;
  @override void dispose(){t?.cancel();super.dispose();}
  void toggle(){if(run){t?.cancel();setState(()=>run=false);return;}t=Timer.periodic(const Duration(seconds:1),(_){
-  if(left<=0){t?.cancel();setState(()=>run=false);}else setState(()=>left--);});setState(()=>run=true);}
+  if(left<=0){t?.cancel();setState(()=>run=false);}else{setState(()=>left--);}});setState(()=>run=true);}
  String get time=>'${(left~/60).toString().padLeft(2,'0')}:${(left%60).toString().padLeft(2,'0')}';
  @override Widget build(BuildContext c)=>Scaffold(backgroundColor:C.bg,appBar:AppBar(backgroundColor:C.bg,title:const Text('专注')),body:scroll([
   Text('完善 LifeTrace Execute 前端',style:Theme.of(c).textTheme.titleLarge,textAlign:TextAlign.center),const SizedBox(height:5),
@@ -257,9 +257,9 @@ class _CalendarState extends State<Calendar>{DateTime d=DateTime.now();
   const SizedBox(height:10),Row(children:[Expanded(child:Text('${d.year}年${d.month}月',style:Theme.of(c).textTheme.titleLarge)),
    IconButton(onPressed:()=>setState(()=>d=DateTime(d.year,d.month-1,1)),icon:const Icon(Icons.chevron_left_rounded)),
    IconButton(onPressed:()=>setState(()=>d=DateTime(d.year,d.month+1,1)),icon:const Icon(Icons.chevron_right_rounded))]),
-  const SizedBox(height:12),const Row(children:[for(final x in ['一','二','三','四','五','六','日']) Expanded(child:Center(child:Text(x,style:TextStyle(fontSize:11,color:C.muted))))]),
+  const SizedBox(height:12),Row(children:[for(final x in ['一','二','三','四','五','六','日']) Expanded(child:Center(child:Text(x,style:const TextStyle(fontSize:11,color:C.muted))))]),
   const SizedBox(height:8),GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:7,mainAxisExtent:46),
-   itemCount:lead+days,itemBuilder:(_,i){if(i<lead)return const SizedBox.shrink();final day=i-lead+1,sel=d.day==day,event={10,12,18,25}.contains(day);
+   itemCount:lead+days,itemBuilder:(_,i){if(i<lead){return const SizedBox.shrink();}final day=i-lead+1,sel=d.day==day,event={10,12,18,25}.contains(day);
     return InkWell(borderRadius:BorderRadius.circular(12),onTap:()=>setState(()=>d=DateTime(d.year,d.month,day)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
      Container(width:32,height:30,alignment:Alignment.center,decoration:BoxDecoration(color:sel?C.p:Colors.transparent,borderRadius:BorderRadius.circular(10)),
       child:Text('$day',style:TextStyle(fontSize:13,fontWeight:sel?FontWeight.w800:FontWeight.w600,color:sel?Colors.white:C.ink))),
