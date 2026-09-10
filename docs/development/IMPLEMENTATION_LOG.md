@@ -59,20 +59,32 @@ Flutter UI 直接继承已经确认的高保真基线，覆盖 Today / Tasks / T
 
 - `AGENTS.md`：改为 Flutter 生产纵向链与验证规则；
 - `README.md`：改为 Flutter 为正式客户端目标；
+- `docs/README.md` / `docs/development/README.md`：加入 Flutter migration 阅读顺序；
+- `UI_SPEC.md`：改为 Flutter UI / 真实系统 inset 规则；
 - `PROJECT_STATUS.md`：记录 Flutter UI 已迁移、真实数据层尚待迁移。
 
-### 当前验证
+### 验证证据
 
-Flutter Production CI 已启动，Gate 包括：
+Flutter Production CI：
 
 ```text
-flutter analyze
-flutter test
-flutter build apk --debug
-flutter build web --release --target lib/web_preview_main.dart
+run: 34490908679
+commit: c02ab09d727d0f4a34c1e023aa8c3ee8596cc64d
 ```
 
-在 CI 最终成功前，本批次只标记为“工程已建立 / CI 验证中”，不提前写“生产 Flutter 已完成”。
+已通过：
+
+```text
+flutter analyze                 PASS
+flutter test                    PASS
+flutter build apk --debug       PASS
+flutter build web --release     PASS
+workflow                        SUCCESS
+```
+
+因此当前可以确认：**Flutter 正式工程壳、Android Debug 构建和 Web 构建已建立并由 CI 验证通过。**
+
+但 Task/Cloud/Sync 等真实业务数据层尚未迁移，因此不能标记“Flutter 产品已完成”。
 
 ### 下一批
 
