@@ -4,6 +4,16 @@
 
 The project is being migrated from the legacy Jetpack Compose client under `app/` to Flutter. The legacy Android implementation stays in the repository temporarily as the source for already-implemented Local-first, Auth and Sync behavior. It must not receive new product UI work during the migration except for blocking fixes.
 
+## Online preview
+
+The repository GitHub Pages preview is now built from this production Flutter client rather than from the old `flutter-preview/` folder:
+
+```text
+https://lifetracemanage.github.io/LifeTrace-execute/
+```
+
+Desktop Web uses the 360×800 phone frame; Android production uses real system insets.
+
 ## Product UI baseline
 
 The current Flutter screens are promoted from the high-fidelity preview and preserve the fixed primary navigation:
@@ -53,4 +63,4 @@ This preserves continuity with the current Android package.
 
 ## Current status
 
-This first migration batch establishes the production Flutter shell and promotes the approved UI baseline. The data, auth, local-first and sync layers are not yet ported; the Compose implementation remains the behavioral reference until each Flutter vertical slice is verified.
+M0 is verified: Flutter analyze, widget tests, Android debug build and Web build pass in CI. The data, auth, local-first and sync layers are not yet ported; the Compose implementation remains the behavioral reference until each Flutter vertical slice is verified.
