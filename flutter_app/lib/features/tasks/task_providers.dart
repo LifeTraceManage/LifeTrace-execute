@@ -187,6 +187,8 @@ class TaskCommands {
     required String title,
     String? description,
     ExecutionTaskPriority priority = ExecutionTaskPriority.normal,
+    String? dueAt,
+    String? scheduledAt,
   }) async {
     final task = await ref.read(taskRepositoryProvider).createTask(
           userId: await _requireUserId(),
@@ -194,6 +196,8 @@ class TaskCommands {
           title: title,
           description: description,
           priority: priority,
+          dueAt: dueAt,
+          scheduledAt: scheduledAt,
         );
     _scheduleSync();
     return task;
@@ -216,6 +220,11 @@ class TaskCommands {
     String? description,
     ExecutionTaskStatus? status,
     ExecutionTaskPriority? priority,
+    String? dueAt,
+    String? scheduledAt,
+    bool clearDescription = false,
+    bool clearDueAt = false,
+    bool clearScheduledAt = false,
   }) async {
     final updated = await ref.read(taskRepositoryProvider).updateTask(
           task: task,
@@ -224,6 +233,11 @@ class TaskCommands {
           description: description,
           status: status,
           priority: priority,
+          dueAt: dueAt,
+          scheduledAt: scheduledAt,
+          clearDescription: clearDescription,
+          clearDueAt: clearDueAt,
+          clearScheduledAt: clearScheduledAt,
         );
     _scheduleSync();
     return updated;
