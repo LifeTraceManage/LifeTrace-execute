@@ -1,10 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'main.dart' as execute;
 
-void main() => runApp(const ExecuteWebPreview());
+void main() => runApp(const ProviderScope(child: ExecuteWebPreview()));
 
 class ExecuteWebPreview extends StatelessWidget {
   const ExecuteWebPreview({super.key});
