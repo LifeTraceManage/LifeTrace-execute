@@ -34,20 +34,21 @@ refactor/flutter-production
 └── .github/workflows/flutter-production-ci.yml
 ```
 
-当前 Flutter UI 已覆盖：
-
-- Today；
-- Tasks；
-- Task Detail；
-- Focus；
-- Projects；
-- Project Detail；
-- Calendar；
-- Collection；
-- Daily Review；
-- Profile。
+当前 Flutter UI 已覆盖：Today、Tasks、Task Detail、Focus、Projects、Project Detail、Calendar、Collection、Daily Review、Profile。
 
 生产 Android 入口不再绘制假的手机状态栏；模拟状态栏和设备框仅用于 Web Preview。
+
+Flutter Production CI 已验证：
+
+```text
+run 34490908679
+flutter analyze             PASS
+flutter test                PASS
+flutter build apk --debug   PASS
+flutter build web           PASS
+```
+
+因此 **M0 的工程/构建基线已经建立并验证通过**。
 
 ## 3. 仍未迁移到 Flutter 的正式业务链
 
@@ -64,7 +65,7 @@ refactor/flutter-production
 - background sync；
 - Project / Calendar / Collection / Review 等正式数据链。
 
-因此不能把 Flutter 版本写成“功能已完成”。当前准确状态是：**Flutter UI 已迁移，生产数据层迁移开始。**
+因此不能把 Flutter 版本写成“功能已完成”。当前准确状态是：**Flutter UI 已迁移，Flutter 工程 Gate 已验证，生产数据层迁移开始。**
 
 ## 4. 旧 Compose 已有的可迁移能力
 
@@ -132,7 +133,7 @@ com.lifetrace.execute
 按照 `FLUTTER_REFACTOR_PLAN.md`：
 
 ```text
-M0  Flutter 正式壳 + UI 基线
+M0  Flutter 正式壳 + UI 基线                         已验证
 M1  Flutter Foundation / Drift / Secure Storage / Cloud / Sync primitives
 M2  Task 完整纵向链 parity
 M3  Auth / Background Sync / real Cloud E2E parity
@@ -146,4 +147,4 @@ M5  Release Gate + Compose 下线
 
 当前项目不是“Flutter 已重构完成”，而是：
 
-> **已正式切换 Flutter 为生产客户端目标，并建立可运行的 Flutter 生产工程与高保真 UI 基线；旧 Compose 真实业务链作为迁移参考保留。下一步必须优先迁移 Task 的 Local-first + Sync 纵向链。**
+> **已正式切换 Flutter 为生产客户端目标，M0 工程与高保真 UI 基线已通过 Android/Web CI；旧 Compose 真实业务链作为迁移参考保留。下一步优先迁移 Task 的 Local-first + Sync 纵向链。**
