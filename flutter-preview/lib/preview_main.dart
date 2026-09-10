@@ -8,8 +8,11 @@ void main() {
   runApp(const ExecuteWebPreview());
 }
 
-/// Desktop browsers render the mobile prototype inside a fixed 360×800
-/// device viewport. Narrow/mobile browsers keep the normal full-screen app.
+/// Web-only preview host.
+///
+/// - Desktop browsers: always render the whole app navigator inside a fixed
+///   360×800 mobile viewport, so every pushed route keeps phone dimensions.
+/// - Narrow/mobile browsers: use the normal full-screen mobile layout.
 class ExecuteWebPreview extends StatelessWidget {
   const ExecuteWebPreview({super.key});
 
@@ -20,17 +23,80 @@ class ExecuteWebPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < _desktopBreakpoint) {
-          return const execute.LifeTracePreviewApp();
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'LifeTrace Execute',
+      theme: ThemeData(
+        useMaterial3: true,
+        scaffoldBackgroundColor: execute.C.bg,
+        colorScheme: const ColorScheme.light(
+          primary: execute.C.p,
+          surface: execute.C.surface,
+          onSurface: execute.C.ink,
+          outline: execute.C.border,
+          error: execute.C.red,
+        ),
+        textTheme: const TextTheme(
+          headlineMedium: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            height: 1.15,
+          ),
+          titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+          titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          bodyMedium: TextStyle(fontSize: 13),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: execute.C.soft,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 52),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+        ),
+        navigationBarTheme: const NavigationBarThemeData(
+          height: 72,
+          backgroundColor: execute.C.surface,
+          indicatorColor: execute.C.ps,
+        ),
+      ),
+      builder: (context, child) {
+        final navigator = child ?? const SizedBox.shrink();
+        final viewport = MediaQuery.sizeOf(context);
+
+        if (viewport.width < _desktopBreakpoint) {
+          return navigator;
         }
 
-        final availableWidth = math.max(1.0, constraints.maxWidth - _outerPadding * 2);
-        final availableHeight = math.max(1.0, constraints.maxHeight - _outerPadding * 2);
+        final availableWidth = math.max(
+          1.0,
+          viewport.width - _outerPadding * 2,
+        );
+        final availableHeight = math.max(
+          1.0,
+          viewport.height - _outerPadding * 2,
+        );
         final scale = math.min(
           1.0,
-          math.min(availableWidth / _phoneWidth, availableHeight / _phoneHeight),
+          math.min(
+            availableWidth / _phoneWidth,
+            availableHeight / _phoneHeight,
+          ),
+        );
+
+        final phoneMediaQuery = MediaQuery.of(context).copyWith(
+          size: const Size(_phoneWidth, _phoneHeight),
+          padding: EdgeInsets.zero,
+          viewPadding: EdgeInsets.zero,
+          viewInsets: EdgeInsets.zero,
         );
 
         return ColoredBox(
@@ -40,7 +106,8 @@ class ExecuteWebPreview extends StatelessWidget {
               width: _phoneWidth * scale,
               height: _phoneHeight * scale,
               child: FittedBox(
-                fit: BoxFit.fill,
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
                 child: Container(
                   width: _phoneWidth,
                   height: _phoneHeight,
@@ -57,13 +124,17 @@ class ExecuteWebPreview extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: const execute.LifeTracePreviewApp(),
+                  child: MediaQuery(
+                    data: phoneMediaQuery,
+                    child: navigator,
+                  ),
                 ),
               ),
             ),
           ),
         );
       },
+      home: const execute.Shell(),
     );
   }
 }
