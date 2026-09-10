@@ -44,6 +44,9 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Generate Drift code
+        run: dart run build_runner build
+
       - name: Build production Flutter Web preview
         run: flutter build web --release --target lib/web_preview_main.dart --base-href "/LifeTrace-execute/"
 
