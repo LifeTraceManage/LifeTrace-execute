@@ -33,6 +33,10 @@ abstract interface class TaskRepository {
     ExecutionTaskPriority? priority,
     String? dueAt,
     String? scheduledAt,
+    bool clearDescription = false,
+    bool clearProjectId = false,
+    bool clearDueAt = false,
+    bool clearScheduledAt = false,
   });
 
   Future<void> deleteTask({required String userId, required String taskId});
@@ -78,8 +82,8 @@ class DriftTaskRepository implements TaskRepository {
       description: _clean(description),
       projectId: _clean(projectId),
       priority: priority,
-      dueAt: dueAt,
-      scheduledAt: scheduledAt,
+      dueAt: _clean(dueAt),
+      scheduledAt: _clean(scheduledAt),
       createdAt: now,
       updatedAt: now,
       localVersion: 1,
@@ -100,6 +104,10 @@ class DriftTaskRepository implements TaskRepository {
     ExecutionTaskPriority? priority,
     String? dueAt,
     String? scheduledAt,
+    bool clearDescription = false,
+    bool clearProjectId = false,
+    bool clearDueAt = false,
+    bool clearScheduledAt = false,
   }) async {
     final nextTitle = (title ?? task.title).trim();
     if (nextTitle.isEmpty) {
@@ -116,12 +124,28 @@ class DriftTaskRepository implements TaskRepository {
       id: task.id,
       userId: task.userId,
       title: nextTitle,
-      description: description == null ? task.description : _clean(description),
-      projectId: projectId == null ? task.projectId : _clean(projectId),
+      description: clearDescription
+          ? null
+          : description == null
+              ? task.description
+              : _clean(description),
+      projectId: clearProjectId
+          ? null
+          : projectId == null
+              ? task.projectId
+              : _clean(projectId),
       status: nextStatus,
       priority: priority ?? task.priority,
-      dueAt: dueAt ?? task.dueAt,
-      scheduledAt: scheduledAt ?? task.scheduledAt,
+      dueAt: clearDueAt
+          ? null
+          : dueAt == null
+              ? task.dueAt
+              : _clean(dueAt),
+      scheduledAt: clearScheduledAt
+          ? null
+          : scheduledAt == null
+              ? task.scheduledAt
+              : _clean(scheduledAt),
       completedAt: completedAt,
       createdAt: task.createdAt,
       updatedAt: now,
@@ -253,11 +277,11 @@ class PreviewTaskRepository implements TaskRepository {
       id: _uuid.v4(),
       userId: userId,
       title: title.trim(),
-      description: description?.trim(),
-      projectId: projectId,
+      description: _clean(description),
+      projectId: _clean(projectId),
       priority: priority,
-      dueAt: dueAt,
-      scheduledAt: scheduledAt,
+      dueAt: _clean(dueAt),
+      scheduledAt: _clean(scheduledAt),
       createdAt: now,
       updatedAt: now,
       localVersion: 1,
@@ -279,21 +303,46 @@ class PreviewTaskRepository implements TaskRepository {
     ExecutionTaskPriority? priority,
     String? dueAt,
     String? scheduledAt,
+    bool clearDescription = false,
+    bool clearProjectId = false,
+    bool clearDueAt = false,
+    bool clearScheduledAt = false,
   }) async {
     final now = DateTime.now().toUtc().toIso8601String();
     final nextStatus = status ?? task.status;
-    final updated = task.copyWith(
-      title: title,
-      description: description,
-      projectId: projectId,
+    final updated = ExecutionTask(
+      id: task.id,
+      userId: task.userId,
+      title: (title ?? task.title).trim(),
+      description: clearDescription
+          ? null
+          : description == null
+              ? task.description
+              : _clean(description),
+      projectId: clearProjectId
+          ? null
+          : projectId == null
+              ? task.projectId
+              : _clean(projectId),
       status: nextStatus,
-      priority: priority,
-      dueAt: dueAt,
-      scheduledAt: scheduledAt,
-      completedAt: nextStatus == ExecutionTaskStatus.done ? now : null,
-      clearCompletedAt: nextStatus != ExecutionTaskStatus.done,
+      priority: priority ?? task.priority,
+      dueAt: clearDueAt
+          ? null
+          : dueAt == null
+              ? task.dueAt
+              : _clean(dueAt),
+      scheduledAt: clearScheduledAt
+          ? null
+          : scheduledAt == null
+              ? task.scheduledAt
+              : _clean(scheduledAt),
+      completedAt: nextStatus == ExecutionTaskStatus.done
+          ? (task.completedAt ?? now)
+          : null,
+      createdAt: task.createdAt,
       updatedAt: now,
       localVersion: task.localVersion + 1,
+      serverVersion: task.serverVersion,
       modifiedByDevice: deviceId,
     );
     final index = _tasks.indexWhere((item) => item.id == task.id);
@@ -306,5 +355,10 @@ class PreviewTaskRepository implements TaskRepository {
   Future<void> deleteTask({required String userId, required String taskId}) async {
     _tasks.removeWhere((task) => task.userId == userId && task.id == taskId);
     _changes.add(List.unmodifiable(_tasks));
+  }
+
+  static String? _clean(String? value) {
+    final clean = value?.trim();
+    return clean == null || clean.isEmpty ? null : clean;
   }
 }
