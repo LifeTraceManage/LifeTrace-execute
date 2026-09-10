@@ -212,29 +212,67 @@ class _TasksState extends ConsumerState<Tasks> {
   @override
   Widget build(BuildContext c) {
     final tasks = ref.watch(taskListProvider);
+    final session = ref.watch(currentSessionProvider);
+    final connected = kIsWeb || session.valueOrNull != null;
+    final pending = ref.watch(taskPendingSyncCountProvider).valueOrNull ?? 0;
+    final blocked = ref.watch(taskBlockedSyncCountProvider).valueOrNull ?? 0;
+    final conflicts = ref.watch(taskConflictsProvider).valueOrNull ?? const <TaskConflictUi>[];
+    final syncState = ref.watch(taskSyncControllerProvider);
+
     return Scaffold(
       backgroundColor: C.bg,
       floatingActionButton: FloatingActionButton.small(
         backgroundColor: C.p,
         foregroundColor: Colors.white,
-        onPressed: () => _composer(c),
-        child: const Icon(Icons.add),
+        onPressed: connected ? () => _composer(c) : () => push(c, const CloudConnection()),
+        child: Icon(connected ? Icons.add : Icons.cloud_outlined),
       ),
       body: tasks.when(
         loading: () => page([
-          _header(),
+          _header(connected, pending, blocked, syncState.isLoading),
           const SizedBox(height: 80),
           const Center(child: CircularProgressIndicator()),
         ]),
         error: (error, stack) => page([
-          _header(),
+          _header(connected, pending, blocked, syncState.isLoading),
           h('任务数据加载失败'),
           panel(Text('$error', style: const TextStyle(fontSize: 10.5, color: C.red))),
         ]),
         data: (allTasks) {
           final visible = allTasks.where(_matches).toList(growable: false);
           return page([
-            _header(),
+            _header(connected, pending, blocked, syncState.isLoading),
+            if (!connected) ...[
+              const SizedBox(height: 10),
+              panel(
+                Row(children: [
+                  const Icon(Icons.cloud_off_outlined, size: 18, color: C.muted),
+                  const SizedBox(width: 9),
+                  const Expanded(
+                    child: Text(
+                      '连接 LifeTrace Cloud 后即可创建和同步任务',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => push(c, const CloudConnection()),
+                    child: const Text('连接'),
+                  ),
+                ]),
+                color: C.soft,
+              ),
+            ],
+            if (syncState.hasError) ...[
+              const SizedBox(height: 8),
+              Text(
+                '同步失败：${syncState.error}。本地任务不会丢失。',
+                style: const TextStyle(fontSize: 9.2, color: C.red),
+              ),
+            ],
+            if (conflicts.isNotEmpty) ...[
+              h('需要处理的同步冲突 · ${conflicts.length}'),
+              for (final conflict in conflicts) _ConflictRow(conflict),
+            ],
             const SizedBox(height: 10),
             TextField(
               onChanged: (value) => setState(() => query = value.trim().toLowerCase()),
@@ -280,14 +318,41 @@ class _TasksState extends ConsumerState<Tasks> {
     );
   }
 
-  Widget _header() => Row(children: [
+  Widget _header(bool connected, int pending, int blocked, bool syncing) => Row(children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             title('任务'),
-            sub('Local-first · 修改会先保存到本机'),
+            sub(
+              connected
+                  ? 'Local-first · 待同步 $pending${blocked > 0 ? ' · 阻塞 $blocked' : ''}'
+                  : 'Local-first · 尚未连接 Cloud',
+            ),
           ]),
         ),
-        const Icon(Icons.cloud_done_outlined, size: 18, color: C.green),
+        if (connected && !kIsWeb)
+          IconButton(
+            tooltip: '立即同步',
+            onPressed: syncing
+                ? null
+                : () => ref.read(taskSyncControllerProvider.notifier).syncNow(),
+            icon: syncing
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    blocked > 0 ? Icons.cloud_off_outlined : Icons.cloud_done_outlined,
+                    size: 18,
+                    color: blocked > 0 ? C.orange : C.green,
+                  ),
+          )
+        else
+          Icon(
+            connected ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+            size: 18,
+            color: connected ? C.green : C.muted,
+          ),
       ]);
 
   bool _matches(ExecutionTask task) {
@@ -314,6 +379,8 @@ class _TasksState extends ConsumerState<Tasks> {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
     var priority = ExecutionTaskPriority.normal;
+    DateTime? scheduledAt;
+    DateTime? dueAt;
 
     await showModalBottomSheet<void>(
       context: c,
@@ -327,52 +394,76 @@ class _TasksState extends ConsumerState<Tasks> {
             16,
             20 + MediaQuery.of(sheetContext).viewInsets.bottom,
           ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-              controller: titleController,
-              autofocus: true,
-              decoration: const InputDecoration(hintText: '任务标题'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: descriptionController,
-              maxLines: 3,
-              decoration: const InputDecoration(hintText: '描述'),
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<ExecutionTaskPriority>(
-              initialValue: priority,
-              decoration: const InputDecoration(labelText: '优先级'),
-              items: ExecutionTaskPriority.values
-                  .map((item) => DropdownMenuItem(value: item, child: Text(_priorityText(item))))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) setSheetState(() => priority = value);
-              },
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () async {
-                  try {
-                    await ref.read(taskCommandsProvider).create(
-                          title: titleController.text,
-                          description: descriptionController.text,
-                          priority: priority,
-                        );
-                    if (sheetContext.mounted) Navigator.pop(sheetContext);
-                  } catch (error) {
-                    if (!sheetContext.mounted) return;
-                    ScaffoldMessenger.of(sheetContext).showSnackBar(
-                      SnackBar(content: Text('$error')),
-                    );
-                  }
-                },
-                child: const Text('保存任务'),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: titleController,
+                autofocus: true,
+                decoration: const InputDecoration(hintText: '任务标题'),
               ),
-            ),
-          ]),
+              const SizedBox(height: 10),
+              TextField(
+                controller: descriptionController,
+                maxLines: 3,
+                decoration: const InputDecoration(hintText: '描述'),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<ExecutionTaskPriority>(
+                initialValue: priority,
+                decoration: const InputDecoration(labelText: '优先级'),
+                items: ExecutionTaskPriority.values
+                    .map((item) => DropdownMenuItem(value: item, child: Text(_priorityText(item))))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setSheetState(() => priority = value);
+                },
+              ),
+              const SizedBox(height: 10),
+              _DateField(
+                label: '计划时间',
+                value: scheduledAt,
+                onPick: () async {
+                  final value = await _pickDateTime(sheetContext, scheduledAt);
+                  if (value != null) setSheetState(() => scheduledAt = value);
+                },
+                onClear: scheduledAt == null ? null : () => setSheetState(() => scheduledAt = null),
+              ),
+              const SizedBox(height: 8),
+              _DateField(
+                label: '截止时间',
+                value: dueAt,
+                onPick: () async {
+                  final value = await _pickDateTime(sheetContext, dueAt);
+                  if (value != null) setSheetState(() => dueAt = value);
+                },
+                onClear: dueAt == null ? null : () => setSheetState(() => dueAt = null),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () async {
+                    try {
+                      await ref.read(taskCommandsProvider).create(
+                            title: titleController.text,
+                            description: descriptionController.text,
+                            priority: priority,
+                            scheduledAt: scheduledAt?.toUtc().toIso8601String(),
+                            dueAt: dueAt?.toUtc().toIso8601String(),
+                          );
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    } catch (error) {
+                      if (!sheetContext.mounted) return;
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        SnackBar(content: Text('$error')),
+                      );
+                    }
+                  },
+                  child: const Text('保存任务'),
+                ),
+              ),
+            ]),
+          ),
         ),
       ),
     );
@@ -380,6 +471,53 @@ class _TasksState extends ConsumerState<Tasks> {
     titleController.dispose();
     descriptionController.dispose();
   }
+}
+
+class _ConflictRow extends ConsumerWidget {
+  const _ConflictRow(this.conflict);
+  final TaskConflictUi conflict;
+
+  @override
+  Widget build(BuildContext c, WidgetRef ref) => panel(
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(
+            conflict.localTitle ?? '本地任务',
+            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            conflict.serverDeleted
+                ? '云端版本：已删除'
+                : '云端版本：${conflict.serverTitle ?? '内容已更新'}',
+            style: const TextStyle(fontSize: 9.2, color: C.muted),
+          ),
+          if (conflict.reason.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(conflict.reason, style: const TextStyle(fontSize: 8.8, color: C.muted)),
+          ],
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => ref
+                    .read(taskSyncControllerProvider.notifier)
+                    .keepLocal(conflict.conflictId),
+                child: const Text('保留本地'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton.tonal(
+                onPressed: () => ref
+                    .read(taskSyncControllerProvider.notifier)
+                    .keepServer(conflict.conflictId),
+                child: const Text('使用云端'),
+              ),
+            ),
+          ]),
+        ]),
+        color: const Color(0xfffffbf3),
+      );
 }
 
 class _Tabs extends StatelessWidget {
@@ -537,15 +675,15 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
         h('属性'),
         panel(
           Column(children: [
-            _Prop(Icons.schedule_rounded, '时间', task?.scheduledAt ?? task?.dueAt ?? '未设置'),
+            _Prop(Icons.event_available_outlined, '计划', _formatTaskDate(task?.scheduledAt)),
+            const Divider(height: 1),
+            _Prop(Icons.flag_outlined, '截止', _formatTaskDate(task?.dueAt)),
             const Divider(height: 1),
             _Prop(Icons.priority_high_rounded, '优先级', _priorityText(priority)),
             const Divider(height: 1),
             _Prop(Icons.folder_outlined, '项目', task?.projectId ?? '未归属'),
             const Divider(height: 1),
-            const _Prop(Icons.notifications_none_rounded, '提醒', '待 M4 接入'),
-            const Divider(height: 1),
-            const _Prop(Icons.repeat_rounded, '重复', '待 M4 接入'),
+            const _Prop(Icons.notifications_none_rounded, '提醒', '待 Calendar 阶段接入'),
           ]),
         ),
         if (task != null) ...[
@@ -604,6 +742,9 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
     final titleController = TextEditingController(text: task.title);
     final descriptionController = TextEditingController(text: task.description ?? '');
     var priority = task.priority;
+    var status = task.status;
+    DateTime? scheduledAt = DateTime.tryParse(task.scheduledAt ?? '')?.toLocal();
+    DateTime? dueAt = DateTime.tryParse(task.dueAt ?? '')?.toLocal();
 
     await showModalBottomSheet<void>(
       context: context,
@@ -611,44 +752,101 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
       showDragHandle: true,
       builder: (sheetContext) => StatefulBuilder(
         builder: (sheetContext, setSheetState) => Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 20 + MediaQuery.of(sheetContext).viewInsets.bottom),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: titleController, decoration: const InputDecoration(labelText: '标题')),
-            const SizedBox(height: 10),
-            TextField(
-              controller: descriptionController,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: '描述'),
-            ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<ExecutionTaskPriority>(
-              initialValue: priority,
-              decoration: const InputDecoration(labelText: '优先级'),
-              items: ExecutionTaskPriority.values
-                  .map((item) => DropdownMenuItem(value: item, child: Text(_priorityText(item))))
-                  .toList(),
-              onChanged: (value) {
-                if (value != null) setSheetState(() => priority = value);
-              },
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () async {
-                  final updated = await ref.read(taskCommandsProvider).update(
-                        task: task,
-                        title: titleController.text,
-                        description: descriptionController.text,
-                        priority: priority,
-                      );
-                  if (mounted) setState(() => current = updated);
-                  if (sheetContext.mounted) Navigator.pop(sheetContext);
-                },
-                child: const Text('保存修改'),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: titleController, decoration: const InputDecoration(labelText: '标题')),
+              const SizedBox(height: 10),
+              TextField(
+                controller: descriptionController,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: '描述'),
               ),
-            ),
-          ]),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                  child: DropdownButtonFormField<ExecutionTaskStatus>(
+                    initialValue: status,
+                    decoration: const InputDecoration(labelText: '状态'),
+                    items: ExecutionTaskStatus.values
+                        .map((item) => DropdownMenuItem(value: item, child: Text(_statusText(item))))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) setSheetState(() => status = value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<ExecutionTaskPriority>(
+                    initialValue: priority,
+                    decoration: const InputDecoration(labelText: '优先级'),
+                    items: ExecutionTaskPriority.values
+                        .map((item) => DropdownMenuItem(value: item, child: Text(_priorityText(item))))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) setSheetState(() => priority = value);
+                    },
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 10),
+              _DateField(
+                label: '计划时间',
+                value: scheduledAt,
+                onPick: () async {
+                  final value = await _pickDateTime(sheetContext, scheduledAt);
+                  if (value != null) setSheetState(() => scheduledAt = value);
+                },
+                onClear: scheduledAt == null ? null : () => setSheetState(() => scheduledAt = null),
+              ),
+              const SizedBox(height: 8),
+              _DateField(
+                label: '截止时间',
+                value: dueAt,
+                onPick: () async {
+                  final value = await _pickDateTime(sheetContext, dueAt);
+                  if (value != null) setSheetState(() => dueAt = value);
+                },
+                onClear: dueAt == null ? null : () => setSheetState(() => dueAt = null),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () async {
+                    try {
+                      final updated = await ref.read(taskCommandsProvider).update(
+                            task: task,
+                            title: titleController.text,
+                            description: descriptionController.text,
+                            clearDescription: descriptionController.text.trim().isEmpty,
+                            status: status,
+                            priority: priority,
+                            scheduledAt: scheduledAt?.toUtc().toIso8601String(),
+                            dueAt: dueAt?.toUtc().toIso8601String(),
+                            clearScheduledAt: scheduledAt == null,
+                            clearDueAt: dueAt == null,
+                          );
+                      if (mounted) setState(() => current = updated);
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    } catch (error) {
+                      if (!sheetContext.mounted) return;
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        SnackBar(content: Text('$error')),
+                      );
+                    }
+                  },
+                  child: const Text('保存修改'),
+                ),
+              ),
+            ]),
+          ),
         ),
       ),
     );
@@ -656,6 +854,73 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
     titleController.dispose();
     descriptionController.dispose();
   }
+}
+
+class _DateField extends StatelessWidget {
+  const _DateField({
+    required this.label,
+    required this.value,
+    required this.onPick,
+    this.onClear,
+  });
+
+  final String label;
+  final DateTime? value;
+  final VoidCallback onPick;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        decoration: BoxDecoration(color: C.soft, borderRadius: BorderRadius.circular(12)),
+        child: Row(children: [
+          Expanded(
+            child: InkWell(
+              onTap: onPick,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(label, style: const TextStyle(fontSize: 8.5, color: C.muted)),
+                  const SizedBox(height: 2),
+                  Text(
+                    value == null ? '未设置' : _formatDateTime(value!),
+                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+          if (onClear != null)
+            IconButton(
+              tooltip: '清除',
+              onPressed: onClear,
+              icon: const Icon(Icons.close_rounded, size: 16),
+            )
+          else
+            const Padding(
+              padding: EdgeInsets.only(right: 10),
+              child: Icon(Icons.schedule_rounded, size: 16, color: C.muted),
+            ),
+        ]),
+      );
+}
+
+Future<DateTime?> _pickDateTime(BuildContext context, DateTime? initial) async {
+  final now = DateTime.now();
+  final start = initial ?? now;
+  final date = await showDatePicker(
+    context: context,
+    initialDate: start,
+    firstDate: DateTime(now.year - 2),
+    lastDate: DateTime(now.year + 10),
+  );
+  if (date == null || !context.mounted) return null;
+  final time = await showTimePicker(
+    context: context,
+    initialTime: TimeOfDay.fromDateTime(start),
+  );
+  if (time == null) return null;
+  return DateTime(date.year, date.month, date.day, time.hour, time.minute);
 }
 
 class _Prop extends StatelessWidget {
@@ -710,9 +975,20 @@ String _statusText(ExecutionTaskStatus status) => switch (status) {
 String _taskMeta(ExecutionTask task) {
   final parts = <String>[];
   if (task.projectId != null) parts.add('项目');
-  if (task.scheduledAt != null) parts.add(task.scheduledAt!);
-  if (task.dueAt != null) parts.add('截止 ${task.dueAt}');
+  if (task.scheduledAt != null) parts.add('计划 ${_formatTaskDate(task.scheduledAt)}');
+  if (task.dueAt != null) parts.add('截止 ${_formatTaskDate(task.dueAt)}');
   if (task.status == ExecutionTaskStatus.waiting) parts.add('等待中');
   if (parts.isEmpty) parts.add('本地任务');
   return parts.join(' · ');
+}
+
+String _formatTaskDate(String? raw) {
+  if (raw == null) return '未设置';
+  final value = DateTime.tryParse(raw)?.toLocal();
+  return value == null ? raw : _formatDateTime(value);
+}
+
+String _formatDateTime(DateTime value) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${value.month}月${value.day}日 ${two(value.hour)}:${two(value.minute)}';
 }
