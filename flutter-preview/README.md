@@ -6,11 +6,16 @@ This folder is **design/prototype code**, not the production data layer. The pro
 
 ## Run
 
+The repository keeps this preview lightweight and does not commit generated Android/Web platform folders. After cloning, generate them once locally:
+
 ```bash
 cd flutter-preview
+flutter create . --platforms=android,web --project-name lifetrace_execute_preview
 flutter pub get
 flutter run
 ```
+
+`flutter create` keeps the existing `lib/main.dart` and only fills in the missing platform scaffold.
 
 ## Included flows
 
