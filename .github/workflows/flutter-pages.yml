@@ -39,7 +39,7 @@ jobs:
           cache: true
 
       - name: Bootstrap Flutter Web platform
-        run: flutter create . --platforms=web --project-name lifetrace_execute
+        run: flutter create . --platforms=web --project-name lifetrace_execute --no-pub
 
       - name: Get dependencies
         run: flutter pub get
