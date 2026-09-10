@@ -1,36 +1,24 @@
 # LifeTrace Execute
 
-LifeTrace Execute 是 LifeTrace 的独立执行中心 Android 客户端，负责今天、任务、项目、日历、收集与复盘等日常执行场景。
+LifeTrace Execute 是 LifeTrace 的独立执行中心，负责今天、任务、项目、日历、收集、专注与复盘等日常执行场景。
 
-项目采用：
+## 当前客户端方向
 
-- `web-preview/`：浏览器高保真设计与交互评审基线；
-- `app/`：Jetpack Compose 正式 Android 客户端；
-- `zhouxingxing1279/LifeTrace`：统一 LifeTrace Cloud，Rust + Axum + PostgreSQL。
+从 2026-09-10 起，项目正式从 Jetpack Compose 迁移到 **Flutter**：
 
-正式客户端采用 **Local-first + LifeTrace Cloud Sync**。业务写入先落本机 Room 与 Outbox，网络不是本地执行的前置条件。
+- `flutter_app/`：新的正式客户端目标；
+- `app/`：旧 Jetpack Compose Android 客户端，迁移期间保留为已实现业务、Local-first、Auth/Sync 行为参考；
+- `flutter-preview/`：此前高保真 Flutter 设计原型，保留作设计历史参考；
+- `web-preview/`：旧浏览器设计原型；
+- LifeTrace Cloud：继续复用统一 Rust + Axum + PostgreSQL 后端，不建设第二套 Execute 云端。
 
-> 功能保护规则：新增或重构时不得删除已经确认的项目、收集、复盘、我的、重要日期、番茄钟等能力。允许调整入口，但不能用“简化”为理由移除功能。
+这次是**客户端实现技术栈重构，不是产品重做**。底层 Cloud 契约、Local-first 规则、Sync v1 语义和产品范围继续保留。
 
-## 文档入口
-
-后续开发统一从 [`docs/README.md`](docs/README.md) 进入。
-
-开发相关文档已经集中整理到 `docs/development/`：
-
-- [`docs/development/README.md`](docs/development/README.md)：开发文档阅读顺序、状态定义和维护规则；
-- [`docs/development/REQUIREMENTS.md`](docs/development/REQUIREMENTS.md)：长期需求 Source of Truth；
-- [`docs/development/FOUNDATION_EXECUTION_PLAN.md`](docs/development/FOUNDATION_EXECUTION_PLAN.md)：当前最高优先级的 **全功能 1.0 交付执行文档**，按 Phase Gate 连续推进直到所有已确认功能真实实现；
-- [`docs/development/EXECUTION_PLAN.md`](docs/development/EXECUTION_PLAN.md)：完整长期实施计划、Cloud 架构与最终 Release Gate；
-- [`docs/development/PROJECT_STATUS.md`](docs/development/PROJECT_STATUS.md)：当前真实完成度与下一阶段；
-- [`docs/development/IMPLEMENTATION_LOG.md`](docs/development/IMPLEMENTATION_LOG.md)：工程实施记录、提交证据与已知阻塞；
-- [`docs/development/UI_SPEC.md`](docs/development/UI_SPEC.md)：视觉、导航与组件规范。
-
-> 开始新的开发批次前，至少阅读 `docs/README.md`、`docs/development/README.md`、`FOUNDATION_EXECUTION_PLAN.md` 和 `PROJECT_STATUS.md`。
+Flutter 重构计划：[`docs/development/FLUTTER_REFACTOR_PLAN.md`](docs/development/FLUTTER_REFACTOR_PLAN.md)
 
 ## 固定信息架构
 
-底部一级导航固定：
+底部一级导航保持：
 
 1. 今天
 2. 任务
@@ -38,52 +26,45 @@ LifeTrace Execute 是 LifeTrace 的独立执行中心 Android 客户端，负责
 4. 日历
 5. 收集
 
-“我的”通过右上角头像进入；“今日复盘”从今天页进入；“番茄时钟”位于任务页；“重要日期”位于日历页。
+“我的”通过头像进入；“今日复盘”从 Today 进入；专注/番茄与任务工作流关联；重要日期属于日历域。
 
-## 浏览器高保真预览
+## Flutter 正式客户端
 
 ```text
-web-preview/
-├── index.html
-├── styles.css
-├── app.js
-├── features-v3.css
-└── features-v3.js
+flutter_app/
+├── lib/
+│   ├── main.dart
+│   ├── screens_a.dart
+│   ├── screens_b.dart
+│   ├── screens_c.dart
+│   └── web_preview_main.dart
+├── test/
+├── pubspec.yaml
+└── README.md
 ```
 
-浏览器版本已经覆盖主导航、今天、任务、项目、日历、收集、我的、复盘，以及重要日期和番茄钟高保真交互。
+当前第一批迁移已经把确认过的高保真 UI 提升为 `flutter_app/` 的正式 UI 基线。Android 生产入口使用真实系统安全区；模拟状态栏和手机外壳只用于 Web 评审预览。
 
-> 浏览器预览只作为设计基线，不计入 Android 正式功能完成度。
+> 当前 Flutter UI 已迁移，但 Task/Cloud/Sync 等真实业务链还在迁移中。不能因为 Flutter 页面存在就把模块标记为完成。
 
-## Android 当前实现
+## 生产架构目标
 
-技术栈：
-
-- Kotlin 2.0.21
-- Jetpack Compose / Material 3
-- Navigation Compose
-- Room / SQLite
-- Kotlin Coroutines
-- Android Keystore
-- WorkManager
-- minSdk 26 / targetSdk 35
-
-### 已建立的正式基础设施
+继续采用 **Local-first + LifeTrace Cloud Sync**：
 
 ```text
-Compose UI
+Flutter UI
     ↓
-ViewModel
+Riverpod state / use case
     ↓
-Domain / Repository
+Repository
     ↓
-Room
-    ├── tasks
+Drift / SQLite
+    ├── business tables
     ├── sync_outbox
     ├── sync_state
     └── sync_conflicts
     ↓
-TaskSyncCoordinator
+Generic Sync Core
     ↓
 LifeTrace Sync v1
     ├── capabilities
@@ -94,82 +75,57 @@ LifeTrace Sync v1
 LifeTrace Cloud / PostgreSQL
 ```
 
-当前只有 Task 已进入完整数据链；Today / Project / Calendar / Collection / Review / Profile 的大量内容仍为 Mock 或静态 UI。后续完成度统一按 `docs/development/FOUNDATION_EXECUTION_PLAN.md` 的纵向闭环标准判断。
+关键兼容要求：
 
-### Cloud Auth
+- Android `applicationId` 保持 `com.lifetrace.execute`；
+- Android Cloud AppId 保持 `lifetrace-execute-android`；
+- 继续使用 Auth v1、Sync v1；
+- 本地写入仍要求业务实体和 Outbox 同一 SQLite transaction；
+- 保留 changeId 幂等、baseServerVersion 冲突、cursor、tombstone、rebase、retry 分类等既有语义。
 
-Android 已接入：
+## 迁移顺序
 
-- `lifetrace-execute-android` AppId；
-- `/api/v1/auth/login`；
-- `/api/v1/auth/refresh`；
-- `/api/v1/auth/logout`；
-- access / refresh token；
-- 安装级稳定 `deviceId`；
-- Android Keystore + AES-GCM 安全会话存储；
-- HTTPS-only Cloud origin；
-- access token 过期后受控刷新并最多重放一次；
-- execution / sync / account / device 等最小必要 Scope 校验。
-
-### Tasks 第一条正式纵向链
-
-任务页运行时已经从 `MockData.todayTasks` 切换到 Room / Repository：
-
-- 真实本地任务列表；
-- 搜索；
-- 状态筛选；
-- 新建 / 编辑 / 删除；
-- 标题 / 描述；
-- 优先级；
-- 完成 / 恢复；
-- `scheduledAt` / `dueAt`；
-- Android 日期时间选择；
-- Task + Outbox 同事务；
-- WorkManager 自动同步；
-- 手动 Cloud 同步；
-- Snapshot / Push / Pull；
-- accepted / duplicate / rejected；
-- conflict 持久化；
-- tombstone；
-- 同实体连续编辑 rebase。
-
-冲突解析的 DAO / Resolver / ViewModel / Bottom Sheet 已存在，但当前 `TasksScreen` 尚未把处理入口完整接通，因此仍需要完成 UI 闭环。
-
-## 构建与验证
-
-工作流：
+Flutter 不是一次性把旧代码删除重写，而是以纵向业务链迁移：
 
 ```text
-.github/workflows/android-ci.yml
+M0  Flutter 正式壳与 UI 基线
+M1  Flutter Foundation / Drift / Auth / Sync primitives
+M2  Task 完整纵向链迁移
+M3  Cloud Auth + Sync 运行时对齐
+M4  Project / Advanced Task / Calendar / Collection / Review / Focus / Today / Profile
+M5  Flutter Release Gate 与 Compose 下线
 ```
 
-固定环境：
+旧 Compose `app/` 在 Flutter 对应业务 Gate 通过前保留，不再承接新的产品 UI 开发。
 
-- JDK 17
-- Gradle 8.10.2
-- `:app:assembleDebug`
-- `:app:testDebugUnitTest`
-- `:app:lintDebug`
+## 文档入口
 
-截至 2026-08-28，代码基线提交 `b190bce3e3d3b82b914ddff952bec8c69d59a8ba` 的 Android CI run `33135872033` 已成功完成。
+后续开发统一从 [`docs/README.md`](docs/README.md) 进入。核心文档：
 
-但当前仓库还没有 `app/src/test`，因此下一阶段必须建立真实业务单测，不能只以 Gradle test task PASS 作为质量完成证据。
+- `REQUIREMENTS.md`：产品范围 Source of Truth；
+- `FOUNDATION_EXECUTION_PLAN.md`：功能 Phase 与 Gate；
+- `FLUTTER_REFACTOR_PLAN.md`：客户端技术栈迁移与 Cutover 标准；
+- `PROJECT_STATUS.md`：当前真实进度；
+- `IMPLEMENTATION_LOG.md`：提交和 CI 证据；
+- `UI_SPEC.md`：UI/交互基线。
 
-## 当前最高优先级
+## Flutter 验证
 
-按 [`docs/development/FOUNDATION_EXECUTION_PLAN.md`](docs/development/FOUNDATION_EXECUTION_PLAN.md) 连续执行，目标是完成当前规划内全部功能：
+新的生产 Flutter CI：
 
-1. F0：Task 冲突闭环 + 真实测试基线；
-2. F1：Generic Sync Core + Execution Contracts；
-3. F2：Project 完整纵向链；
-4. F3：Task recurrence / occurrence / waiting / reminder / dependency / completion / subtask；
-5. F4：Calendar + Important Date + Reminder / Notification；
-6. F5：Collection 六类入口 + Tags + Files + Voice；
-7. F6：Daily Review + Weekly Review；
-8. F7：Goal / Habit 正式接入；
-9. F8：Pomodoro / FocusSession；
-10. F9：Today 最终真实聚合；
-11. F10：Profile / Devices / Settings / Data；
-12. F11：全实体 Sync / Offline / 双设备 E2E / Release。
+```text
+.github/workflows/flutter-production-ci.yml
+```
 
-1.0 的完成定义是：**所有已确认功能均形成真实纵向闭环，生产路径无 MockData、核心按钮无空操作、核心数据可持久化/离线运行、需要同步的实体全部可跨设备同步，并有真实自动化测试与发布证据。**
+基础 Gate：
+
+```text
+flutter analyze
+flutter test
+flutter build apk --debug
+flutter build web --release
+```
+
+涉及数据库、离线、同步、后台任务、通知、计时和多设备时，仍需执行相应 migration / smoke / E2E Gate。
+
+项目 1.0 的完成定义仍然是：**所有已确认功能形成真实纵向闭环，生产路径不依赖 MockData，核心数据可本地持久化与离线使用，需要同步的实体可跨设备同步，并有真实自动化测试、CI 和发布证据。**
