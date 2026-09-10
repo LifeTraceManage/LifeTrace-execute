@@ -7,7 +7,6 @@ import '../../core/cloud/cloud_session_manager.dart';
 import '../../core/cloud/lifetrace_sync_client.dart';
 import '../../core/cloud/sync_models.dart';
 import '../../core/identity/device_identity_store.dart';
-import '../../domain/task/execution_task.dart';
 import '../local/app_database.dart' as db;
 import '../repository/task_database_mapper.dart';
 import '../repository/task_repository.dart';
@@ -221,13 +220,6 @@ class TaskSyncCoordinator {
 
     await database.transaction(() async {
       for (final item in heads) {
-        await (database.update(database.syncOutbox)
-              ..where((table) => table.changeId.equals(item.changeId)))
-            .write(
-          const db.SyncOutboxCompanion(
-            attemptCount: Value.absent(),
-          ),
-        );
         await database.customUpdate(
           'UPDATE sync_outbox '
           'SET attempt_count = attempt_count + 1, error_code = NULL, error_message = NULL '
