@@ -3,7 +3,15 @@ import 'cloud_contract.dart';
 import 'lifetrace_cloud_client.dart';
 import 'secure_session_store.dart';
 
-class CloudSessionManager {
+abstract interface class CloudSessionAccess {
+  Future<StoredCloudSession?> currentSession();
+
+  Future<T> authorized<T>(
+    Future<T> Function(StoredCloudSession session) block,
+  );
+}
+
+class CloudSessionManager implements CloudSessionAccess {
   CloudSessionManager({
     CloudSessionStore? sessionStore,
     LifeTraceCloudClient? authClient,
@@ -18,6 +26,7 @@ class CloudSessionManager {
   final LifeTraceCloudClient _authClient;
   final DeviceIdentityStore _identityStore;
 
+  @override
   Future<StoredCloudSession?> currentSession() => _sessionStore.load();
 
   Future<StoredCloudSession> login({
@@ -87,7 +96,10 @@ class CloudSessionManager {
     return _refresh(current);
   }
 
-  Future<T> authorized<T>(Future<T> Function(StoredCloudSession session) block) async {
+  @override
+  Future<T> authorized<T>(
+    Future<T> Function(StoredCloudSession session) block,
+  ) async {
     final session = await requireFreshSession();
     try {
       return await block(session);
