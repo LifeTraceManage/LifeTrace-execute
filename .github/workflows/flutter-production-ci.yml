@@ -17,6 +17,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: flutter-production-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   flutter-production:
     runs-on: ubuntu-latest
@@ -33,7 +37,7 @@ jobs:
           cache: true
 
       - name: Bootstrap Android and Web platform files
-        run: flutter create . --platforms=android,web --org com.lifetrace --project-name lifetrace_execute
+        run: flutter create . --platforms=android,web --org com.lifetrace --project-name lifetrace_execute --no-pub
 
       - name: Preserve production Android applicationId
         run: |
