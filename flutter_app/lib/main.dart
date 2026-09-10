@@ -1,12 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'domain/task/execution_task.dart';
+import 'features/tasks/task_providers.dart';
 
 part 'screens_a.dart';
 part 'screens_b.dart';
 part 'screens_c.dart';
 
-void main() => runApp(const LifeTraceExecuteApp());
+void main() => runApp(const ProviderScope(child: LifeTraceExecuteApp()));
 
 abstract final class C {
   static const p = Color(0xff2468f2),
