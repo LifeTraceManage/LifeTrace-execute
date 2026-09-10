@@ -38,8 +38,10 @@ class SyncOutbox extends Table {
   TextColumn get atomicGroupId => text().nullable()();
   TextColumn get dependenciesJson => text().withDefault(const Constant('[]'))();
   TextColumn get createdAt => text()();
+  IntColumn get attemptCount => integer().withDefault(const Constant(0))();
   BoolColumn get blocked => boolean().withDefault(const Constant(false))();
   TextColumn get errorCode => text().nullable()();
+  TextColumn get errorMessage => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {changeId};
@@ -50,6 +52,9 @@ class SyncState extends Table {
   TextColumn get userId => text()();
   TextColumn get cursor => text().nullable()();
   TextColumn get updatedAt => text()();
+  TextColumn get snapshotId => text().nullable()();
+  TextColumn get snapshotPageToken => text().nullable()();
+  TextColumn get snapshotCursor => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {scope, userId};
@@ -60,9 +65,13 @@ class SyncConflicts extends Table {
   TextColumn get userId => text()();
   TextColumn get entityType => text()();
   TextColumn get entityId => text()();
+  TextColumn get changeId => text().withDefault(const Constant(''))();
+  TextColumn get clientBaseServerVersion => text().withDefault(const Constant(''))();
   TextColumn get localPayloadJson => text().nullable()();
   TextColumn get serverPayloadJson => text().nullable()();
   TextColumn get serverVersion => text().nullable()();
+  BoolColumn get serverDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get reason => text().withDefault(const Constant(''))();
   TextColumn get createdAt => text()();
   BoolColumn get resolved => boolean().withDefault(const Constant(false))();
 
@@ -76,5 +85,26 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.production() : super(openProductionConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (migrator) => migrator.createAll(),
+        onUpgrade: (migrator, from, to) async {
+          if (from < 2) {
+            await migrator.addColumn(syncOutbox, syncOutbox.attemptCount);
+            await migrator.addColumn(syncOutbox, syncOutbox.errorMessage);
+            await migrator.addColumn(syncState, syncState.snapshotId);
+            await migrator.addColumn(syncState, syncState.snapshotPageToken);
+            await migrator.addColumn(syncState, syncState.snapshotCursor);
+            await migrator.addColumn(syncConflicts, syncConflicts.changeId);
+            await migrator.addColumn(
+              syncConflicts,
+              syncConflicts.clientBaseServerVersion,
+            );
+            await migrator.addColumn(syncConflicts, syncConflicts.serverDeleted);
+            await migrator.addColumn(syncConflicts, syncConflicts.reason);
+          }
+        },
+      );
 }
