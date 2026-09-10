@@ -341,7 +341,7 @@ class _TasksState extends ConsumerState<Tasks> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<ExecutionTaskPriority>(
-              value: priority,
+              initialValue: priority,
               decoration: const InputDecoration(labelText: '优先级'),
               items: ExecutionTaskPriority.values
                   .map((item) => DropdownMenuItem(value: item, child: Text(_priorityText(item))))
@@ -622,7 +622,7 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<ExecutionTaskPriority>(
-              value: priority,
+              initialValue: priority,
               decoration: const InputDecoration(labelText: '优先级'),
               items: ExecutionTaskPriority.values
                   .map((item) => DropdownMenuItem(value: item, child: Text(_priorityText(item))))
