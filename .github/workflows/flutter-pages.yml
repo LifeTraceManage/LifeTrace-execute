@@ -3,11 +3,11 @@ name: Deploy Flutter Preview to GitHub Pages
 on:
   workflow_run:
     workflows:
-      - Flutter Preview CI
+      - Flutter Production CI
     types:
       - completed
     branches:
-      - feature/flutter-high-fidelity-preview
+      - refactor/flutter-production
   workflow_dispatch:
 
 permissions:
@@ -25,12 +25,12 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: flutter-preview
+        working-directory: flutter_app
     steps:
-      - name: Checkout preview branch
+      - name: Checkout Flutter production branch
         uses: actions/checkout@v4
         with:
-          ref: feature/flutter-high-fidelity-preview
+          ref: refactor/flutter-production
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -39,13 +39,13 @@ jobs:
           cache: true
 
       - name: Bootstrap Flutter Web platform
-        run: flutter create . --platforms=web --project-name lifetrace_execute_preview
+        run: flutter create . --platforms=web --project-name lifetrace_execute
 
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build phone-sized Flutter Web preview
-        run: flutter build web --release --target lib/preview_main.dart --base-href "/LifeTrace-execute/"
+      - name: Build production Flutter Web preview
+        run: flutter build web --release --target lib/web_preview_main.dart --base-href "/LifeTrace-execute/"
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -53,7 +53,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: flutter-preview/build/web
+          path: flutter_app/build/web
 
   deploy:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
