@@ -44,8 +44,8 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build Flutter Web
-        run: flutter build web --release --base-href "/LifeTrace-execute/"
+      - name: Build phone-sized Flutter Web preview
+        run: flutter build web --release --target lib/preview_main.dart --base-href "/LifeTrace-execute/"
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
