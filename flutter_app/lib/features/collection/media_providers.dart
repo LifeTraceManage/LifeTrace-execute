@@ -180,7 +180,7 @@ class MediaCommands {
       throw ArgumentError.value(kind, 'kind', '不是媒体类型');
     }
 
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: switch (kind) {
         ExecutionMemoKind.image => FileType.image,
         ExecutionMemoKind.audio => FileType.audio,
