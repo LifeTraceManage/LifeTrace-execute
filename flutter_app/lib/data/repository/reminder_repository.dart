@@ -147,6 +147,7 @@ abstract final class ReminderWireMapper {
 
 abstract interface class ReminderRepository {
   Stream<List<ExecutionReminder>> watchReminders(String userId);
+  Future<List<ExecutionReminder>> listReminders(String userId);
 
   Stream<List<ExecutionReminder>> watchForSubject({
     required String userId,
@@ -199,6 +200,16 @@ class DriftReminderRepository implements ReminderRepository {
           (rows) =>
               rows.map(ReminderDatabaseMapper.fromRow).toList(growable: false),
         );
+  }
+
+  @override
+  Future<List<ExecutionReminder>> listReminders(String userId) async {
+    final query = database.select(database.reminders)
+      ..where((table) => table.userId.equals(userId))
+      ..orderBy([(table) => OrderingTerm.desc(table.updatedAt)]);
+    return (await query.get())
+        .map(ReminderDatabaseMapper.fromRow)
+        .toList(growable: false);
   }
 
   @override
@@ -392,6 +403,10 @@ class PreviewReminderRepository implements ReminderRepository {
       yield snapshot();
     }
   }
+
+  @override
+  Future<List<ExecutionReminder>> listReminders(String userId) async =>
+      _items.where((item) => item.userId == userId).toList(growable: false);
 
   @override
   Stream<List<ExecutionReminder>> watchForSubject({
