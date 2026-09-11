@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/background/background_sync.dart';
 import '../../core/files/local_file_access.dart';
 import '../../data/repository/entity_link_repository.dart';
 import '../../data/repository/file_metadata_repository.dart';
@@ -246,6 +247,7 @@ class MediaCommands {
             .read(mediaUploadControllerProvider.notifier)
             .processPending(silent: true),
       );
+      unawaited(BackgroundSyncScheduler.enqueueAfterLocalChange());
       return result.memo;
     } catch (_) {
       await deleteLocalFile(localPath);
