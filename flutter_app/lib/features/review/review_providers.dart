@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/background/background_sync.dart';
 import '../../data/repository/daily_review_repository.dart';
 import '../../data/sync/daily_review_conflict_resolver.dart';
 import '../../domain/review/daily_review.dart';
@@ -179,6 +180,7 @@ class DailyReviewCommands {
     unawaited(
       ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true),
     );
+    unawaited(BackgroundSyncScheduler.enqueueAfterLocalChange());
   }
 }
 
