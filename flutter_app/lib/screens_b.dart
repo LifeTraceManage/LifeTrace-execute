@@ -1352,11 +1352,10 @@ Future<void> _editCalendarEvent(
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
-                      if (existingReminder != null) {
-                        await ref
-                            .read(reminderCommandsProvider)
-                            .cancel(existingReminder);
-                      }
+                      await ref.read(reminderCommandsProvider).cancelForSubject(
+                            subjectType: ReminderSubjectTypes.calendarEvent,
+                            subjectId: event.id,
+                          );
                       await ref.read(calendarCommandsProvider).delete(event);
                       if (sheetContext.mounted) Navigator.pop(sheetContext);
                     },
@@ -1431,10 +1430,12 @@ Future<void> _editCalendarEvent(
                                   savedEvent.description ??
                                   'LifeTrace 日程提醒',
                             );
-                      } else if (existingReminder != null) {
-                        await ref
-                            .read(reminderCommandsProvider)
-                            .cancel(existingReminder);
+                      } else {
+                        await ref.read(reminderCommandsProvider).cancelForSubject(
+                              subjectType:
+                                  ReminderSubjectTypes.calendarEvent,
+                              subjectId: savedEvent.id,
+                            );
                       }
 
                       if (sheetContext.mounted) Navigator.pop(sheetContext);
