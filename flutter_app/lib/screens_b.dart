@@ -800,6 +800,9 @@ class _CalendarState extends ConsumerState<Calendar> {
     final tasks = ref.watch(taskListProvider).valueOrNull ?? const <ExecutionTask>[];
     final conflicts = ref.watch(calendarConflictsProvider).valueOrNull ??
         const <CalendarConflictUi>[];
+    final reminderConflicts =
+        ref.watch(reminderConflictsProvider).valueOrNull ??
+            const <ReminderConflictUi>[];
     final grid = calendarMonthGrid(visibleMonth);
     final agenda = _calendarAgendaFor(selectedDate, events, tasks);
 
@@ -851,6 +854,10 @@ class _CalendarState extends ConsumerState<Calendar> {
         if (conflicts.isNotEmpty) ...[
           const SizedBox(height: 8),
           _CalendarConflictCard(conflict: conflicts.first),
+        ],
+        if (reminderConflicts.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _ReminderConflictBanner(conflict: reminderConflicts.first),
         ],
         const SizedBox(height: 8),
         Row(children: [
