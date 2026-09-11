@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/background/background_sync.dart';
 import '../../core/files/local_file_access.dart';
 import '../../data/repository/collection_workflow_repository.dart';
 import '../../data/repository/memo_repository.dart';
@@ -270,6 +271,7 @@ class CollectionCommands {
     unawaited(
       ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true),
     );
+    unawaited(BackgroundSyncScheduler.enqueueAfterLocalChange());
   }
 
   static String _memoTaskTitle(ExecutionMemo memo) {
