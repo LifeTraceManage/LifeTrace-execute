@@ -113,11 +113,10 @@ class MediaUploadController extends AsyncNotifier<MediaUploadSummary?> {
   FutureOr<MediaUploadSummary?> build() => null;
 
   Future<MediaUploadSummary?> processPending({bool silent = false}) async {
-    final coordinator = ref.read(mediaUploadCoordinatorProvider);
-    if (coordinator == null) return null;
-
     if (silent) {
       try {
+        final coordinator = ref.read(mediaUploadCoordinatorProvider);
+        if (coordinator == null) return null;
         final summary = await coordinator.processPending();
         if (summary.completed > 0) {
           await ref
@@ -130,6 +129,8 @@ class MediaUploadController extends AsyncNotifier<MediaUploadSummary?> {
       }
     }
 
+    final coordinator = ref.read(mediaUploadCoordinatorProvider);
+    if (coordinator == null) return null;
     state = const AsyncLoading();
     final next = await AsyncValue.guard(coordinator.processPending);
     state = next;
