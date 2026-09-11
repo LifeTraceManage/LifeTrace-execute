@@ -539,6 +539,8 @@ class _TasksState extends ConsumerState<Tasks> {
           final visible = allTasks.where(_matches).toList(growable: false);
           return page([
             _header(connected, pending, blocked, syncState.isLoading),
+            const SizedBox(height: 10),
+            _TaskOverview(allTasks),
             if (!connected) ...[
               const SizedBox(height: 10),
               panel(
@@ -768,6 +770,85 @@ class _TasksState extends ConsumerState<Tasks> {
     titleController.dispose();
     descriptionController.dispose();
   }
+}
+
+class _TaskOverview extends StatelessWidget {
+  const _TaskOverview(this.tasks);
+  final List<ExecutionTask> tasks;
+
+  @override
+  Widget build(BuildContext c) {
+    final done = tasks.where((task) => task.isDone).length;
+    final urgent = tasks.where((task) => task.priority == ExecutionTaskPriority.urgent).length;
+    final waiting = tasks.where((task) => task.status == ExecutionTaskStatus.waiting).length;
+    final ratio = tasks.isEmpty ? 0.0 : done / tasks.length;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [C.skySoft, C.ps],
+        ),
+      ),
+      child: Row(children: [
+        SizedBox(
+          width: 58,
+          height: 58,
+          child: Stack(fit: StackFit.expand, children: [
+            CircularProgressIndicator(
+              value: ratio,
+              strokeWidth: 6,
+              color: C.sky,
+              backgroundColor: Colors.white,
+            ),
+            Center(
+              child: Text(
+                '${(ratio * 100).round()}%',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: C.sky),
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text(
+              '任务节奏',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              _CountBadge(Icons.check_rounded, '$done 完成', C.green, C.greenSoft),
+              _CountBadge(Icons.flag_rounded, '$urgent P1', C.red, C.redSoft),
+              _CountBadge(Icons.hourglass_bottom_rounded, '$waiting 等待', C.orange, C.orangeSoft),
+            ]),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  const _CountBadge(this.icon, this.label, this.color, this.background);
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(8)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: color)),
+        ]),
+      );
 }
 
 class _ConflictRow extends ConsumerWidget {
