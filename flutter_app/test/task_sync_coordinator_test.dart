@@ -14,6 +14,7 @@ import 'package:lifetrace_execute/data/repository/daily_review_repository.dart';
 import 'package:lifetrace_execute/data/repository/file_metadata_repository.dart';
 import 'package:lifetrace_execute/data/repository/memo_repository.dart';
 import 'package:lifetrace_execute/data/repository/project_repository.dart';
+import 'package:lifetrace_execute/data/repository/reminder_repository.dart';
 import 'package:lifetrace_execute/data/repository/task_repository.dart';
 import 'package:lifetrace_execute/data/sync/task_sync_coordinator.dart';
 import 'package:lifetrace_execute/domain/collection/execution_file_metadata.dart';
@@ -29,6 +30,7 @@ void main() {
   late DriftMemoRepository memoRepository;
   late DriftFileMetadataRepository fileMetadataRepository;
   late DriftDailyReviewRepository reviewRepository;
+  late DriftReminderRepository reminderRepository;
 
   setUp(() {
     database = AppDatabase(NativeDatabase.memory());
@@ -38,6 +40,7 @@ void main() {
     memoRepository = DriftMemoRepository(database);
     fileMetadataRepository = DriftFileMetadataRepository(database);
     reviewRepository = DriftDailyReviewRepository(database);
+    reminderRepository = DriftReminderRepository(database);
   });
 
   tearDown(() async => database.close());
@@ -426,6 +429,81 @@ void main() {
     );
   });
 
+  test('reminder snapshot, push and fired pull share sync pipeline', () async {
+    final local = await reminderRepository.schedule(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      subjectType: ReminderSubjectTypes.task,
+      subjectId: 'task-local',
+      triggerAt:
+          DateTime.now().toUtc().add(const Duration(days: 2)).toIso8601String(),
+      title: 'Local reminder',
+    );
+
+    final client = _FakeSyncClient(
+      snapshots: [
+        SnapshotPageResult(
+          requestId: 'reminder-snapshot',
+          snapshotId: 'reminder-snapshot-1',
+          snapshotCursor: '32',
+          items: [
+            SnapshotItem(
+              entityType: DriftReminderRepository.entityType,
+              entityId: 'remote-reminder',
+              serverVersion: '2',
+              payload: _reminderPayload(
+                'remote-reminder',
+                ExecutionReminderStatus.scheduled.wireValue,
+              ),
+            ),
+          ],
+          completed: true,
+          serverTime: '2026-09-11T00:00:00.000Z',
+        ),
+      ],
+      pulls: [
+        PullBatchResult(
+          requestId: 'reminder-pull',
+          serverTime: '2026-09-11T00:01:00.000Z',
+          changes: [
+            PulledChange(
+              cursor: '33',
+              entityType: DriftReminderRepository.entityType,
+              entityId: 'remote-reminder',
+              operation: 'upsert',
+              serverVersion: '3',
+              serverModifiedAt: '2026-09-11T00:01:00.000Z',
+              payload: _reminderPayload(
+                'remote-reminder',
+                ExecutionReminderStatus.fired.wireValue,
+              ),
+            ),
+          ],
+          nextCursor: '33',
+          hasMore: false,
+        ),
+      ],
+      acceptAllPushes: true,
+    );
+
+    final summary = await _coordinatorFor(database, client).syncNow();
+
+    expect(summary.snapshotItems, 1);
+    expect(summary.pushed, 1);
+    expect(summary.pulled, 1);
+
+    final reminders = await database.select(database.reminders).get();
+    expect(reminders, hasLength(2));
+    expect(
+      reminders.singleWhere((item) => item.id == local.id).serverVersion,
+      '101',
+    );
+    expect(
+      reminders.singleWhere((item) => item.id == 'remote-reminder').status,
+      ExecutionReminderStatus.fired.wireValue,
+    );
+  });
+
   test('accepted push rebases the next unattempted local change', () async {
     final created = await repository.createTask(
       userId: 'user-1',
@@ -735,6 +813,29 @@ Map<String, dynamic> _reviewPayload(String id, String bestThing) => {
       'note': null,
       'completedTaskCount': 1,
       'totalTaskCount': 2,
+    };
+
+Map<String, dynamic> _reminderPayload(String id, String status) => {
+      'meta': {
+        'id': id,
+        'userId': 'user-1',
+        'createdAt': '2026-09-10T00:00:00.000Z',
+        'updatedAt': '2026-09-11T00:01:00.000Z',
+        'deletedAt': null,
+        'localVersion': 2,
+        'serverVersion': null,
+        'modifiedByDevice': 'remote-device',
+      },
+      'subjectType': 'task',
+      'subjectId': 'task-remote',
+      'triggerAt': '2026-09-12T01:30:00.000Z',
+      'status': status,
+      'fireKey': 'task-remote@2026-09-12T01:30:00.000Z',
+      'snoozedUntil': null,
+      'lastFiredAt':
+          status == 'fired' ? '2026-09-11T00:01:00.000Z' : null,
+      'title': 'Remote reminder',
+      'body': 'Remote body',
     };
 
 Map<String, dynamic> _filePayload(String id, String name) => {
