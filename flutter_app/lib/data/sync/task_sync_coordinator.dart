@@ -7,6 +7,7 @@ import '../../core/cloud/cloud_session_manager.dart';
 import '../../core/cloud/lifetrace_sync_client.dart';
 import '../../core/cloud/sync_models.dart';
 import '../../core/identity/device_identity_store.dart';
+import '../../domain/collection/entity_link.dart';
 import '../local/app_database.dart' as db;
 import '../repository/calendar_event_database_mapper.dart';
 import '../repository/calendar_event_repository.dart';
