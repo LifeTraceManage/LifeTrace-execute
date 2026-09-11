@@ -1158,6 +1158,20 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
     final priority = task?.priority ?? ExecutionTaskPriority.urgent;
     final status = task?.status ?? ExecutionTaskStatus.inProgress;
     final completed = task?.isDone == true;
+    final reminderItems = task == null
+        ? const <ExecutionReminder>[]
+        : ref
+                .watch(
+                  remindersForSubjectProvider(
+                    ReminderSubjectKey(
+                      subjectType: ReminderSubjectTypes.task,
+                      subjectId: task.id,
+                    ),
+                  ),
+                )
+                .valueOrNull ??
+            const <ExecutionReminder>[];
+    final reminder = _activeReminder(reminderItems);
 
     final accent = completed
         ? C.green
@@ -1183,6 +1197,9 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
           IconButton(
             tooltip: '删除任务',
             onPressed: () async {
+              if (reminder != null) {
+                await ref.read(reminderCommandsProvider).cancel(reminder);
+              }
               await ref.read(taskCommandsProvider).delete(task);
               if (c.mounted) Navigator.pop(c);
             },
@@ -1203,7 +1220,11 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
           onToggle: task == null
               ? null
               : () async {
-                  final updated = await ref.read(taskCommandsProvider).toggleDone(task);
+                  final updated =
+                      await ref.read(taskCommandsProvider).toggleDone(task);
+                  if (updated.isDone && reminder != null) {
+                    await ref.read(reminderCommandsProvider).cancel(reminder);
+                  }
                   if (mounted) setState(() => current = updated);
                 },
         ),
@@ -1361,29 +1382,74 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
             ),
           ]),
         ),
-        h('提醒'),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-          decoration: BoxDecoration(
-            color: C.orangeSoft,
+        if (task != null) ...[
+          h('提醒'),
+          InkWell(
+            onTap: completed
+                ? null
+                : () => _editReminder(
+                      c,
+                      ref,
+                      subjectType: ReminderSubjectTypes.task,
+                      subjectId: task.id,
+                      subjectTitle: task.title,
+                      suggestedAt: _suggestTaskReminder(task),
+                      existing: reminder,
+                    ),
             borderRadius: BorderRadius.circular(13),
+            child: Opacity(
+              opacity: completed ? .55 : 1,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+                decoration: BoxDecoration(
+                  color: C.orangeSoft,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Row(children: [
+                  const CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.notifications_none_rounded,
+                      size: 16,
+                      color: C.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          reminder == null ? '设置提醒' : '已设置提醒',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          completed
+                              ? '已完成任务不会继续触发提醒'
+                              : reminder == null
+                                  ? '点击选择提醒时间'
+                                  : _formatReminderTime(reminder),
+                          style:
+                              const TextStyle(fontSize: 8.5, color: C.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: C.orange,
+                  ),
+                ]),
+              ),
+            ),
           ),
-          child: const Row(children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.white,
-              child: Icon(Icons.notifications_none_rounded, size: 16, color: C.orange),
-            ),
-            SizedBox(width: 9),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('尚未设置提醒', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
-                Text('Calendar 阶段接入后可设置智能提醒', style: TextStyle(fontSize: 8.5, color: C.muted)),
-              ]),
-            ),
-            Icon(Icons.chevron_right_rounded, size: 16, color: C.orange),
-          ]),
-        ),
+        ],
       ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 20)),
     );
   }
@@ -1683,6 +1749,121 @@ class _SubtaskTile extends StatelessWidget {
           ]),
         ),
       );
+}
+
+ExecutionReminder? _activeReminder(List<ExecutionReminder> reminders) {
+  for (final reminder in reminders.reversed) {
+    if (reminder.status == ExecutionReminderStatus.scheduled) return reminder;
+  }
+  return null;
+}
+
+DateTime _suggestTaskReminder(ExecutionTask task) {
+  final now = DateTime.now();
+  for (final raw in [task.scheduledAt, task.dueAt]) {
+    final value = DateTime.tryParse(raw ?? '')?.toLocal();
+    if (value != null && value.isAfter(now)) return value;
+  }
+  return now.add(const Duration(hours: 1));
+}
+
+String _formatReminderTime(ExecutionReminder reminder) {
+  final value = DateTime.parse(reminder.effectiveTriggerAt).toLocal();
+  return _formatDateTime(value);
+}
+
+Future<void> _editReminder(
+  BuildContext context,
+  WidgetRef ref, {
+  required String subjectType,
+  required String subjectId,
+  required String subjectTitle,
+  required DateTime suggestedAt,
+  ExecutionReminder? existing,
+}) async {
+  DateTime triggerAt = existing == null
+      ? suggestedAt
+      : DateTime.parse(existing.effectiveTriggerAt).toLocal();
+  if (!triggerAt.isAfter(DateTime.now())) {
+    triggerAt = DateTime.now().add(const Duration(hours: 1));
+  }
+
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (sheetContext, setSheetState) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              existing == null ? '设置提醒' : '调整提醒',
+              style: Theme.of(sheetContext).textTheme.titleLarge,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              subjectTitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 9.5, color: C.muted),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _DateField(
+            label: '提醒时间',
+            value: triggerAt,
+            onPick: () async {
+              final value = await _pickDateTime(sheetContext, triggerAt);
+              if (value != null) setSheetState(() => triggerAt = value);
+            },
+          ),
+          const SizedBox(height: 14),
+          Row(children: [
+            if (existing != null) ...[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () async {
+                    await ref.read(reminderCommandsProvider).cancel(existing);
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  },
+                  child: const Text('取消提醒'),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              flex: 2,
+              child: FilledButton(
+                onPressed: () async {
+                  try {
+                    await ref.read(reminderCommandsProvider).schedule(
+                          subjectType: subjectType,
+                          subjectId: subjectId,
+                          triggerAt: triggerAt,
+                          title: subjectTitle,
+                          body: 'LifeTrace Execute 提醒',
+                        );
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  } catch (error) {
+                    if (sheetContext.mounted) {
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        SnackBar(content: Text('$error')),
+                      );
+                    }
+                  }
+                },
+                child: Text(existing == null ? '创建提醒' : '保存提醒'),
+              ),
+            ),
+          ]),
+        ]),
+      ),
+    ),
+  );
 }
 
 class _DateField extends StatelessWidget {
