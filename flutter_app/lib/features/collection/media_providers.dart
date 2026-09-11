@@ -80,10 +80,11 @@ class MediaUploadController extends AsyncNotifier<MediaUploadSummary?> {
     state = const AsyncLoading();
     final next = await AsyncValue.guard(coordinator.processPending);
     state = next;
-    if (next.valueOrNull?.completed case final count? when count > 0) {
+    final summary = next.valueOrNull;
+    if (summary != null && summary.completed > 0) {
       await ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true);
     }
-    return next.valueOrNull;
+    return summary;
   }
 
   Future<MediaUploadSummary?> retryOne(String uploadId) async {
@@ -93,10 +94,11 @@ class MediaUploadController extends AsyncNotifier<MediaUploadSummary?> {
     state = const AsyncLoading();
     final next = await AsyncValue.guard(() => coordinator.retryOne(uploadId));
     state = next;
-    if (next.valueOrNull?.completed case final count? when count > 0) {
+    final summary = next.valueOrNull;
+    if (summary != null && summary.completed > 0) {
       await ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true);
     }
-    return next.valueOrNull;
+    return summary;
   }
 }
 
