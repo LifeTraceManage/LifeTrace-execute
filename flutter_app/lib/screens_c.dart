@@ -1267,81 +1267,341 @@ String _memoUpdatedLabel(String raw) {
   return '${value.month}月${value.day}日';
 }
 
-class Review extends StatefulWidget {
+class Review extends ConsumerStatefulWidget {
   const Review({super.key});
+
   @override
-  State<Review> createState() => _ReviewState();
+  ConsumerState<Review> createState() => _ReviewState();
 }
 
-class _ReviewState extends State<Review> {
-  int mood = 3;
+class _ReviewState extends ConsumerState<Review> {
+  final bestThing = TextEditingController();
+  final problem = TextEditingController();
+  final tomorrowPriority = TextEditingController();
+  final note = TextEditingController();
+
+  int mood = 4;
+  int energy = 3;
+  bool saving = false;
+  String? _hydratedToken;
 
   @override
-  Widget build(BuildContext c) => DetailFrame(
-        titleText: '9月9日 · 星期三',
-        child: page([
-          title('今日复盘'),
-          const SizedBox(height: 2),
-          sub('今天过得怎么样？'),
+  void dispose() {
+    bestThing.dispose();
+    problem.dispose();
+    tomorrowPriority.dispose();
+    note.dispose();
+    super.dispose();
+  }
+
+  void _hydrate(DailyReview? review, String reviewDate) {
+    final token = review == null
+        ? 'empty:$reviewDate'
+        : '${review.id}:${review.updatedAt}';
+    if (_hydratedToken == token) return;
+    _hydratedToken = token;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {
+        mood = review?.mood ?? 4;
+        energy = review?.energy ?? 3;
+        bestThing.text = review?.bestThing ?? '';
+        problem.text = review?.problem ?? '';
+        tomorrowPriority.text = review?.tomorrowPriority ?? '';
+        note.text = review?.note ?? '';
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final reviewDate = ref.watch(todayReviewDateProvider);
+    final reviewState = ref.watch(dailyReviewForDateProvider(reviewDate));
+    final review = reviewState.valueOrNull;
+    _hydrate(review, reviewDate);
+
+    final taskState = ref.watch(taskListProvider);
+    final tasks = taskState.valueOrNull ?? const <ExecutionTask>[];
+    final liveStats = calculateReviewTaskStats(tasks, reviewDate);
+    final completed = taskState.hasValue
+        ? liveStats.completed
+        : review?.completedTaskCount ?? 0;
+    final total =
+        taskState.hasValue ? liveStats.total : review?.totalTaskCount ?? 0;
+    final score = taskState.hasValue
+        ? liveStats.completionScore
+        : review?.completionScore;
+    final conflicts = ref.watch(dailyReviewConflictsProvider).valueOrNull ??
+        const <DailyReviewConflictUi>[];
+
+    return DetailFrame(
+      titleText: _reviewDateLabel(reviewDate),
+      child: page([
+        Row(children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                title('今日复盘'),
+                const SizedBox(height: 2),
+                sub(review == null ? '今天过得怎么样？' : '已保存，可继续更新今天的复盘'),
+              ],
+            ),
+          ),
+          if (review != null)
+            chip('已保存', bg: C.greenSoft, fg: C.green),
+        ]),
+        if (reviewState.hasError) ...[
           const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(
-              5,
-              (i) => InkWell(
-                onTap: () => setState(() => mood = i),
-                child: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: i == mood ? C.pinkSoft : C.soft,
-                  child: Text(
-                    ['☹', '🙁', '😐', '🙂', '😊'][i],
-                    style: TextStyle(fontSize: i == mood ? 18 : 15),
+          Text(
+            '复盘数据读取失败：${reviewState.error}',
+            style: const TextStyle(fontSize: 9.5, color: C.red),
+          ),
+        ],
+        if (conflicts.isNotEmpty) ...[
+          h('同步冲突'),
+          for (final conflict in conflicts)
+            panel(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${conflict.reviewDate ?? '未知日期'} 的复盘存在版本冲突',
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    conflict.serverDeleted
+                        ? '云端版本已删除'
+                        : conflict.reason,
+                    style: const TextStyle(fontSize: 8.8, color: C.muted),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => ref
+                            .read(dailyReviewCommandsProvider)
+                            .keepServer(conflict.conflictId),
+                        child: const Text('保留云端'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => ref
+                            .read(dailyReviewCommandsProvider)
+                            .keepLocal(conflict.conflictId),
+                        child: const Text('保留本地'),
+                      ),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+        ],
+        h('心情'),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(5, (i) {
+            final value = i + 1;
+            return InkWell(
+              onTap: () => setState(() => mood = value),
+              borderRadius: BorderRadius.circular(30),
+              child: CircleAvatar(
+                radius: 19,
+                backgroundColor: value == mood ? C.pinkSoft : C.soft,
+                child: Text(
+                  ['☹', '🙁', '😐', '🙂', '😊'][i],
+                  style: TextStyle(fontSize: value == mood ? 18 : 15),
+                ),
+              ),
+            );
+          }),
+        ),
+        h('精力'),
+        Row(
+          children: List.generate(5, (i) {
+            final value = i + 1;
+            final selected = value == energy;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(right: i == 4 ? 0 : 6),
+                child: InkWell(
+                  onTap: () => setState(() => energy = value),
+                  borderRadius: BorderRadius.circular(9),
+                  child: Container(
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected ? C.orangeSoft : C.soft,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.bolt_rounded,
+                          size: 13,
+                          color: selected ? C.orange : C.muted,
+                        ),
+                        Text(
+                          '$value',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: selected ? C.orange : C.muted,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            );
+          }),
+        ),
+        h('今日完成'),
+        Row(children: [
+          Text(
+            '$completed / $total Tasks',
+            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900),
           ),
-          h('今日完成'),
-          const Text(
-            '8 / 11 Tasks',
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 6),
-          const ClipRRect(
-            borderRadius: BorderRadius.all(Radius.circular(5)),
-            child: LinearProgressIndicator(
-              value: .73,
-              minHeight: 6,
-              backgroundColor: C.soft,
-              color: C.green,
-            ),
-          ),
-          h('今天做得好的事情'),
-          const TextField(maxLines: 3, decoration: InputDecoration(hintText: '...')),
-          h('今天可以改进什么？'),
-          const TextField(maxLines: 3, decoration: InputDecoration(hintText: '...')),
-          h('明天最重要的一件事'),
-          panel(
-            const Row(children: [
-              Icon(Icons.check_box_outline_blank_rounded, size: 17, color: C.muted),
-              SizedBox(width: 8),
-              Text(
-                '完成论文实验设计',
-                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+          const Spacer(),
+          if (score != null)
+            Text(
+              '${(score * 100).round()}%',
+              style: const TextStyle(
+                fontSize: 10,
+                color: C.green,
+                fontWeight: FontWeight.w900,
               ),
-            ]),
-            padding: const EdgeInsets.all(10),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: () => Navigator.pop(c),
-              child: const Text('完成今日复盘'),
             ),
+        ]),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: const BorderRadius.all(Radius.circular(5)),
+          child: LinearProgressIndicator(
+            value: score ?? 0,
+            minHeight: 6,
+            backgroundColor: C.soft,
+            color: C.green,
           ),
-        ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 18)),
-      );
+        ),
+        if (taskState.isLoading) ...[
+          const SizedBox(height: 5),
+          const Text(
+            '正在读取今日任务…',
+            style: TextStyle(fontSize: 8.5, color: C.muted),
+          ),
+        ],
+        h('今天做得好的事情'),
+        TextField(
+          controller: bestThing,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: '记录今天值得保留的做法'),
+        ),
+        h('今天可以改进什么？'),
+        TextField(
+          controller: problem,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: '记录阻碍、偏差或需要调整的地方'),
+        ),
+        h('明天最重要的一件事'),
+        TextField(
+          controller: tomorrowPriority,
+          decoration: InputDecoration(
+            hintText: liveStats.tomorrowSuggestion ?? '写下明天唯一最重要的事',
+            prefixIcon: const Icon(Icons.flag_outlined, size: 17),
+          ),
+        ),
+        h('补充记录'),
+        TextField(
+          controller: note,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: '可选：其他想记住的事情'),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: saving
+                ? null
+                : () => _save(
+                      c,
+                      reviewDate: reviewDate,
+                      completed: completed,
+                      total: total,
+                      score: score,
+                      tomorrowSuggestion: liveStats.tomorrowSuggestion,
+                    ),
+            child: saving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : Text(review == null ? '完成今日复盘' : '更新今日复盘'),
+          ),
+        ),
+      ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 18)),
+    );
+  }
+
+  Future<void> _save(
+    BuildContext context, {
+    required String reviewDate,
+    required int completed,
+    required int total,
+    required double? score,
+    required String? tomorrowSuggestion,
+  }) async {
+    setState(() => saving = true);
+    try {
+      final priority = tomorrowPriority.text.trim().isEmpty
+          ? tomorrowSuggestion
+          : tomorrowPriority.text.trim();
+      await ref.read(dailyReviewCommandsProvider).save(
+            reviewDate: reviewDate,
+            mood: mood,
+            energy: energy,
+            completedTaskCount: completed,
+            totalTaskCount: total,
+            completionScore: score,
+            bestThing: bestThing.text,
+            problem: problem.text,
+            tomorrowPriority: priority,
+            note: note.text,
+          );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('今日复盘已保存并加入同步队列')),
+        );
+        Navigator.pop(context);
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+}
+
+String _reviewDateLabel(String value) {
+  final date = DateTime.tryParse('${value}T00:00:00');
+  if (date == null) return value;
+  const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
+  return '${date.month}月${date.day}日 · 星期${weekdays[date.weekday - 1]}';
 }
 
 class Profile extends ConsumerWidget {
