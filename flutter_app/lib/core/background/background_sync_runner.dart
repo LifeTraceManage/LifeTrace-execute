@@ -1,7 +1,9 @@
 import '../../core/cloud/cloud_contract.dart';
 import '../../core/cloud/cloud_session_manager.dart';
 import '../../core/identity/device_identity_store.dart';
+import '../../core/notifications/reminder_notification_service.dart';
 import '../../data/local/app_database.dart';
+import '../../data/repository/reminder_repository.dart';
 import '../../data/sync/media_upload_coordinator.dart';
 import '../../data/sync/task_sync_coordinator.dart';
 
@@ -53,7 +55,8 @@ class BackgroundSyncRunner {
 
 Future<BackgroundSyncOutcome> runProductionBackgroundSync() async {
   final sessionManager = CloudSessionManager();
-  if (await sessionManager.currentSession() == null) {
+  final session = await sessionManager.currentSession();
+  if (session == null) {
     return BackgroundSyncOutcome.success;
   }
 
@@ -72,7 +75,19 @@ Future<BackgroundSyncOutcome> runProductionBackgroundSync() async {
         deviceIdLoader: identityStore.getOrCreate,
       ).processPending(),
     );
-    return await runner.run();
+    final outcome = await runner.run();
+
+    try {
+      final reminders =
+          await DriftReminderRepository(database).listReminders(session.userId);
+      final notifications = ReminderNotificationService();
+      await notifications.initialize();
+      await notifications.reconcile(reminders);
+    } catch (_) {
+      // Notification reconciliation is best effort and must not poison Sync v1.
+    }
+
+    return outcome;
   } finally {
     await database.close();
   }
