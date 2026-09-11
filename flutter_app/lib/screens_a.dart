@@ -55,6 +55,35 @@ class Today extends StatelessWidget {
           icon: Icons.work_outline_rounded,
           tap: () => push(c, const TaskDetail()),
         ),
+        h('每日复盘'),
+        panel(
+          Row(children: [
+            const CircleAvatar(
+              radius: 18,
+              backgroundColor: C.pinkSoft,
+              child: Icon(Icons.auto_stories_outlined, size: 18, color: C.pink),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '记录今天，准备明天',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    '心情 · 精力 · 完成率 · 明日重点',
+                    style: TextStyle(fontSize: 8.8, color: C.muted),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, size: 18, color: C.muted),
+          ]),
+          onTap: () => push(c, const Review()),
+        ),
       ]);
 }
 
