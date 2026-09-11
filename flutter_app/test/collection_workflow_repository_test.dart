@@ -64,18 +64,22 @@ void main() {
 
     final dependencies = jsonDecode(linkChange.dependenciesJson) as List<dynamic>;
     expect(
-      dependencies,
-      contains({
-        'entityType': DriftTaskRepository.entityType,
-        'entityId': result.task.id,
-      }),
+      dependencies.any(
+        (item) =>
+            item is Map &&
+            item['entityType'] == DriftTaskRepository.entityType &&
+            item['entityId'] == result.task.id,
+      ),
+      isTrue,
     );
     expect(
-      dependencies,
-      contains({
-        'entityType': DriftMemoRepository.entityType,
-        'entityId': memo.id,
-      }),
+      dependencies.any(
+        (item) =>
+            item is Map &&
+            item['entityType'] == DriftMemoRepository.entityType &&
+            item['entityId'] == memo.id,
+      ),
+      isTrue,
     );
   });
 
