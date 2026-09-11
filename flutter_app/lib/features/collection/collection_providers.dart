@@ -5,13 +5,13 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/files/local_file_access.dart';
 import '../../data/repository/collection_workflow_repository.dart';
 import '../../data/repository/memo_repository.dart';
 import '../../data/sync/collection_conflict_resolver.dart';
 import '../../domain/collection/execution_memo.dart';
 import '../../domain/task/execution_task.dart';
 import '../tasks/task_providers.dart';
-import 'media_providers.dart';
 
 final memoRepositoryProvider = Provider<MemoRepository>((ref) {
   if (kIsWeb) return PreviewMemoRepository();
@@ -176,15 +176,25 @@ class CollectionCommands {
   }
 
   Future<void> delete(ExecutionMemo memo) async {
-    if (!kIsWeb) {
-      await ref
-          .read(mediaUploadRepositoryProvider)
-          ?.removeForMemo(memo.userId, memo.id);
+    if (kIsWeb) {
+      await ref.read(memoRepositoryProvider).deleteMemo(
+            userId: memo.userId,
+            memoId: memo.id,
+          );
+      return;
     }
-    await ref.read(memoRepositoryProvider).deleteMemo(
-          userId: memo.userId,
-          memoId: memo.id,
-        );
+
+    final workflow = ref.read(collectionWorkflowRepositoryProvider);
+    if (workflow == null) throw StateError('Collection workflow unavailable');
+    final result = await workflow.deleteMemoCascade(memo: memo);
+    for (final path in result.localPathsToDelete) {
+      try {
+        await deleteLocalFile(path);
+      } catch (_) {
+        // Logical deletion already committed. A stale local cache file is safe
+        // to leave behind and can be reclaimed later.
+      }
+    }
     _scheduleSync();
   }
 
