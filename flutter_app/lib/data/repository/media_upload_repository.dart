@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart';
+
 import '../../core/files/local_file_access.dart';
 import '../../domain/collection/execution_file_metadata.dart';
 import '../local/app_database.dart' as db;
