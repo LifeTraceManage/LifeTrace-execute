@@ -11,6 +11,8 @@ import '../local/app_database.dart' as db;
 import '../repository/calendar_event_database_mapper.dart';
 import '../repository/calendar_event_repository.dart';
 import '../repository/calendar_event_wire_mapper.dart';
+import '../repository/entity_link_repository.dart';
+import '../repository/memo_repository.dart';
 import '../repository/project_database_mapper.dart';
 import '../repository/project_repository.dart';
 import '../repository/project_wire_mapper.dart';
@@ -48,11 +50,13 @@ class TaskSyncCoordinator {
         _deviceIdLoader = deviceIdLoader ?? DeviceIdentityStore().getOrCreate;
 
   static const taskScopeKey =
-      'entities:execution.task,execution.project,execution.calendar_event';
+      'entities:execution.task,execution.project,execution.calendar_event,execution.memo,entity.link';
   static const syncEntityTypes = <String>[
     DriftTaskRepository.entityType,
     DriftProjectRepository.entityType,
     DriftCalendarEventRepository.entityType,
+    DriftMemoRepository.entityType,
+    DriftEntityLinkRepository.entityType,
   ];
   static const _pushBatchSize = 100;
   static const _pullBatchSize = 100;
@@ -192,6 +196,22 @@ class TaskSyncCoordinator {
                   .into(database.calendarEvents)
                   .insertOnConflictUpdate(
                     CalendarEventDatabaseMapper.toRow(event),
+                  );
+            case DriftMemoRepository.entityType:
+              final memo = MemoWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+              );
+              await database
+                  .into(database.memos)
+                  .insertOnConflictUpdate(MemoDatabaseMapper.toRow(memo));
+            case DriftEntityLinkRepository.entityType:
+              final link = EntityLinkWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+              );
+              await database.into(database.entityLinks).insertOnConflictUpdate(
+                    EntityLinkDatabaseMapper.toRow(link),
                   );
           }
         }
@@ -372,6 +392,26 @@ class TaskSyncCoordinator {
               serverVersion: Value(result.serverVersion),
             ),
           );
+        case DriftMemoRepository.entityType:
+          await (database.update(database.memos)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.MemosCompanion(serverVersion: Value(result.serverVersion)),
+          );
+        case DriftEntityLinkRepository.entityType:
+          await (database.update(database.entityLinks)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.EntityLinksCompanion(serverVersion: Value(result.serverVersion)),
+          );
       }
       await (database.delete(database.syncOutbox)
             ..where((table) => table.changeId.equals(result.changeId)))
@@ -430,6 +470,47 @@ class TaskSyncCoordinator {
               payloadJson = jsonEncode(
                 CalendarEventWireMapper.toPayload(current),
               );
+            }
+          case DriftMemoRepository.entityType:
+            final row = await (database.select(database.memos)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = MemoDatabaseMapper.fromRow(row).copyWith(
+                serverVersion: result.serverVersion,
+              );
+              payloadJson = jsonEncode(MemoWireMapper.toPayload(current));
+            }
+          case DriftEntityLinkRepository.entityType:
+            final row = await (database.select(database.entityLinks)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = EntityLinkDatabaseMapper.fromRow(row);
+              final rebased = ExecutionEntityLink(
+                id: current.id,
+                userId: current.userId,
+                sourceType: current.sourceType,
+                sourceId: current.sourceId,
+                targetType: current.targetType,
+                targetId: current.targetId,
+                relationType: current.relationType,
+                metadata: current.metadata,
+                createdAt: current.createdAt,
+                updatedAt: current.updatedAt,
+                localVersion: current.localVersion,
+                serverVersion: result.serverVersion,
+                modifiedByDevice: current.modifiedByDevice,
+              );
+              payloadJson = jsonEncode(EntityLinkWireMapper.toPayload(rebased));
             }
         }
       }
@@ -561,6 +642,22 @@ class TaskSyncCoordinator {
                       .insertOnConflictUpdate(
                         CalendarEventDatabaseMapper.toRow(event),
                       );
+                case DriftMemoRepository.entityType:
+                  final memo = MemoWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                  );
+                  await database.into(database.memos).insertOnConflictUpdate(
+                        MemoDatabaseMapper.toRow(memo),
+                      );
+                case DriftEntityLinkRepository.entityType:
+                  final link = EntityLinkWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                  );
+                  await database.into(database.entityLinks).insertOnConflictUpdate(
+                        EntityLinkDatabaseMapper.toRow(link),
+                      );
               }
             case 'delete':
               switch (change.entityType) {
@@ -582,6 +679,22 @@ class TaskSyncCoordinator {
                       .go();
                 case DriftCalendarEventRepository.entityType:
                   await (database.delete(database.calendarEvents)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+                case DriftMemoRepository.entityType:
+                  await (database.delete(database.memos)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+                case DriftEntityLinkRepository.entityType:
+                  await (database.delete(database.entityLinks)
                         ..where(
                           (table) =>
                               table.userId.equals(userId) &
