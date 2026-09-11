@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/background/background_sync.dart';
 import 'domain/calendar/execution_calendar_event.dart';
 import 'domain/collection/entity_link.dart';
 import 'domain/collection/execution_file_metadata.dart';
@@ -24,7 +25,15 @@ part 'screens_a.dart';
 part 'screens_b.dart';
 part 'screens_c.dart';
 
-void main() => runApp(const ProviderScope(child: LifeTraceExecuteApp()));
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  unawaited(
+    BackgroundSyncScheduler.initialize().catchError((_) {
+      // Background scheduling must never prevent foreground startup.
+    }),
+  );
+  runApp(const ProviderScope(child: LifeTraceExecuteApp()));
+}
 
 abstract final class C {
   static const p = Color(0xff2468f2),
