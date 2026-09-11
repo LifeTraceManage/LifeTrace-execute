@@ -1128,9 +1128,27 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
     final description = task?.description ?? 'Flutter 重构正式客户端，并保持 Local-first 与 LifeTrace Cloud 的行为兼容。';
     final priority = task?.priority ?? ExecutionTaskPriority.urgent;
     final status = task?.status ?? ExecutionTaskStatus.inProgress;
+    final completed = task?.isDone == true;
+
+    final accent = completed
+        ? C.green
+        : switch (priority) {
+            ExecutionTaskPriority.urgent => C.red,
+            ExecutionTaskPriority.high => C.orange,
+            ExecutionTaskPriority.normal => C.sky,
+            ExecutionTaskPriority.low => C.teal,
+          };
+    final tint = completed
+        ? C.greenSoft
+        : switch (priority) {
+            ExecutionTaskPriority.urgent => C.redSoft,
+            ExecutionTaskPriority.high => C.orangeSoft,
+            ExecutionTaskPriority.normal => C.skySoft,
+            ExecutionTaskPriority.low => C.tealSoft,
+          };
 
     return DetailFrame(
-      titleText: '',
+      titleText: '任务详情',
       actions: [
         if (task != null)
           IconButton(
@@ -1145,94 +1163,199 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
           const Icon(Icons.more_vert_rounded, size: 19),
       ],
       child: page([
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          InkWell(
-            onTap: task == null
-                ? null
-                : () async {
-                    final updated = await ref.read(taskCommandsProvider).toggleDone(task);
-                    if (mounted) setState(() => current = updated);
-                  },
-            child: Icon(
-              task?.isDone == true ? Icons.check_circle_rounded : Icons.circle_outlined,
-              size: 21,
-              color: task?.isDone == true ? C.green : C.p,
-            ),
-          ),
-          const SizedBox(width: 9),
-          Expanded(child: Text(displayTitle, style: Theme.of(c).textTheme.titleLarge)),
-        ]),
-        const SizedBox(height: 8),
-        Wrap(spacing: 5, children: [
-          chip(_priorityBadge(priority), bg: const Color(0xffffe9e9), fg: C.red),
-          if (task?.projectId != null) chip('项目', bg: C.ps, fg: C.p),
-          chip(_statusText(status), bg: const Color(0xffe8f8ef), fg: C.green),
-        ]),
-        h('描述'),
-        Text(description, style: const TextStyle(fontSize: 10.5, color: C.muted)),
-        h('属性'),
-        panel(
-          Column(children: [
-            _Prop(Icons.event_available_outlined, '计划', _formatTaskDate(task?.scheduledAt)),
-            const Divider(height: 1),
-            _Prop(Icons.flag_outlined, '截止', _formatTaskDate(task?.dueAt)),
-            const Divider(height: 1),
-            _Prop(Icons.priority_high_rounded, '优先级', _priorityText(priority)),
-            const Divider(height: 1),
-            _Prop(Icons.folder_outlined, '项目', task?.projectId ?? '未归属'),
-            const Divider(height: 1),
-            const _Prop(Icons.notifications_none_rounded, '提醒', '待 Calendar 阶段接入'),
-          ]),
-        ),
-        if (task != null) ...[
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => _edit(c, task),
-              icon: const Icon(Icons.edit_outlined, size: 16),
-              label: const Text('编辑任务'),
-            ),
-          ),
-        ],
-        h('子任务   1/3'),
-        panel(
-          Column(children: [
-            CheckboxListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: a,
-              title: const Text('分析现有页面', style: TextStyle(fontSize: 11)),
-              onChanged: (v) => setState(() => a = v ?? false),
-            ),
-            const Divider(height: 1),
-            CheckboxListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: b,
-              title: const Text('完成 UI Design', style: TextStyle(fontSize: 11)),
-              onChanged: (v) => setState(() => b = v ?? false),
-            ),
-            const Divider(height: 1),
-            CheckboxListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: c2,
-              title: const Text('Flutter 实现', style: TextStyle(fontSize: 11)),
-              onChanged: (v) => setState(() => c2 = v ?? false),
-            ),
-          ]),
+        _TaskDetailHero(
+          title: displayTitle,
+          description: description,
+          accent: accent,
+          tint: tint,
+          completed: completed,
+          priority: _priorityBadge(priority),
+          status: _statusText(status),
+          onToggle: task == null
+              ? null
+              : () async {
+                  final updated = await ref.read(taskCommandsProvider).toggleDone(task);
+                  if (mounted) setState(() => current = updated);
+                },
         ),
         const SizedBox(height: 14),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: () => push(c, const Focus()),
-            icon: const Icon(Icons.play_arrow_rounded, size: 17),
-            label: const Text('开始专注'),
+        Row(children: [
+          Expanded(
+            child: _TaskMetaTile(
+              icon: Icons.event_available_rounded,
+              label: '计划时间',
+              value: _formatTaskDate(task?.scheduledAt),
+              color: C.sky,
+              background: C.skySoft,
+            ),
           ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _TaskMetaTile(
+              icon: Icons.flag_rounded,
+              label: '截止时间',
+              value: _formatTaskDate(task?.dueAt),
+              color: C.red,
+              background: C.redSoft,
+            ),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(
+            child: _TaskMetaTile(
+              icon: Icons.bolt_rounded,
+              label: '优先级',
+              value: _priorityText(priority),
+              color: accent,
+              background: tint,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _TaskMetaTile(
+              icon: Icons.folder_rounded,
+              label: '项目',
+              value: task?.projectId ?? '未归属',
+              color: C.purple,
+              background: C.purpleSoft,
+            ),
+          ),
+        ]),
+        h('说明'),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: C.border),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: C.soft,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.notes_rounded, size: 17, color: C.muted),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                description,
+                style: const TextStyle(fontSize: 10.2, color: C.muted, height: 1.45),
+              ),
+            ),
+          ]),
         ),
-      ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 18)),
+        const SizedBox(height: 12),
+        Row(children: [
+          if (task != null) ...[
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _edit(c, task),
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text('编辑任务'),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: () => push(c, const Focus()),
+              icon: const Icon(Icons.play_arrow_rounded, size: 17),
+              label: const Text('开始专注'),
+            ),
+          ),
+        ]),
+        h('子任务'),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: C.purpleSoft,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(children: [
+            Row(children: [
+              SizedBox(
+                width: 42,
+                height: 42,
+                child: Stack(fit: StackFit.expand, children: [
+                  const CircularProgressIndicator(
+                    value: 1 / 3,
+                    strokeWidth: 5,
+                    color: C.purple,
+                    backgroundColor: Colors.white,
+                  ),
+                  const Center(
+                    child: Text(
+                      '1/3',
+                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: C.purple),
+                    ),
+                  ),
+                ]),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('推进任务步骤', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900)),
+                  SizedBox(height: 2),
+                  Text('完成一个小步骤，比盯着大任务更轻松', style: TextStyle(fontSize: 8.8, color: C.muted)),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 10),
+            _SubtaskTile(
+              value: a,
+              label: '分析现有页面',
+              color: C.green,
+              background: C.greenSoft,
+              onChanged: (v) => setState(() => a = v),
+            ),
+            const SizedBox(height: 7),
+            _SubtaskTile(
+              value: b,
+              label: '完成 UI Design',
+              color: C.purple,
+              background: C.pinkSoft,
+              onChanged: (v) => setState(() => b = v),
+            ),
+            const SizedBox(height: 7),
+            _SubtaskTile(
+              value: c2,
+              label: 'Flutter 实现',
+              color: C.sky,
+              background: C.skySoft,
+              onChanged: (v) => setState(() => c2 = v),
+            ),
+          ]),
+        ),
+        h('提醒'),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+          decoration: BoxDecoration(
+            color: C.orangeSoft,
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: const Row(children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.white,
+              child: Icon(Icons.notifications_none_rounded, size: 16, color: C.orange),
+            ),
+            SizedBox(width: 9),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('尚未设置提醒', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
+                Text('Calendar 阶段接入后可设置智能提醒', style: TextStyle(fontSize: 8.5, color: C.muted)),
+              ]),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 16, color: C.orange),
+          ]),
+        ),
+      ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 20)),
     );
   }
 
@@ -1352,6 +1475,185 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
     titleController.dispose();
     descriptionController.dispose();
   }
+}
+
+class _TaskDetailHero extends StatelessWidget {
+  const _TaskDetailHero({
+    required this.title,
+    required this.description,
+    required this.accent,
+    required this.tint,
+    required this.completed,
+    required this.priority,
+    required this.status,
+    this.onToggle,
+  });
+
+  final String title;
+  final String description;
+  final Color accent;
+  final Color tint;
+  final bool completed;
+  final String priority;
+  final String status;
+  final VoidCallback? onToggle;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [tint, Colors.white],
+          ),
+          border: Border.all(color: accent.withValues(alpha: .14)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            InkWell(
+              onTap: onToggle,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  completed ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                  color: accent,
+                  size: 24,
+                ),
+              ),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 17,
+                  height: 1.2,
+                  fontWeight: FontWeight.w900,
+                  color: completed ? C.muted : C.ink,
+                  decoration: completed ? TextDecoration.lineThrough : null,
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            chip(priority, bg: Colors.white, fg: accent),
+            chip(status, bg: Colors.white, fg: C.green),
+            if (completed) chip('已完成', bg: C.greenSoft, fg: C.green),
+          ]),
+        ]),
+      );
+}
+
+class _TaskMetaTile extends StatelessWidget {
+  const _TaskMetaTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.background,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        height: 76,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 27,
+              height: 27,
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, size: 14, color: color),
+            ),
+            const Spacer(),
+            Icon(Icons.more_horiz_rounded, size: 14, color: color.withValues(alpha: .65)),
+          ]),
+          const Spacer(),
+          Text(label, style: const TextStyle(fontSize: 8.2, color: C.muted)),
+          const SizedBox(height: 1),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: color),
+          ),
+        ]),
+      );
+}
+
+class _SubtaskTile extends StatelessWidget {
+  const _SubtaskTile({
+    required this.value,
+    required this.label,
+    required this.color,
+    required this.background,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final String label;
+  final Color color;
+  final Color background;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext c) => InkWell(
+        onTap: () => onChanged(!value),
+        borderRadius: BorderRadius.circular(11),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .9),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Row(children: [
+            Container(
+              width: 27,
+              height: 27,
+              decoration: BoxDecoration(
+                color: value ? background : C.soft,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                value ? Icons.check_rounded : Icons.circle_outlined,
+                size: 15,
+                color: value ? color : C.muted,
+              ),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10.2,
+                  fontWeight: FontWeight.w800,
+                  color: value ? C.muted : C.ink,
+                  decoration: value ? TextDecoration.lineThrough : null,
+                ),
+              ),
+            ),
+          ]),
+        ),
+      );
 }
 
 class _DateField extends StatelessWidget {
