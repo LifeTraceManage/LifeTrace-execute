@@ -100,6 +100,46 @@ class EntityLinks extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class FileRecords extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get originalName => text()();
+  TextColumn get mimeType => text()();
+  IntColumn get sizeBytes => integer()();
+  TextColumn get sha256 => text()();
+  TextColumn get storageState => text()();
+  TextColumn get createdByDevice => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+  IntColumn get localVersion => integer()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get modifiedByDevice => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class MediaUploads extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get memoId => text()();
+  TextColumn get kind => text()();
+  TextColumn get localPath => text()();
+  TextColumn get originalName => text()();
+  TextColumn get mimeType => text()();
+  IntColumn get sizeBytes => integer()();
+  TextColumn get sha256 => text()();
+  TextColumn get status => text()();
+  IntColumn get attemptCount => integer().withDefault(const Constant(0))();
+  TextColumn get serverFileId => text().nullable()();
+  TextColumn get errorMessage => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class SyncOutbox extends Table {
   TextColumn get changeId => text()();
   TextColumn get userId => text()();
@@ -154,13 +194,13 @@ class SyncConflicts extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, SyncOutbox, SyncState, SyncConflicts])
+@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, SyncOutbox, SyncState, SyncConflicts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
   AppDatabase.production() : super(openProductionConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -189,6 +229,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 5) {
             await migrator.createTable(memos);
             await migrator.createTable(entityLinks);
+          }
+          if (from < 6) {
+            await migrator.createTable(fileRecords);
+            await migrator.createTable(mediaUploads);
           }
         },
       );
