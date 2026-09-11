@@ -31,7 +31,7 @@ void lifeTraceBackgroundDispatcher() {
 class BackgroundSyncScheduler {
   const BackgroundSyncScheduler._();
 
-  static const _network = Constraints(networkType: NetworkType.connected);
+  static final _network = Constraints(networkType: NetworkType.connected);
 
   static Future<void> initialize() async {
     await Workmanager().initialize(lifeTraceBackgroundDispatcher);
