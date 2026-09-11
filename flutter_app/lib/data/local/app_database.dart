@@ -43,6 +43,25 @@ class Projects extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class CalendarEvents extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get title => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get location => text().nullable()();
+  BoolColumn get allDay => boolean().withDefault(const Constant(false))();
+  TextColumn get startAt => text()();
+  TextColumn get endAt => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+  IntColumn get localVersion => integer()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get modifiedByDevice => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class SyncOutbox extends Table {
   TextColumn get changeId => text()();
   TextColumn get userId => text()();
@@ -97,13 +116,13 @@ class SyncConflicts extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Tasks, Projects, SyncOutbox, SyncState, SyncConflicts])
+@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, SyncOutbox, SyncState, SyncConflicts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
   AppDatabase.production() : super(openProductionConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -125,6 +144,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 3) {
             await migrator.createTable(projects);
+          }
+          if (from < 4) {
+            await migrator.createTable(calendarEvents);
           }
         },
       );
