@@ -8,6 +8,9 @@ import '../../core/cloud/lifetrace_sync_client.dart';
 import '../../core/cloud/sync_models.dart';
 import '../../core/identity/device_identity_store.dart';
 import '../local/app_database.dart' as db;
+import '../repository/project_database_mapper.dart';
+import '../repository/project_repository.dart';
+import '../repository/project_wire_mapper.dart';
 import '../repository/task_database_mapper.dart';
 import '../repository/task_repository.dart';
 import '../repository/task_wire_mapper.dart';
@@ -41,7 +44,12 @@ class TaskSyncCoordinator {
         _syncClient = syncClient ?? LifeTraceSyncClient(),
         _deviceIdLoader = deviceIdLoader ?? DeviceIdentityStore().getOrCreate;
 
-  static const taskScopeKey = 'entities:execution.task';
+  static const taskScopeKey =
+      'entities:execution.task,execution.project';
+  static const syncEntityTypes = <String>[
+    DriftTaskRepository.entityType,
+    DriftProjectRepository.entityType,
+  ];
   static const _pushBatchSize = 100;
   static const _pullBatchSize = 100;
   static const _snapshotPageSize = 100;
@@ -140,13 +148,13 @@ class TaskSyncCoordinator {
         client: client,
         snapshotId: snapshotId,
         pageToken: pageToken,
-        entityTypes: const [DriftTaskRepository.entityType],
+        entityTypes: syncEntityTypes,
         pageSize: _snapshotPageSize,
       );
 
       await database.transaction(() async {
         for (final item in page.items) {
-          if (item.entityType != DriftTaskRepository.entityType) continue;
+          if (!syncEntityTypes.contains(item.entityType)) continue;
           final localChange = await _firstOutboxForEntity(
             userId,
             item.entityType,
@@ -154,13 +162,24 @@ class TaskSyncCoordinator {
           );
           if (localChange != null) continue;
 
-          final task = TaskWireMapper.fromPayload(
-            item.payload,
-            serverVersion: item.serverVersion,
-          );
-          await database
-              .into(database.tasks)
-              .insertOnConflictUpdate(TaskDatabaseMapper.toRow(task));
+          switch (item.entityType) {
+            case DriftTaskRepository.entityType:
+              final task = TaskWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+              );
+              await database
+                  .into(database.tasks)
+                  .insertOnConflictUpdate(TaskDatabaseMapper.toRow(task));
+            case DriftProjectRepository.entityType:
+              final project = ProjectWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+              );
+              await database
+                  .into(database.projects)
+                  .insertOnConflictUpdate(ProjectDatabaseMapper.toRow(project));
+          }
         }
 
         await database.into(database.syncState).insertOnConflictUpdate(
@@ -203,7 +222,7 @@ class TaskSyncCoordinator {
           ..where(
             (table) =>
                 table.userId.equals(userId) &
-                table.entityType.equals(DriftTaskRepository.entityType) &
+                table.entityType.isIn(syncEntityTypes) &
                 table.blocked.equals(false),
           )
           ..orderBy([
@@ -306,14 +325,28 @@ class TaskSyncCoordinator {
 
   Future<void> _handleAccepted(String userId, PushAccepted result) async {
     await database.transaction(() async {
-      await (database.update(database.tasks)
-            ..where(
-              (table) =>
-                  table.userId.equals(userId) & table.id.equals(result.entityId),
-            ))
-          .write(
-        db.TasksCompanion(serverVersion: Value(result.serverVersion)),
-      );
+      switch (result.entityType) {
+        case DriftTaskRepository.entityType:
+          await (database.update(database.tasks)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.TasksCompanion(serverVersion: Value(result.serverVersion)),
+          );
+        case DriftProjectRepository.entityType:
+          await (database.update(database.projects)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.ProjectsCompanion(serverVersion: Value(result.serverVersion)),
+          );
+      }
       await (database.delete(database.syncOutbox)
             ..where((table) => table.changeId.equals(result.changeId)))
           .go();
@@ -327,18 +360,35 @@ class TaskSyncCoordinator {
 
       String? payloadJson = next.payloadJson;
       if (next.operation == 'upsert') {
-        final row = await (database.select(database.tasks)
-              ..where(
-                (table) =>
-                    table.userId.equals(userId) &
-                    table.id.equals(result.entityId),
-              ))
-            .getSingleOrNull();
-        if (row != null) {
-          final current = TaskDatabaseMapper.fromRow(row).copyWith(
-            serverVersion: result.serverVersion,
-          );
-          payloadJson = jsonEncode(TaskWireMapper.toPayload(current));
+        switch (next.entityType) {
+          case DriftTaskRepository.entityType:
+            final row = await (database.select(database.tasks)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = TaskDatabaseMapper.fromRow(row).copyWith(
+                serverVersion: result.serverVersion,
+              );
+              payloadJson = jsonEncode(TaskWireMapper.toPayload(current));
+            }
+          case DriftProjectRepository.entityType:
+            final row = await (database.select(database.projects)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = ProjectDatabaseMapper.fromRow(row).copyWith(
+                serverVersion: result.serverVersion,
+              );
+              payloadJson = jsonEncode(ProjectWireMapper.toPayload(current));
+            }
         }
       }
 
@@ -421,12 +471,12 @@ class TaskSyncCoordinator {
         client: client,
         afterCursor: cursor,
         limit: _pullBatchSize,
-        entityTypes: const [DriftTaskRepository.entityType],
+        entityTypes: syncEntityTypes,
       );
 
       await database.transaction(() async {
         for (final change in batch.changes) {
-          if (change.entityType != DriftTaskRepository.entityType) continue;
+          if (!syncEntityTypes.contains(change.entityType)) continue;
           final localChange = await _firstOutboxForEntity(
             userId,
             change.entityType,
@@ -438,26 +488,50 @@ class TaskSyncCoordinator {
             case 'upsert':
               final payload = change.payload;
               if (payload == null) {
-                throw const FormatException('Task upsert pull 缺少 payload');
+                throw FormatException(
+                  '${change.entityType} upsert pull 缺少 payload',
+                );
               }
-              final task = TaskWireMapper.fromPayload(
-                payload,
-                serverVersion: change.serverVersion,
-              );
-              await database
-                  .into(database.tasks)
-                  .insertOnConflictUpdate(TaskDatabaseMapper.toRow(task));
+              switch (change.entityType) {
+                case DriftTaskRepository.entityType:
+                  final task = TaskWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                  );
+                  await database
+                      .into(database.tasks)
+                      .insertOnConflictUpdate(TaskDatabaseMapper.toRow(task));
+                case DriftProjectRepository.entityType:
+                  final project = ProjectWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                  );
+                  await database.into(database.projects).insertOnConflictUpdate(
+                        ProjectDatabaseMapper.toRow(project),
+                      );
+              }
             case 'delete':
-              await (database.delete(database.tasks)
-                    ..where(
-                      (table) =>
-                          table.userId.equals(userId) &
-                          table.id.equals(change.entityId),
-                    ))
-                  .go();
+              switch (change.entityType) {
+                case DriftTaskRepository.entityType:
+                  await (database.delete(database.tasks)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+                case DriftProjectRepository.entityType:
+                  await (database.delete(database.projects)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+              }
             default:
               throw FormatException(
-                'Unsupported task pull operation: ${change.operation}',
+                'Unsupported execution pull operation: ${change.operation}',
               );
           }
         }

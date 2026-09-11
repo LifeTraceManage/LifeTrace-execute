@@ -897,7 +897,7 @@ class _CloudConnectionState extends ConsumerState<CloudConnection> {
           _InfoRow('协议', 'Sync v${session.protocolVersion} · Schema ${session.schemaVersion}'),
         ]),
       ),
-      h('任务同步'),
+      h('执行数据同步'),
       Row(children: [
         chip('待上传 $pending', bg: pending > 0 ? C.ps : C.soft, fg: pending > 0 ? C.p : C.muted),
         const SizedBox(width: 6),
@@ -947,7 +947,7 @@ class _CloudConnectionState extends ConsumerState<CloudConnection> {
         ),
         const SizedBox(height: 4),
         const Text(
-          '任务仍采用 Local-first；登录后会执行 Snapshot → Push → Pull，并处理版本冲突。',
+          '执行数据采用 Local-first；登录后会执行 Snapshot → Push → Pull，并处理版本冲突。',
           style: TextStyle(fontSize: 10, color: C.muted, height: 1.4),
         ),
         const SizedBox(height: 14),

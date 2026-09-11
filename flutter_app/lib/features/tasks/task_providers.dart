@@ -153,7 +153,10 @@ final taskConflictsProvider = StreamProvider<List<TaskConflictUi>>((ref) async* 
 
   final query = database.select(database.syncConflicts)
     ..where(
-      (table) => table.userId.equals(userId) & table.resolved.equals(false),
+      (table) =>
+          table.userId.equals(userId) &
+          table.entityType.equals(DriftTaskRepository.entityType) &
+          table.resolved.equals(false),
     )
     ..orderBy([(table) => OrderingTerm.desc(table.createdAt)]);
   yield* query.watch().map(
@@ -186,6 +189,7 @@ class TaskCommands {
   Future<ExecutionTask> create({
     required String title,
     String? description,
+    String? projectId,
     ExecutionTaskPriority priority = ExecutionTaskPriority.normal,
     String? dueAt,
     String? scheduledAt,
@@ -195,6 +199,7 @@ class TaskCommands {
           deviceId: await ref.read(deviceIdProvider.future),
           title: title,
           description: description,
+          projectId: projectId,
           priority: priority,
           dueAt: dueAt,
           scheduledAt: scheduledAt,
@@ -218,11 +223,13 @@ class TaskCommands {
     required ExecutionTask task,
     String? title,
     String? description,
+    String? projectId,
     ExecutionTaskStatus? status,
     ExecutionTaskPriority? priority,
     String? dueAt,
     String? scheduledAt,
     bool clearDescription = false,
+    bool clearProjectId = false,
     bool clearDueAt = false,
     bool clearScheduledAt = false,
   }) async {
@@ -231,11 +238,13 @@ class TaskCommands {
           deviceId: await ref.read(deviceIdProvider.future),
           title: title,
           description: description,
+          projectId: projectId,
           status: status,
           priority: priority,
           dueAt: dueAt,
           scheduledAt: scheduledAt,
           clearDescription: clearDescription,
+          clearProjectId: clearProjectId,
           clearDueAt: clearDueAt,
           clearScheduledAt: clearScheduledAt,
         );

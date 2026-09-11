@@ -9,17 +9,21 @@ import 'package:lifetrace_execute/core/cloud/lifetrace_sync_client.dart';
 import 'package:lifetrace_execute/core/cloud/secure_session_store.dart';
 import 'package:lifetrace_execute/core/cloud/sync_models.dart';
 import 'package:lifetrace_execute/data/local/app_database.dart';
+import 'package:lifetrace_execute/data/repository/project_repository.dart';
 import 'package:lifetrace_execute/data/repository/task_repository.dart';
 import 'package:lifetrace_execute/data/sync/task_sync_coordinator.dart';
+import 'package:lifetrace_execute/domain/project/execution_project.dart';
 import 'package:lifetrace_execute/domain/task/execution_task.dart';
 
 void main() {
   late AppDatabase database;
   late DriftTaskRepository repository;
+  late DriftProjectRepository projectRepository;
 
   setUp(() {
     database = AppDatabase(NativeDatabase.memory());
     repository = DriftTaskRepository(database);
+    projectRepository = DriftProjectRepository(database);
   });
 
   tearDown(() async => database.close());
@@ -83,6 +87,63 @@ void main() {
     expect(tasks.single.title, 'From pull');
     final state = (await database.select(database.syncState).get()).single;
     expect(state.cursor, '12');
+  });
+
+  test('project snapshot, push and pull use the same execution sync pipeline', () async {
+    final local = await projectRepository.createProject(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      title: 'Local project',
+    );
+    final client = _FakeSyncClient(
+      snapshots: [
+        SnapshotPageResult(
+          requestId: 'project-snapshot',
+          snapshotId: 'project-snapshot-1',
+          snapshotCursor: '15',
+          items: [
+            SnapshotItem(
+              entityType: DriftProjectRepository.entityType,
+              entityId: 'remote-project',
+              serverVersion: '4',
+              payload: _projectPayload('remote-project', 'Remote snapshot'),
+            ),
+          ],
+          completed: true,
+          serverTime: '2026-09-11T00:00:00.000Z',
+        ),
+      ],
+      pulls: [
+        PullBatchResult(
+          requestId: 'project-pull',
+          serverTime: '2026-09-11T00:01:00.000Z',
+          changes: [
+            PulledChange(
+              cursor: '16',
+              entityType: DriftProjectRepository.entityType,
+              entityId: 'remote-project',
+              operation: 'upsert',
+              serverVersion: '5',
+              serverModifiedAt: '2026-09-11T00:01:00.000Z',
+              payload: _projectPayload('remote-project', 'Remote pull'),
+            ),
+          ],
+          nextCursor: '16',
+          hasMore: false,
+        ),
+      ],
+      acceptAllPushes: true,
+    );
+
+    final summary = await _coordinatorFor(database, client).syncNow();
+
+    expect(summary.snapshotItems, 1);
+    expect(summary.pushed, 1);
+    expect(summary.pulled, 1);
+    final projects = await database.select(database.projects).get();
+    expect(projects, hasLength(2));
+    expect(projects.singleWhere((item) => item.id == local.id).serverVersion, '101');
+    expect(projects.singleWhere((item) => item.id == 'remote-project').title, 'Remote pull');
   });
 
   test('accepted push rebases the next unattempted local change', () async {
@@ -333,6 +394,24 @@ Map<String, dynamic> _payload(String id, String title) => {
       'dueAt': null,
       'scheduledAt': null,
       'completedAt': null,
+    };
+
+Map<String, dynamic> _projectPayload(String id, String title) => {
+      'meta': {
+        'id': id,
+        'userId': 'user-1',
+        'createdAt': '2026-09-10T00:00:00.000Z',
+        'updatedAt': '2026-09-11T00:00:00.000Z',
+        'deletedAt': null,
+        'localVersion': 1,
+        'serverVersion': null,
+        'modifiedByDevice': 'remote-device',
+      },
+      'title': title,
+      'description': null,
+      'status': ExecutionProjectStatus.active.wireValue,
+      'startAt': null,
+      'dueAt': null,
     };
 
 SnapshotPageResult emptySnapshot() => const SnapshotPageResult(
