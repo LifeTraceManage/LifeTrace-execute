@@ -61,6 +61,12 @@ class BackgroundSyncScheduler {
     );
   }
 
+  static Future<void> cancelForLogout() async {
+    await Workmanager().cancelByUniqueName(_initialWork);
+    await Workmanager().cancelByUniqueName(_localChangeWork);
+    await Workmanager().cancelByUniqueName(_periodicWork);
+  }
+
   static Future<void> enqueueAfterLocalChange() {
     return Workmanager().registerOneOffTask(
       _localChangeWork,
