@@ -1207,9 +1207,10 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
           IconButton(
             tooltip: '删除任务',
             onPressed: () async {
-              if (reminder != null) {
-                await ref.read(reminderCommandsProvider).cancel(reminder);
-              }
+              await ref.read(reminderCommandsProvider).cancelForSubject(
+                    subjectType: ReminderSubjectTypes.task,
+                    subjectId: task.id,
+                  );
               await ref.read(taskCommandsProvider).delete(task);
               if (c.mounted) Navigator.pop(c);
             },
@@ -1232,8 +1233,11 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
               : () async {
                   final updated =
                       await ref.read(taskCommandsProvider).toggleDone(task);
-                  if (updated.isDone && reminder != null) {
-                    await ref.read(reminderCommandsProvider).cancel(reminder);
+                  if (updated.isDone) {
+                    await ref.read(reminderCommandsProvider).cancelForSubject(
+                          subjectType: ReminderSubjectTypes.task,
+                          subjectId: task.id,
+                        );
                   }
                   if (mounted) setState(() => current = updated);
                 },
