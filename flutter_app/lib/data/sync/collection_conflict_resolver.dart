@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/collection/entity_link.dart';
 import '../local/app_database.dart' as db;
 import '../repository/entity_link_repository.dart';
+import '../repository/file_metadata_repository.dart';
 import '../repository/memo_repository.dart';
 
 class CollectionConflictResolver {
@@ -49,6 +50,29 @@ class CollectionConflictResolver {
             await database
                 .into(database.memos)
                 .insertOnConflictUpdate(MemoDatabaseMapper.toRow(memo));
+          }
+        case DriftFileMetadataRepository.entityType:
+          if (conflict.serverDeleted) {
+            await (database.delete(database.fileRecords)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(conflict.userId) &
+                        table.id.equals(conflict.entityId),
+                  ))
+                .go();
+          } else {
+            final payload = conflict.serverPayloadJson;
+            final version = conflict.serverVersion;
+            if (payload == null || version == null) {
+              throw StateError('云端 FileMetadata 冲突缺少内容');
+            }
+            final file = FileMetadataWireMapper.fromPayload(
+              _decodeObject(payload),
+              serverVersion: version,
+            );
+            await database
+                .into(database.fileRecords)
+                .insertOnConflictUpdate(FileMetadataDatabaseMapper.toRow(file));
           }
         case DriftEntityLinkRepository.entityType:
           if (conflict.serverDeleted) {
@@ -163,6 +187,54 @@ class CollectionConflictResolver {
                     clientModifiedAt: now,
                     payloadJson: Value(
                       jsonEncode(MemoWireMapper.toPayload(local)),
+                    ),
+                    createdAt: now,
+                  ),
+                );
+          }
+        case DriftFileMetadataRepository.entityType:
+          if (queued.operation == 'delete') {
+            await database.into(database.syncOutbox).insert(
+                  db.SyncOutboxCompanion.insert(
+                    changeId: _uuid.v4(),
+                    userId: conflict.userId,
+                    entityType: conflict.entityType,
+                    entityId: conflict.entityId,
+                    operation: 'delete',
+                    baseServerVersion: version,
+                    clientModifiedAt: now,
+                    createdAt: now,
+                  ),
+                );
+          } else {
+            final row = await (database.select(database.fileRecords)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(conflict.userId) &
+                        table.id.equals(conflict.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row == null) throw StateError('本地 FileMetadata 已不存在');
+            final local = FileMetadataDatabaseMapper.fromRow(row).copyWith(
+              updatedAt: now,
+              localVersion: row.localVersion + 1,
+              serverVersion: version,
+              modifiedByDevice: deviceId,
+            );
+            await database
+                .into(database.fileRecords)
+                .insertOnConflictUpdate(FileMetadataDatabaseMapper.toRow(local));
+            await database.into(database.syncOutbox).insert(
+                  db.SyncOutboxCompanion.insert(
+                    changeId: _uuid.v4(),
+                    userId: conflict.userId,
+                    entityType: conflict.entityType,
+                    entityId: conflict.entityId,
+                    operation: 'upsert',
+                    baseServerVersion: version,
+                    clientModifiedAt: now,
+                    payloadJson: Value(
+                      jsonEncode(FileMetadataWireMapper.toPayload(local)),
                     ),
                     createdAt: now,
                   ),
