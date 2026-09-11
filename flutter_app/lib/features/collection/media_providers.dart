@@ -9,12 +9,65 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/files/local_file_access.dart';
+import '../../data/repository/entity_link_repository.dart';
+import '../../data/repository/file_metadata_repository.dart';
 import '../../data/repository/media_collection_repository.dart';
 import '../../data/repository/media_upload_repository.dart';
 import '../../data/sync/media_upload_coordinator.dart';
+import '../../domain/collection/entity_link.dart';
 import '../../domain/collection/execution_file_metadata.dart';
 import '../../domain/collection/execution_memo.dart';
 import '../tasks/task_providers.dart';
+
+final fileMetadataRepositoryProvider =
+    Provider<DriftFileMetadataRepository?>((ref) {
+  if (kIsWeb) return null;
+  final database = ref.watch(appDatabaseProvider);
+  return database == null ? null : DriftFileMetadataRepository(database);
+});
+
+final fileMetadataListProvider =
+    StreamProvider<List<ExecutionFileMetadata>>((ref) async* {
+  if (kIsWeb) {
+    yield const <ExecutionFileMetadata>[];
+    return;
+  }
+  final repository = ref.watch(fileMetadataRepositoryProvider);
+  final userId = await ref.watch(currentUserIdProvider.future);
+  if (repository == null || userId == null) {
+    yield const <ExecutionFileMetadata>[];
+    return;
+  }
+  yield* repository.watchFiles(userId);
+});
+
+final entityLinkRepositoryProvider =
+    Provider<DriftEntityLinkRepository?>((ref) {
+  if (kIsWeb) return null;
+  final database = ref.watch(appDatabaseProvider);
+  return database == null ? null : DriftEntityLinkRepository(database);
+});
+
+final memoAttachmentLinksProvider =
+    StreamProvider.family<List<ExecutionEntityLink>, String>(
+  (ref, memoId) async* {
+    if (kIsWeb) {
+      yield const <ExecutionEntityLink>[];
+      return;
+    }
+    final repository = ref.watch(entityLinkRepositoryProvider);
+    final userId = await ref.watch(currentUserIdProvider.future);
+    if (repository == null || userId == null) {
+      yield const <ExecutionEntityLink>[];
+      return;
+    }
+    yield* repository.watchLinksForEntity(
+      userId: userId,
+      entityType: 'execution.memo',
+      entityId: memoId,
+    );
+  },
+);
 
 final mediaUploadRepositoryProvider = Provider<MediaUploadRepository?>((ref) {
   if (kIsWeb) return null;
