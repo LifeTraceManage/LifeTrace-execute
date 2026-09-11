@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'domain/calendar/execution_calendar_event.dart';
+import 'domain/collection/execution_file_metadata.dart';
 import 'domain/collection/execution_memo.dart';
 import 'domain/project/execution_project.dart';
 import 'domain/task/execution_task.dart';
 import 'features/calendar/calendar_math.dart';
 import 'features/calendar/calendar_providers.dart';
 import 'features/collection/collection_providers.dart';
+import 'features/collection/media_providers.dart';
 import 'features/projects/project_providers.dart';
 import 'features/tasks/task_providers.dart';
 
@@ -184,6 +186,11 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
   void _syncSilently() {
     unawaited(
       ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true),
+    );
+    unawaited(
+      ref
+          .read(mediaUploadControllerProvider.notifier)
+          .processPending(silent: true),
     );
   }
 
