@@ -10,6 +10,7 @@ import 'package:lifetrace_execute/core/cloud/secure_session_store.dart';
 import 'package:lifetrace_execute/core/cloud/sync_models.dart';
 import 'package:lifetrace_execute/data/local/app_database.dart';
 import 'package:lifetrace_execute/data/repository/calendar_event_repository.dart';
+import 'package:lifetrace_execute/data/repository/daily_review_repository.dart';
 import 'package:lifetrace_execute/data/repository/file_metadata_repository.dart';
 import 'package:lifetrace_execute/data/repository/memo_repository.dart';
 import 'package:lifetrace_execute/data/repository/project_repository.dart';
@@ -18,6 +19,7 @@ import 'package:lifetrace_execute/data/sync/task_sync_coordinator.dart';
 import 'package:lifetrace_execute/domain/collection/execution_file_metadata.dart';
 import 'package:lifetrace_execute/domain/collection/execution_memo.dart';
 import 'package:lifetrace_execute/domain/project/execution_project.dart';
+import 'package:lifetrace_execute/domain/review/daily_review.dart';
 import 'package:lifetrace_execute/domain/task/execution_task.dart';
 
 void main() {
@@ -27,6 +29,7 @@ void main() {
   late DriftCalendarEventRepository calendarRepository;
   late DriftMemoRepository memoRepository;
   late DriftFileMetadataRepository fileMetadataRepository;
+  late DriftDailyReviewRepository reviewRepository;
 
   setUp(() {
     database = AppDatabase(NativeDatabase.memory());
@@ -35,6 +38,7 @@ void main() {
     calendarRepository = DriftCalendarEventRepository(database);
     memoRepository = DriftMemoRepository(database);
     fileMetadataRepository = DriftFileMetadataRepository(database);
+    reviewRepository = DriftDailyReviewRepository(database);
   });
 
   tearDown(() async => database.close());
@@ -353,6 +357,76 @@ void main() {
     );
   });
 
+  test('daily review snapshot, push and pull share sync pipeline', () async {
+    final local = await reviewRepository.saveReview(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      reviewDate: '2026-09-11',
+      mood: 4,
+      energy: 3,
+      completionScore: 0.5,
+      completedTaskCount: 1,
+      totalTaskCount: 2,
+      bestThing: 'Local review',
+    );
+
+    final client = _FakeSyncClient(
+      snapshots: [
+        SnapshotPageResult(
+          requestId: 'review-snapshot',
+          snapshotId: 'review-snapshot-1',
+          snapshotCursor: '30',
+          items: [
+            SnapshotItem(
+              entityType: DriftDailyReviewRepository.entityType,
+              entityId: 'remote-review',
+              serverVersion: '2',
+              payload: _reviewPayload('remote-review', 'Snapshot review'),
+            ),
+          ],
+          completed: true,
+          serverTime: '2026-09-11T00:00:00.000Z',
+        ),
+      ],
+      pulls: [
+        PullBatchResult(
+          requestId: 'review-pull',
+          serverTime: '2026-09-11T00:01:00.000Z',
+          changes: [
+            PulledChange(
+              cursor: '31',
+              entityType: DriftDailyReviewRepository.entityType,
+              entityId: 'remote-review',
+              operation: 'upsert',
+              serverVersion: '3',
+              serverModifiedAt: '2026-09-11T00:01:00.000Z',
+              payload: _reviewPayload('remote-review', 'Pulled review'),
+            ),
+          ],
+          nextCursor: '31',
+          hasMore: false,
+        ),
+      ],
+      acceptAllPushes: true,
+    );
+
+    final summary = await _coordinatorFor(database, client).syncNow();
+
+    expect(summary.snapshotItems, 1);
+    expect(summary.pushed, 1);
+    expect(summary.pulled, 1);
+    final reviews = await database.select(database.dailyReviews).get();
+    expect(reviews, hasLength(2));
+    expect(
+      reviews.singleWhere((item) => item.id == local.id).serverVersion,
+      '101',
+    );
+    expect(
+      reviews.singleWhere((item) => item.id == 'remote-review').bestThing,
+      'Pulled review',
+    );
+  });
+
   test('accepted push rebases the next unattempted local change', () async {
     final created = await repository.createTask(
       userId: 'user-1',
@@ -639,6 +713,29 @@ Map<String, dynamic> _memoPayload(String id, String content) => {
       'sourceUrl': null,
       'important': false,
       'status': ExecutionMemoStatus.inbox.wireValue,
+    };
+
+Map<String, dynamic> _reviewPayload(String id, String bestThing) => {
+      'meta': {
+        'id': id,
+        'userId': 'user-1',
+        'createdAt': '2026-09-10T00:00:00.000Z',
+        'updatedAt': '2026-09-11T00:00:00.000Z',
+        'deletedAt': null,
+        'localVersion': 1,
+        'serverVersion': null,
+        'modifiedByDevice': 'remote-device',
+      },
+      'reviewDate': '2026-09-11',
+      'energy': 4,
+      'mood': 4,
+      'completionScore': 0.5,
+      'bestThing': bestThing,
+      'problem': null,
+      'tomorrowPriority': 'Next task',
+      'note': null,
+      'completedTaskCount': 1,
+      'totalTaskCount': 2,
     };
 
 Map<String, dynamic> _filePayload(String id, String name) => {
