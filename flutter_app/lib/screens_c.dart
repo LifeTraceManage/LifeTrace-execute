@@ -31,7 +31,7 @@ class Collection extends StatelessWidget {
               const Spacer(),
               CircleAvatar(
                 radius: 16,
-                backgroundColor: C.p,
+                backgroundColor: C.teal,
                 child: IconButton(
                   padding: EdgeInsets.zero,
                   onPressed: () {},
@@ -40,16 +40,16 @@ class Collection extends StatelessWidget {
               ),
             ]),
           ]),
-          color: C.soft,
+          color: C.tealSoft,
         ),
         h('快速收集'),
         Wrap(spacing: 7, runSpacing: 7, children: [
-          _Quick(Icons.edit_note_rounded, '文本', () => capture(c, '文本')),
-          _Quick(Icons.mic_none_rounded, '语音', () => capture(c, '语音')),
-          _Quick(Icons.image_outlined, '图片', () => capture(c, '图片')),
-          _Quick(Icons.link_rounded, '链接', () => capture(c, '链接')),
-          _Quick(Icons.insert_drive_file_outlined, '文件', () => capture(c, '文件')),
-          _Quick(Icons.lightbulb_outline_rounded, '想法', () => capture(c, '想法')),
+          _Quick(Icons.edit_note_rounded, '文本', C.p, C.ps, () => capture(c, '文本')),
+          _Quick(Icons.mic_none_rounded, '语音', C.purple, C.purpleSoft, () => capture(c, '语音')),
+          _Quick(Icons.image_outlined, '图片', C.pink, C.pinkSoft, () => capture(c, '图片')),
+          _Quick(Icons.link_rounded, '链接', C.teal, C.tealSoft, () => capture(c, '链接')),
+          _Quick(Icons.insert_drive_file_outlined, '文件', C.orange, C.orangeSoft, () => capture(c, '文件')),
+          _Quick(Icons.lightbulb_outline_rounded, '想法', C.amber, C.amberSoft, () => capture(c, '想法')),
         ]),
         h('Inbox · 7'),
         panel(
@@ -91,9 +91,11 @@ class Collection extends StatelessWidget {
 }
 
 class _Quick extends StatelessWidget {
-  const _Quick(this.icon, this.label, this.tap);
+  const _Quick(this.icon, this.label, this.color, this.background, this.tap);
   final IconData icon;
   final String label;
+  final Color color;
+  final Color background;
   final VoidCallback tap;
 
   @override
@@ -104,11 +106,11 @@ class _Quick extends StatelessWidget {
           width: 96,
           padding: const EdgeInsets.symmetric(vertical: 9),
           decoration: BoxDecoration(
-            color: C.soft,
+            color: background,
             borderRadius: BorderRadius.circular(9),
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon, size: 15, color: C.p),
+            Icon(icon, size: 15, color: color),
             const SizedBox(width: 5),
             Text(
               label,
@@ -169,7 +171,7 @@ class _ReviewState extends State<Review> {
                 onTap: () => setState(() => mood = i),
                 child: CircleAvatar(
                   radius: 18,
-                  backgroundColor: i == mood ? C.ps : C.soft,
+                  backgroundColor: i == mood ? C.pinkSoft : C.soft,
                   child: Text(
                     ['☹', '🙁', '😐', '🙂', '😊'][i],
                     style: TextStyle(fontSize: i == mood ? 18 : 15),
@@ -190,6 +192,7 @@ class _ReviewState extends State<Review> {
               value: .73,
               minHeight: 6,
               backgroundColor: C.soft,
+              color: C.green,
             ),
           ),
           h('今天做得好的事情'),
@@ -239,8 +242,8 @@ class Profile extends ConsumerWidget {
         Row(children: [
           const CircleAvatar(
             radius: 23,
-            backgroundColor: C.ps,
-            child: Icon(Icons.person, color: C.p),
+            backgroundColor: C.purpleSoft,
+            child: Icon(Icons.person, color: C.purple),
           ),
           const SizedBox(width: 11),
           Expanded(
@@ -361,7 +364,7 @@ class _CloudConnectionState extends ConsumerState<CloudConnection> {
       Row(children: [
         const CircleAvatar(
           radius: 19,
-          backgroundColor: Color(0xffe8f8ef),
+          backgroundColor: C.greenSoft,
           child: Icon(Icons.cloud_done_rounded, color: C.green, size: 20),
         ),
         const SizedBox(width: 10),
