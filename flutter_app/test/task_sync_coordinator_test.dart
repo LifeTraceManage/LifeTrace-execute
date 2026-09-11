@@ -10,10 +10,12 @@ import 'package:lifetrace_execute/core/cloud/secure_session_store.dart';
 import 'package:lifetrace_execute/core/cloud/sync_models.dart';
 import 'package:lifetrace_execute/data/local/app_database.dart';
 import 'package:lifetrace_execute/data/repository/calendar_event_repository.dart';
+import 'package:lifetrace_execute/data/repository/file_metadata_repository.dart';
 import 'package:lifetrace_execute/data/repository/memo_repository.dart';
 import 'package:lifetrace_execute/data/repository/project_repository.dart';
 import 'package:lifetrace_execute/data/repository/task_repository.dart';
 import 'package:lifetrace_execute/data/sync/task_sync_coordinator.dart';
+import 'package:lifetrace_execute/domain/collection/execution_file_metadata.dart';
 import 'package:lifetrace_execute/domain/collection/execution_memo.dart';
 import 'package:lifetrace_execute/domain/project/execution_project.dart';
 import 'package:lifetrace_execute/domain/task/execution_task.dart';
@@ -24,6 +26,7 @@ void main() {
   late DriftProjectRepository projectRepository;
   late DriftCalendarEventRepository calendarRepository;
   late DriftMemoRepository memoRepository;
+  late DriftFileMetadataRepository fileMetadataRepository;
 
   setUp(() {
     database = AppDatabase(NativeDatabase.memory());
@@ -31,6 +34,7 @@ void main() {
     projectRepository = DriftProjectRepository(database);
     calendarRepository = DriftCalendarEventRepository(database);
     memoRepository = DriftMemoRepository(database);
+    fileMetadataRepository = DriftFileMetadataRepository(database);
   });
 
   tearDown(() async => database.close());
@@ -272,6 +276,80 @@ void main() {
     expect(
       memos.singleWhere((item) => item.id == 'remote-memo').content,
       'Pulled memo',
+    );
+  });
+
+  test('file metadata snapshot, push and pull share sync pipeline', () async {
+    const local = ExecutionFileMetadata(
+      id: 'local-file',
+      userId: 'user-1',
+      originalName: 'local.png',
+      mimeType: 'image/png',
+      sizeBytes: 128,
+      sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      storageState: ExecutionFileStorageState.serverStored,
+      createdByDevice: 'device-1',
+      createdAt: '2026-09-11T00:00:00.000Z',
+      updatedAt: '2026-09-11T00:00:00.000Z',
+      localVersion: 1,
+      modifiedByDevice: 'device-1',
+    );
+    await fileMetadataRepository.writeLocalChange(local);
+
+    final client = _FakeSyncClient(
+      snapshots: [
+        SnapshotPageResult(
+          requestId: 'file-snapshot',
+          snapshotId: 'file-snapshot-1',
+          snapshotCursor: '28',
+          items: [
+            SnapshotItem(
+              entityType: DriftFileMetadataRepository.entityType,
+              entityId: 'remote-file',
+              serverVersion: '2',
+              payload: _filePayload('remote-file', 'snapshot.png'),
+            ),
+          ],
+          completed: true,
+          serverTime: '2026-09-11T00:00:00.000Z',
+        ),
+      ],
+      pulls: [
+        PullBatchResult(
+          requestId: 'file-pull',
+          serverTime: '2026-09-11T00:01:00.000Z',
+          changes: [
+            PulledChange(
+              cursor: '29',
+              entityType: DriftFileMetadataRepository.entityType,
+              entityId: 'remote-file',
+              operation: 'upsert',
+              serverVersion: '3',
+              serverModifiedAt: '2026-09-11T00:01:00.000Z',
+              payload: _filePayload('remote-file', 'pulled.png'),
+            ),
+          ],
+          nextCursor: '29',
+          hasMore: false,
+        ),
+      ],
+      acceptAllPushes: true,
+    );
+
+    final summary = await _coordinatorFor(database, client).syncNow();
+
+    expect(summary.snapshotItems, 1);
+    expect(summary.pushed, 1);
+    expect(summary.pulled, 1);
+    final files = await database.select(database.fileRecords).get();
+    expect(files, hasLength(2));
+    expect(
+      files.singleWhere((item) => item.id == 'local-file').serverVersion,
+      '101',
+    );
+    expect(
+      files.singleWhere((item) => item.id == 'remote-file').originalName,
+      'pulled.png',
     );
   });
 
@@ -561,6 +639,26 @@ Map<String, dynamic> _memoPayload(String id, String content) => {
       'sourceUrl': null,
       'important': false,
       'status': ExecutionMemoStatus.inbox.wireValue,
+    };
+
+Map<String, dynamic> _filePayload(String id, String name) => {
+      'meta': {
+        'id': id,
+        'userId': 'user-1',
+        'createdAt': '2026-09-10T00:00:00.000Z',
+        'updatedAt': '2026-09-11T00:00:00.000Z',
+        'deletedAt': null,
+        'localVersion': 1,
+        'serverVersion': null,
+        'modifiedByDevice': 'remote-device',
+      },
+      'originalName': name,
+      'mimeType': 'image/png',
+      'sizeBytes': 128,
+      'sha256':
+          '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      'storageState': ExecutionFileStorageState.serverStored.wireValue,
+      'createdByDevice': 'remote-device',
     };
 
 Map<String, dynamic> _projectPayload(String id, String title) => {
