@@ -434,7 +434,7 @@ class _TimeItem extends StatelessWidget {
             const SizedBox(width: 9),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(name, style: const TextStyle(fontSize: 11.3, fontWeight: FontWeight.w850)),
+                Text(name, style: const TextStyle(fontSize: 11.3, fontWeight: FontWeight.w800)),
                 if (meta.isNotEmpty)
                   Text(meta, style: const TextStyle(fontSize: 8.8, color: C.muted)),
               ]),
@@ -485,7 +485,7 @@ class _TaskLine extends StatelessWidget {
             const SizedBox(width: 9),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(name, style: const TextStyle(fontSize: 11.2, fontWeight: FontWeight.w850)),
+                Text(name, style: const TextStyle(fontSize: 11.2, fontWeight: FontWeight.w800)),
                 Text(meta, style: const TextStyle(fontSize: 8.8, color: C.muted)),
               ]),
             ),
