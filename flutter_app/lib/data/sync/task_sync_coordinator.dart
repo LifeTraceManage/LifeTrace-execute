@@ -8,6 +8,9 @@ import '../../core/cloud/lifetrace_sync_client.dart';
 import '../../core/cloud/sync_models.dart';
 import '../../core/identity/device_identity_store.dart';
 import '../local/app_database.dart' as db;
+import '../repository/calendar_event_database_mapper.dart';
+import '../repository/calendar_event_repository.dart';
+import '../repository/calendar_event_wire_mapper.dart';
 import '../repository/project_database_mapper.dart';
 import '../repository/project_repository.dart';
 import '../repository/project_wire_mapper.dart';
@@ -45,10 +48,11 @@ class TaskSyncCoordinator {
         _deviceIdLoader = deviceIdLoader ?? DeviceIdentityStore().getOrCreate;
 
   static const taskScopeKey =
-      'entities:execution.task,execution.project';
+      'entities:execution.task,execution.project,execution.calendar_event';
   static const syncEntityTypes = <String>[
     DriftTaskRepository.entityType,
     DriftProjectRepository.entityType,
+    DriftCalendarEventRepository.entityType,
   ];
   static const _pushBatchSize = 100;
   static const _pullBatchSize = 100;
@@ -179,6 +183,16 @@ class TaskSyncCoordinator {
               await database
                   .into(database.projects)
                   .insertOnConflictUpdate(ProjectDatabaseMapper.toRow(project));
+            case DriftCalendarEventRepository.entityType:
+              final event = CalendarEventWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+              );
+              await database
+                  .into(database.calendarEvents)
+                  .insertOnConflictUpdate(
+                    CalendarEventDatabaseMapper.toRow(event),
+                  );
           }
         }
 
@@ -233,7 +247,7 @@ class TaskSyncCoordinator {
 
     final seen = <String>{};
     final heads = pending
-        .where((row) => seen.add(row.entityId))
+        .where((row) => seen.add('${row.entityType}:${row.entityId}'))
         .take(_pushBatchSize)
         .toList(growable: false);
     if (heads.isEmpty) return const _PushRoundResult(hadWork: false);
@@ -346,6 +360,18 @@ class TaskSyncCoordinator {
               .write(
             db.ProjectsCompanion(serverVersion: Value(result.serverVersion)),
           );
+        case DriftCalendarEventRepository.entityType:
+          await (database.update(database.calendarEvents)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.CalendarEventsCompanion(
+              serverVersion: Value(result.serverVersion),
+            ),
+          );
       }
       await (database.delete(database.syncOutbox)
             ..where((table) => table.changeId.equals(result.changeId)))
@@ -388,6 +414,22 @@ class TaskSyncCoordinator {
                 serverVersion: result.serverVersion,
               );
               payloadJson = jsonEncode(ProjectWireMapper.toPayload(current));
+            }
+          case DriftCalendarEventRepository.entityType:
+            final row = await (database.select(database.calendarEvents)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = CalendarEventDatabaseMapper.fromRow(row).copyWith(
+                serverVersion: result.serverVersion,
+              );
+              payloadJson = jsonEncode(
+                CalendarEventWireMapper.toPayload(current),
+              );
             }
         }
       }
@@ -509,6 +551,16 @@ class TaskSyncCoordinator {
                   await database.into(database.projects).insertOnConflictUpdate(
                         ProjectDatabaseMapper.toRow(project),
                       );
+                case DriftCalendarEventRepository.entityType:
+                  final event = CalendarEventWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                  );
+                  await database
+                      .into(database.calendarEvents)
+                      .insertOnConflictUpdate(
+                        CalendarEventDatabaseMapper.toRow(event),
+                      );
               }
             case 'delete':
               switch (change.entityType) {
@@ -522,6 +574,14 @@ class TaskSyncCoordinator {
                       .go();
                 case DriftProjectRepository.entityType:
                   await (database.delete(database.projects)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+                case DriftCalendarEventRepository.entityType:
+                  await (database.delete(database.calendarEvents)
                         ..where(
                           (table) =>
                               table.userId.equals(userId) &
