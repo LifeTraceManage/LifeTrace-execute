@@ -5,8 +5,8 @@ void main() {
   test('month grid uses real month length and Monday offset', () {
     final september = calendarMonthGrid(DateTime(2026, 9));
     expect(september.length, 35);
-    expect(september.first, DateTime(2026, 9, 1));
-    expect(september.last, isNull);
+    expect(september.first, isNull);
+    expect(september[1], DateTime(2026, 9, 1));
 
     final february = calendarMonthGrid(DateTime(2028, 2));
     expect(february.whereType<DateTime>(), hasLength(29));
