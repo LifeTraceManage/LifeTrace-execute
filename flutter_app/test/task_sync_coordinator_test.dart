@@ -73,7 +73,7 @@ void main() {
       ],
     );
 
-    final summary = await coordinatorFor(database, client).syncNow();
+    final summary = await _coordinatorFor(database, client).syncNow();
 
     expect(summary.snapshotItems, 1);
     expect(summary.pulled, 2);
@@ -103,7 +103,7 @@ void main() {
       acceptAllPushes: true,
     );
 
-    final summary = await coordinatorFor(database, client).syncNow();
+    final summary = await _coordinatorFor(database, client).syncNow();
 
     expect(summary.pushed, 2);
     expect(client.pushBatches, hasLength(2));
@@ -150,7 +150,7 @@ void main() {
       ),
     );
 
-    final summary = await coordinatorFor(database, client).syncNow();
+    final summary = await _coordinatorFor(database, client).syncNow();
 
     expect(summary.conflicts, 1);
     final conflicts = await database.select(database.syncConflicts).get();
@@ -188,7 +188,7 @@ void main() {
       ),
     );
 
-    final summary = await coordinatorFor(database, client).syncNow();
+    final summary = await _coordinatorFor(database, client).syncNow();
 
     expect(summary.rejected, 1);
     final row = (await database.select(database.syncOutbox).get()).single;
@@ -214,7 +214,7 @@ void main() {
     );
 
     await expectLater(
-      coordinatorFor(database, client).syncNow(),
+      _coordinatorFor(database, client).syncNow(),
       throwsA(isA<CloudApiException>()),
     );
 
@@ -265,7 +265,7 @@ void main() {
       ],
     );
 
-    await coordinatorFor(database, client).syncNow();
+    await _coordinatorFor(database, client).syncNow();
 
     final task = (await database.select(database.tasks).get()).single;
     expect(task.title, 'Keep local');
@@ -279,7 +279,7 @@ void main() {
       pulls: [emptyPull('71')],
       snapshotGate: gate,
     );
-    final coordinator = coordinatorFor(database, client);
+    final coordinator = _coordinatorFor(database, client);
 
     final first = coordinator.syncNow();
     final second = coordinator.syncNow();
@@ -290,7 +290,7 @@ void main() {
   });
 }
 
-TaskSyncCoordinator coordinatorFor(
+TaskSyncCoordinator _coordinatorFor(
   AppDatabase database,
   _FakeSyncClient client,
 ) =>
