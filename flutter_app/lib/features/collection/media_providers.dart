@@ -181,19 +181,14 @@ class MediaCommands {
       throw ArgumentError.value(kind, 'kind', '不是媒体类型');
     }
 
-    final result = await FilePicker.pickFiles(
+    final selected = await FilePicker.pickFile(
       type: switch (kind) {
         ExecutionMemoKind.image => FileType.image,
         ExecutionMemoKind.audio => FileType.audio,
         _ => FileType.any,
       },
-      allowMultiple: false,
-      withData: false,
-      withReadStream: false,
     );
-    if (result == null || result.files.isEmpty) return null;
-
-    final selected = result.files.single;
+    if (selected == null) return null;
     final sourcePath = selected.path;
     if (sourcePath == null || sourcePath.isEmpty) {
       throw StateError('无法访问所选文件的本地路径');
