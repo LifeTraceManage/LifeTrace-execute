@@ -11,6 +11,7 @@ void main() {
         overrides: [
           taskRepositoryProvider.overrideWithValue(PreviewTaskRepository()),
           currentUserIdProvider.overrideWith((ref) async => 'preview-user'),
+          taskSyncCoordinatorProvider.overrideWithValue(null),
         ],
         child: const LifeTraceExecuteApp(),
       ),
