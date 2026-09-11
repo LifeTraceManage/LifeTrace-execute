@@ -54,13 +54,13 @@ class Collection extends StatelessWidget {
         h('Inbox · 7'),
         panel(
           const Column(children: [
-            _Inbox(Icons.link_rounded, 'Transformer 新论文', '链接 · 10分钟前'),
+            _Inbox(Icons.link_rounded, 'Transformer 新论文', '链接 · 10分钟前', C.teal, C.tealSoft),
             Divider(height: 1),
-            _Inbox(Icons.notes_rounded, '明天找导师讨论实验方案', '文本 · 1小时前'),
+            _Inbox(Icons.notes_rounded, '明天找导师讨论实验方案', '文本 · 1小时前', C.p, C.ps),
             Divider(height: 1),
-            _Inbox(Icons.image_outlined, 'IMG_2931.jpg', '图片 · 今天'),
+            _Inbox(Icons.image_outlined, 'IMG_2931.jpg', '图片 · 今天', C.pink, C.pinkSoft),
             Divider(height: 1),
-            _Inbox(Icons.lightbulb_outline_rounded, 'LifeTrace 设计灵感', '想法 · 今天'),
+            _Inbox(Icons.lightbulb_outline_rounded, 'LifeTrace 设计灵感', '想法 · 今天', C.amber, C.amberSoft),
           ]),
         ),
       ]);
@@ -101,20 +101,26 @@ class _Quick extends StatelessWidget {
   @override
   Widget build(BuildContext c) => InkWell(
         onTap: tap,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(13),
         child: Container(
           width: 96,
+          height: 68,
           padding: const EdgeInsets.symmetric(vertical: 9),
           decoration: BoxDecoration(
             color: background,
-            borderRadius: BorderRadius.circular(9),
+            borderRadius: BorderRadius.circular(13),
           ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon, size: 15, color: color),
-            const SizedBox(width: 5),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(
+              width: 29,
+              height: 29,
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9)),
+              child: Icon(icon, size: 15, color: color),
+            ),
+            const SizedBox(height: 6),
             Text(
               label,
-              style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 9.3, fontWeight: FontWeight.w800, color: color),
             ),
           ]),
         ),
@@ -122,16 +128,23 @@ class _Quick extends StatelessWidget {
 }
 
 class _Inbox extends StatelessWidget {
-  const _Inbox(this.icon, this.title, this.meta);
+  const _Inbox(this.icon, this.title, this.meta, this.color, this.background);
   final IconData icon;
   final String title;
   final String meta;
+  final Color color;
+  final Color background;
 
   @override
   Widget build(BuildContext c) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(children: [
-          Icon(icon, size: 16, color: C.p),
+          Container(
+            width: 33,
+            height: 33,
+            decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, size: 16, color: color),
+          ),
           const SizedBox(width: 9),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -142,6 +155,7 @@ class _Inbox extends StatelessWidget {
               Text(meta, style: const TextStyle(fontSize: 8.5, color: C.muted)),
             ]),
           ),
+          const Icon(Icons.chevron_right_rounded, size: 15, color: C.muted),
         ]),
       );
 }
