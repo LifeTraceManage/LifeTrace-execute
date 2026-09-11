@@ -1234,6 +1234,7 @@ Future<void> _editCalendarEvent(
           ).future,
         );
   final existingReminder = _activeReminder(existingReminders);
+  if (!context.mounted) return;
 
   final titleController = TextEditingController(text: event?.title ?? '');
   final descriptionController =
