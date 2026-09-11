@@ -1172,6 +1172,16 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
                 .valueOrNull ??
             const <ExecutionReminder>[];
     final reminder = _activeReminder(reminderItems);
+    final reminderConflicts =
+        ref.watch(reminderConflictsProvider).valueOrNull ??
+            const <ReminderConflictUi>[];
+    ReminderConflictUi? reminderConflict;
+    for (final conflict in reminderConflicts) {
+      if (reminderItems.any((item) => item.id == conflict.reminderId)) {
+        reminderConflict = conflict;
+        break;
+      }
+    }
 
     final accent = completed
         ? C.green
@@ -1384,6 +1394,10 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
         ),
         if (task != null) ...[
           h('提醒'),
+          if (reminderConflict != null) ...[
+            _ReminderConflictBanner(conflict: reminderConflict),
+            const SizedBox(height: 8),
+          ],
           InkWell(
             onTap: completed
                 ? null
@@ -1748,6 +1762,52 @@ class _SubtaskTile extends StatelessWidget {
             ),
           ]),
         ),
+      );
+}
+
+class _ReminderConflictBanner extends ConsumerWidget {
+  const _ReminderConflictBanner({required this.conflict});
+
+  final ReminderConflictUi conflict;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: C.redSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text(
+            '提醒存在同步冲突',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            conflict.serverDeleted ? '云端提醒已删除' : conflict.reason,
+            style: const TextStyle(fontSize: 8.5, color: C.muted),
+          ),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => ref
+                    .read(reminderCommandsProvider)
+                    .keepServer(conflict.conflictId),
+                child: const Text('保留云端'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton(
+                onPressed: () => ref
+                    .read(reminderCommandsProvider)
+                    .keepLocal(conflict.conflictId),
+                child: const Text('保留本地'),
+              ),
+            ),
+          ]),
+        ]),
       );
 }
 
