@@ -163,6 +163,28 @@ class DailyReviews extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class Reminders extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get subjectType => text()();
+  TextColumn get subjectId => text()();
+  TextColumn get triggerAt => text()();
+  TextColumn get status => text()();
+  TextColumn get fireKey => text()();
+  TextColumn get snoozedUntil => text().nullable()();
+  TextColumn get lastFiredAt => text().nullable()();
+  TextColumn get title => text().nullable()();
+  TextColumn get body => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+  IntColumn get localVersion => integer()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get modifiedByDevice => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class SyncOutbox extends Table {
   TextColumn get changeId => text()();
   TextColumn get userId => text()();
@@ -217,13 +239,13 @@ class SyncConflicts extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, DailyReviews, SyncOutbox, SyncState, SyncConflicts])
+@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, DailyReviews, Reminders, SyncOutbox, SyncState, SyncConflicts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
   AppDatabase.production() : super(openProductionConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -259,6 +281,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 7) {
             await migrator.createTable(dailyReviews);
+          }
+          if (from < 8) {
+            await migrator.createTable(reminders);
           }
         },
       );
