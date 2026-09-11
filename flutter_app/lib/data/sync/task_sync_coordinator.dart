@@ -59,11 +59,12 @@ class TaskSyncCoordinator {
     final active = _activeSync;
     if (active != null) return active;
 
-    final operation = _syncInternal();
-    _activeSync = operation;
-    return operation.whenComplete(() {
-      if (identical(_activeSync, operation)) _activeSync = null;
+    late final Future<TaskSyncSummary> tracked;
+    tracked = _syncInternal().whenComplete(() {
+      if (identical(_activeSync, tracked)) _activeSync = null;
     });
+    _activeSync = tracked;
+    return tracked;
   }
 
   Future<TaskSyncSummary> _syncInternal() {
