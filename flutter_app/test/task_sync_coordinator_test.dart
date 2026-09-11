@@ -20,6 +20,7 @@ import 'package:lifetrace_execute/data/sync/task_sync_coordinator.dart';
 import 'package:lifetrace_execute/domain/collection/execution_file_metadata.dart';
 import 'package:lifetrace_execute/domain/collection/execution_memo.dart';
 import 'package:lifetrace_execute/domain/project/execution_project.dart';
+import 'package:lifetrace_execute/domain/reminder/execution_reminder.dart';
 import 'package:lifetrace_execute/domain/task/execution_task.dart';
 
 void main() {
