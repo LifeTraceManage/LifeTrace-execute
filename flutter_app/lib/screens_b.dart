@@ -20,7 +20,79 @@ class _ProjectsState extends State<Projects>{int f=0;@override Widget build(Buil
   _Project('个人成长','健康 · 学习 · 生活',.30,'6 个任务 · 2 已完成','12 月 31 日',C.teal,()=>push(c,const ProjectDetail())),const SizedBox(height:9),
   _Project('开源项目','有意义的开源贡献',.40,'4 个任务 · 1 已完成','10 月 1 日',C.purple,()=>push(c,const ProjectDetail())),
 ]);}
-class _Project extends StatelessWidget{const _Project(this.name,this.subt,this.progress,this.meta,this.date,this.color,this.tap);final String name,subt,meta,date;final double progress;final Color color;final VoidCallback tap;@override Widget build(BuildContext c)=>panel(Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[Container(width:27,height:27,decoration:BoxDecoration(color:color.withValues(alpha:.13),borderRadius:BorderRadius.circular(7)),child:Icon(Icons.folder_rounded,size:15,color:color)),const SizedBox(width:8),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(name,style:const TextStyle(fontSize:11.5,fontWeight:FontWeight.w900)),Text(subt,style:const TextStyle(fontSize:9,color:C.muted))])),const Icon(Icons.more_vert_rounded,size:16,color:C.muted)]),const SizedBox(height:10),ClipRRect(borderRadius:BorderRadius.circular(5),child:LinearProgressIndicator(value:progress,minHeight:6,backgroundColor:C.soft,color:color)),const SizedBox(height:5),Row(children:[Text(meta,style:const TextStyle(fontSize:8.7,color:C.muted)),const Spacer(),Text(date,style:const TextStyle(fontSize:8.7,color:C.muted))])]),onTap:tap,padding:const EdgeInsets.all(10));}
+class _Project extends StatelessWidget {
+  const _Project(this.name, this.subt, this.progress, this.meta, this.date, this.color, this.tap);
+  final String name, subt, meta, date;
+  final double progress;
+  final Color color;
+  final VoidCallback tap;
+
+  @override
+  Widget build(BuildContext c) => InkWell(
+        onTap: tap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: .16)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(Icons.folder_rounded, size: 21, color: color),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 2),
+                  Text(subt, style: const TextStyle(fontSize: 9, color: C.muted)),
+                ]),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .10),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(
+                  '${(progress * 100).round()}%',
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: color),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 7,
+                backgroundColor: color.withValues(alpha: .10),
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Icon(Icons.checklist_rounded, size: 12, color: color),
+              const SizedBox(width: 4),
+              Text(meta, style: const TextStyle(fontSize: 8.7, color: C.muted)),
+              const Spacer(),
+              const Icon(Icons.flag_outlined, size: 11, color: C.muted),
+              const SizedBox(width: 3),
+              Text(date, style: const TextStyle(fontSize: 8.7, color: C.muted)),
+            ]),
+          ]),
+        ),
+      );
+}
 
 class ProjectDetail extends StatelessWidget{const ProjectDetail({super.key});@override Widget build(BuildContext c)=>DetailFrame(titleText:'',actions:const [Icon(Icons.more_vert_rounded,size:19)],child:page([
   title('LifeTrace Execute'),const SizedBox(height:3),sub('Android execution center'),const SizedBox(height:12),ClipRRect(borderRadius:BorderRadius.circular(4),child:const LinearProgressIndicator(value:.72,minHeight:6,backgroundColor:C.soft)),const SizedBox(height:4),const Align(alignment:Alignment.centerRight,child:Text('72%',style:TextStyle(fontSize:9,color:C.muted))),
@@ -37,7 +109,82 @@ class _CalendarState extends State<Calendar>{int sel=9;@override Widget build(Bu
   Row(children:[Expanded(child:title('日历')),IconButton(onPressed:(){},icon:const Icon(Icons.more_vert_rounded,size:18))]),const SizedBox(height:5),
   Row(children:[const Expanded(child:Text('2026年 9月',style:TextStyle(fontSize:13,fontWeight:FontWeight.w900))),chip('月',bg:C.orangeSoft,fg:C.orange),const SizedBox(width:5),chip('周'),const SizedBox(width:5),chip('日程')]),const SizedBox(height:9),
   Row(children:['一','二','三','四','五','六','日'].map((x)=>Expanded(child:Center(child:Text(x,style:const TextStyle(fontSize:8,color:C.muted))))).toList()),const SizedBox(height:4),
-  GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:7,mainAxisExtent:32),itemCount:35,itemBuilder:(_,i){const start=1;final day=i-start+1;if(day<1||day>30)return const SizedBox.shrink();final s=day==sel;return InkWell(onTap:()=>setState(()=>sel=day),child:Center(child:Container(width:25,height:25,alignment:Alignment.center,decoration:BoxDecoration(color:s?C.orange:Colors.transparent,borderRadius:BorderRadius.circular(8)),child:Text('$day',style:TextStyle(fontSize:9.5,fontWeight:s?FontWeight.w900:FontWeight.w600,color:s?Colors.white:C.ink)))));}),
+  Container(
+    padding:const EdgeInsets.symmetric(vertical:6),
+    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:C.border)),
+    child:GridView.builder(
+      shrinkWrap:true,
+      physics:const NeverScrollableScrollPhysics(),
+      gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:7,mainAxisExtent:38),
+      itemCount:35,
+      itemBuilder:(_,i){
+        const start=1;
+        final day=i-start+1;
+        if(day<1||day>30)return const SizedBox.shrink();
+        final s=day==sel;
+        final eventColor=s
+            ? Colors.white
+            : switch(day){
+                3||11||17=>C.teal,
+                7||22=>C.purple,
+                9||15||28=>C.orange,
+                12||25=>C.red,
+                _=>Colors.transparent,
+              };
+        return InkWell(
+          onTap:()=>setState(()=>sel=day),
+          child:Center(
+            child:Container(
+              width:29,
+              height:33,
+              alignment:Alignment.center,
+              decoration:BoxDecoration(
+                color:s?C.orange:Colors.transparent,
+                borderRadius:BorderRadius.circular(9),
+              ),
+              child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+                Text('$day',style:TextStyle(fontSize:9.5,fontWeight:s?FontWeight.w900:FontWeight.w600,color:s?Colors.white:C.ink)),
+                const SizedBox(height:2),
+                Container(width:4,height:4,decoration:BoxDecoration(shape:BoxShape.circle,color:eventColor)),
+              ]),
+            ),
+          ),
+        );
+      },
+    ),
+  ),
   h('9月9日 · 今天'),const _Agenda('09:00',C.p,'工作','日程 · 1 小时'),const _Agenda('14:30',C.teal,'项目会议','会议 · 1 小时'),const _Agenda('19:00',C.teal,'健身','个人 · 1小时'),const _Agenda('22:30',C.red,'论文实验截止','任务 · 高优先级'),
 ]));}
-class _Agenda extends StatelessWidget{const _Agenda(this.time,this.color,this.name,this.meta);final String time,name,meta;final Color color;@override Widget build(BuildContext c)=>Padding(padding:const EdgeInsets.symmetric(vertical:5),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[SizedBox(width:43,child:Text(time,style:const TextStyle(fontSize:9.5,color:C.muted))),Container(width:8,height:8,margin:const EdgeInsets.only(top:2),decoration:BoxDecoration(shape:BoxShape.circle,color:color)),const SizedBox(width:9),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(name,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w800)),Text(meta,style:const TextStyle(fontSize:8.7,color:C.muted))]))]));}
+class _Agenda extends StatelessWidget {
+  const _Agenda(this.time, this.color, this.name, this.meta);
+  final String time, name, meta;
+  final Color color;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        margin: const EdgeInsets.only(bottom: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(children: [
+          Container(
+            width: 4,
+            height: 34,
+            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+          ),
+          const SizedBox(width: 9),
+          SizedBox(
+            width: 40,
+            child: Text(time, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: color)),
+          ),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+              Text(meta, style: const TextStyle(fontSize: 8.7, color: C.muted)),
+            ]),
+          ),
+        ]),
+      );
+}
