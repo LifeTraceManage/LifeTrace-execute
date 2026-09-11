@@ -140,6 +140,29 @@ class MediaUploads extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class DailyReviews extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get reviewDate => text()();
+  IntColumn get energy => integer().nullable()();
+  IntColumn get mood => integer().nullable()();
+  RealColumn get completionScore => real().nullable()();
+  TextColumn get bestThing => text().nullable()();
+  TextColumn get problem => text().nullable()();
+  TextColumn get tomorrowPriority => text().nullable()();
+  TextColumn get note => text().nullable()();
+  IntColumn get completedTaskCount => integer().nullable()();
+  IntColumn get totalTaskCount => integer().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+  IntColumn get localVersion => integer()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get modifiedByDevice => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class SyncOutbox extends Table {
   TextColumn get changeId => text()();
   TextColumn get userId => text()();
@@ -194,13 +217,13 @@ class SyncConflicts extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, SyncOutbox, SyncState, SyncConflicts])
+@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, DailyReviews, SyncOutbox, SyncState, SyncConflicts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
   AppDatabase.production() : super(openProductionConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -233,6 +256,9 @@ class AppDatabase extends _$AppDatabase {
           if (from < 6) {
             await migrator.createTable(fileRecords);
             await migrator.createTable(mediaUploads);
+          }
+          if (from < 7) {
+            await migrator.createTable(dailyReviews);
           }
         },
       );
