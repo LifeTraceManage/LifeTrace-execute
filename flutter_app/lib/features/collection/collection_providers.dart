@@ -11,6 +11,7 @@ import '../../data/sync/collection_conflict_resolver.dart';
 import '../../domain/collection/execution_memo.dart';
 import '../../domain/task/execution_task.dart';
 import '../tasks/task_providers.dart';
+import 'media_providers.dart';
 
 final memoRepositoryProvider = Provider<MemoRepository>((ref) {
   if (kIsWeb) return PreviewMemoRepository();
@@ -86,7 +87,9 @@ final collectionConflictsProvider =
     ..where(
       (table) =>
           table.userId.equals(userId) &
-          table.entityType.isIn(const ['execution.memo', 'entity.link']) &
+          table.entityType.isIn(
+            const ['execution.memo', 'file.metadata', 'entity.link'],
+          ) &
           table.resolved.equals(false),
     )
     ..orderBy([(table) => OrderingTerm.desc(table.createdAt)]);
@@ -173,6 +176,11 @@ class CollectionCommands {
   }
 
   Future<void> delete(ExecutionMemo memo) async {
+    if (!kIsWeb) {
+      await ref
+          .read(mediaUploadRepositoryProvider)
+          ?.removeForMemo(memo.userId, memo.id);
+    }
     await ref.read(memoRepositoryProvider).deleteMemo(
           userId: memo.userId,
           memoId: memo.id,
