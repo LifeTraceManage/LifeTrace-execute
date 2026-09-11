@@ -29,6 +29,8 @@ class CloudContract {
     'execution.calendar_event',
     'execution.memo',
     'execution.reminder',
+    'file.metadata',
+    'entity.link',
   };
 }
 
