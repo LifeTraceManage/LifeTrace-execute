@@ -169,15 +169,29 @@ class ReminderCommands {
     }
 
     final userId = await _requireUserId();
-    final reminder = await ref.read(reminderRepositoryProvider).schedule(
-          userId: userId,
-          deviceId: await ref.read(deviceIdProvider.future),
-          subjectType: subjectType,
-          subjectId: subjectId,
-          triggerAt: triggerAt.toUtc().toIso8601String(),
-          title: title,
-          body: body,
-        );
+    final repository = ref.read(reminderRepositoryProvider);
+    final before = await repository.listForSubject(
+      userId: userId,
+      subjectType: subjectType,
+      subjectId: subjectId,
+    );
+    final deviceId = await ref.read(deviceIdProvider.future);
+    final reminder = await repository.schedule(
+      userId: userId,
+      deviceId: deviceId,
+      subjectType: subjectType,
+      subjectId: subjectId,
+      triggerAt: triggerAt.toUtc().toIso8601String(),
+      title: title,
+      body: body,
+    );
+
+    for (final other in before) {
+      if (other.id == reminder.id || !other.isScheduled) continue;
+      await repository.cancel(reminder: other, deviceId: deviceId);
+      await bridge.service.cancel(other.id);
+    }
+
     await bridge.service.schedule(reminder);
     _scheduleSync();
     return reminder;
@@ -194,6 +208,34 @@ class ReminderCommands {
         .cancel(reminder.id);
     _scheduleSync();
     return cancelled;
+  }
+
+  Future<void> cancelForSubject({
+    required String subjectType,
+    required String subjectId,
+  }) async {
+    final userId = await _requireUserId();
+    final repository = ref.read(reminderRepositoryProvider);
+    final reminders = await repository.listForSubject(
+      userId: userId,
+      subjectType: subjectType,
+      subjectId: subjectId,
+    );
+    final deviceId = await ref.read(deviceIdProvider.future);
+    var changed = false;
+    for (final reminder in reminders) {
+      if (!reminder.isScheduled) continue;
+      changed = true;
+      await repository.cancel(
+        reminder: reminder,
+        deviceId: deviceId,
+      );
+      await ref
+          .read(reminderNotificationBridgeProvider)
+          .service
+          .cancel(reminder.id);
+    }
+    if (changed) _scheduleSync();
   }
 
   Future<void> delete(ExecutionReminder reminder) async {
