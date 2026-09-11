@@ -774,87 +774,619 @@ String _projectDate(String? raw) {
   return '${value.month}月${value.day}日';
 }
 
-class Calendar extends StatefulWidget{const Calendar({super.key});@override State<Calendar> createState()=>_CalendarState();}
-class _CalendarState extends State<Calendar>{int sel=9;@override Widget build(BuildContext c)=>Scaffold(backgroundColor:C.bg,floatingActionButton:FloatingActionButton.small(backgroundColor:C.orange,foregroundColor:Colors.white,onPressed:(){},child:const Icon(Icons.add)),body:page([
-  Row(children:[Expanded(child:title('日历')),IconButton(onPressed:(){},icon:const Icon(Icons.more_vert_rounded,size:18))]),const SizedBox(height:5),
-  Row(children:[const Expanded(child:Text('2026年 9月',style:TextStyle(fontSize:13,fontWeight:FontWeight.w900))),chip('月',bg:C.orangeSoft,fg:C.orange),const SizedBox(width:5),chip('周'),const SizedBox(width:5),chip('日程')]),const SizedBox(height:9),
-  Row(children:['一','二','三','四','五','六','日'].map((x)=>Expanded(child:Center(child:Text(x,style:const TextStyle(fontSize:8,color:C.muted))))).toList()),const SizedBox(height:4),
-  Container(
-    padding:const EdgeInsets.symmetric(vertical:6),
-    decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:C.border)),
-    child:GridView.builder(
-      shrinkWrap:true,
-      physics:const NeverScrollableScrollPhysics(),
-      gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:7,mainAxisExtent:38),
-      itemCount:35,
-      itemBuilder:(_,i){
-        const start=1;
-        final day=i-start+1;
-        if(day<1||day>30)return const SizedBox.shrink();
-        final s=day==sel;
-        final eventColor=s
-            ? Colors.white
-            : switch(day){
-                3||11||17=>C.teal,
-                7||22=>C.purple,
-                9||15||28=>C.orange,
-                12||25=>C.red,
-                _=>Colors.transparent,
-              };
-        return InkWell(
-          onTap:()=>setState(()=>sel=day),
-          child:Center(
-            child:Container(
-              width:29,
-              height:33,
-              alignment:Alignment.center,
-              decoration:BoxDecoration(
-                color:s?C.orange:Colors.transparent,
-                borderRadius:BorderRadius.circular(9),
-              ),
-              child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                Text('$day',style:TextStyle(fontSize:9.5,fontWeight:s?FontWeight.w900:FontWeight.w600,color:s?Colors.white:C.ink)),
-                const SizedBox(height:2),
-                Container(width:4,height:4,decoration:BoxDecoration(shape:BoxShape.circle,color:eventColor)),
-              ]),
-            ),
-          ),
-        );
-      },
-    ),
-  ),
-  h('9月9日 · 今天'),const _Agenda('09:00',C.p,'工作','日程 · 1 小时'),const _Agenda('14:30',C.teal,'项目会议','会议 · 1 小时'),const _Agenda('19:00',C.teal,'健身','个人 · 1小时'),const _Agenda('22:30',C.red,'论文实验截止','任务 · 高优先级'),
-]));}
-class _Agenda extends StatelessWidget {
-  const _Agenda(this.time, this.color, this.name, this.meta);
-  final String time, name, meta;
-  final Color color;
+class Calendar extends ConsumerStatefulWidget {
+  const Calendar({super.key});
 
   @override
-  Widget build(BuildContext c) => Container(
-        margin: const EdgeInsets.only(bottom: 7),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: .08),
-          borderRadius: BorderRadius.circular(12),
+  ConsumerState<Calendar> createState() => _CalendarState();
+}
+
+class _CalendarState extends ConsumerState<Calendar> {
+  late DateTime visibleMonth;
+  late DateTime selectedDate;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    visibleMonth = calendarMonthStart(now);
+    selectedDate = DateTime(now.year, now.month, now.day);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final eventsState = ref.watch(calendarEventListProvider);
+    final events = eventsState.valueOrNull ?? const <ExecutionCalendarEvent>[];
+    final tasks = ref.watch(taskListProvider).valueOrNull ?? const <ExecutionTask>[];
+    final conflicts = ref.watch(calendarConflictsProvider).valueOrNull ??
+        const <CalendarConflictUi>[];
+    final grid = calendarMonthGrid(visibleMonth);
+    final agenda = _calendarAgendaFor(selectedDate, events, tasks);
+
+    bool hasContent(DateTime date) =>
+        events.any(
+          (event) => eventTouchesLocalDate(
+            startAt: event.startAt,
+            endAt: event.endAt,
+            date: date,
+          ),
+        ) ||
+        tasks.any(
+          (task) =>
+              instantFallsOnLocalDate(task.scheduledAt, date) ||
+              instantFallsOnLocalDate(task.dueAt, date),
+        );
+
+    return Scaffold(
+      backgroundColor: C.bg,
+      floatingActionButton: FloatingActionButton.small(
+        backgroundColor: C.orange,
+        foregroundColor: Colors.white,
+        onPressed: () => _editCalendarEvent(
+          context,
+          ref,
+          initialDate: selectedDate,
         ),
-        child: Row(children: [
-          Container(
-            width: 4,
-            height: 34,
-            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
-          ),
-          const SizedBox(width: 9),
-          SizedBox(
-            width: 40,
-            child: Text(time, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: color)),
-          ),
+        child: const Icon(Icons.add),
+      ),
+      body: page([
+        Row(children: [
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-              Text(meta, style: const TextStyle(fontSize: 8.7, color: C.muted)),
-            ]),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [title('日历'), sub('日程与任务时间统一视图')],
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              final now = DateTime.now();
+              setState(() {
+                visibleMonth = calendarMonthStart(now);
+                selectedDate = DateTime(now.year, now.month, now.day);
+              });
+            },
+            child: const Text('今天'),
           ),
         ]),
+        if (conflicts.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _CalendarConflictCard(conflict: conflicts.first),
+        ],
+        const SizedBox(height: 8),
+        Row(children: [
+          IconButton(
+            tooltip: '上个月',
+            onPressed: () => setState(() {
+              visibleMonth = previousCalendarMonth(visibleMonth);
+              selectedDate = DateTime(
+                visibleMonth.year,
+                visibleMonth.month,
+                1,
+              );
+            }),
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                '${visibleMonth.year}年 ${visibleMonth.month}月',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: '下个月',
+            onPressed: () => setState(() {
+              visibleMonth = nextCalendarMonth(visibleMonth);
+              selectedDate = DateTime(
+                visibleMonth.year,
+                visibleMonth.month,
+                1,
+              );
+            }),
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ]),
+        Row(
+          children: const ['一', '二', '三', '四', '五', '六', '日']
+              .map(
+                (label) => Expanded(
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: TextStyle(fontSize: 8, color: C.muted),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: C.border),
+          ),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              mainAxisExtent: 40,
+            ),
+            itemCount: grid.length,
+            itemBuilder: (_, index) {
+              final date = grid[index];
+              if (date == null) return const SizedBox.shrink();
+              final selected = sameCalendarDate(date, selectedDate);
+              final marked = hasContent(date);
+              final today = sameCalendarDate(date, DateTime.now());
+              return InkWell(
+                onTap: () => setState(() => selectedDate = date),
+                child: Center(
+                  child: Container(
+                    width: 31,
+                    height: 35,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected ? C.orange : Colors.transparent,
+                      borderRadius: BorderRadius.circular(9),
+                      border: today && !selected
+                          ? Border.all(color: C.orangeSoft, width: 1.5)
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${date.day}',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight:
+                                selected ? FontWeight.w900 : FontWeight.w600,
+                            color: selected ? Colors.white : C.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: marked
+                                ? (selected ? Colors.white : C.orange)
+                                : Colors.transparent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        h(_calendarDateHeader(selectedDate)),
+        if (eventsState.isLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (agenda.isEmpty)
+          panel(
+            const Text(
+              '当天没有日程或带时间的任务。',
+              style: TextStyle(fontSize: 9.5, color: C.muted),
+            ),
+            padding: const EdgeInsets.all(14),
+          )
+        else
+          for (final item in agenda)
+            _CalendarAgendaTile(
+              item: item,
+              onTap: () {
+                final event = item.event;
+                if (event != null) {
+                  _editCalendarEvent(
+                    context,
+                    ref,
+                    initialDate: selectedDate,
+                    event: event,
+                  );
+                } else if (item.task != null) {
+                  push(context, TaskDetail(task: item.task));
+                }
+              },
+            ),
+      ]),
+    );
+  }
+}
+
+class _CalendarAgendaItem {
+  const _CalendarAgendaItem({
+    required this.sortAt,
+    required this.time,
+    required this.title,
+    required this.meta,
+    required this.color,
+    this.event,
+    this.task,
+  });
+
+  final DateTime sortAt;
+  final String time;
+  final String title;
+  final String meta;
+  final Color color;
+  final ExecutionCalendarEvent? event;
+  final ExecutionTask? task;
+}
+
+List<_CalendarAgendaItem> _calendarAgendaFor(
+  DateTime date,
+  List<ExecutionCalendarEvent> events,
+  List<ExecutionTask> tasks,
+) {
+  final items = <_CalendarAgendaItem>[];
+
+  for (final event in events) {
+    if (!eventTouchesLocalDate(
+      startAt: event.startAt,
+      endAt: event.endAt,
+      date: date,
+    )) {
+      continue;
+    }
+    final start = DateTime.parse(event.startAt).toLocal();
+    items.add(
+      _CalendarAgendaItem(
+        sortAt: event.allDay
+            ? DateTime(date.year, date.month, date.day)
+            : start,
+        time: event.allDay ? '全天' : _calendarTime(start),
+        title: event.title,
+        meta: [
+          '日程',
+          if (event.location != null) event.location!,
+        ].join(' · '),
+        color: C.orange,
+        event: event,
+      ),
+    );
+  }
+
+  for (final task in tasks) {
+    final scheduled = DateTime.tryParse(task.scheduledAt ?? '')?.toLocal();
+    if (scheduled != null && sameCalendarDate(scheduled, date)) {
+      items.add(
+        _CalendarAgendaItem(
+          sortAt: scheduled,
+          time: _calendarTime(scheduled),
+          title: task.title,
+          meta: '任务 · 已安排',
+          color: C.p,
+          task: task,
+        ),
       );
+    }
+
+    final due = DateTime.tryParse(task.dueAt ?? '')?.toLocal();
+    if (due != null && sameCalendarDate(due, date)) {
+      items.add(
+        _CalendarAgendaItem(
+          sortAt: due,
+          time: _calendarTime(due),
+          title: task.title,
+          meta: '任务 · 截止',
+          color: C.red,
+          task: task,
+        ),
+      );
+    }
+  }
+
+  items.sort((a, b) => a.sortAt.compareTo(b.sortAt));
+  return items;
+}
+
+class _CalendarAgendaTile extends StatelessWidget {
+  const _CalendarAgendaTile({
+    required this.item,
+    required this.onTap,
+  });
+
+  final _CalendarAgendaItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          decoration: BoxDecoration(
+            color: item.color.withValues(alpha: .08),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(children: [
+            Container(
+              width: 4,
+              height: 34,
+              decoration: BoxDecoration(
+                color: item.color,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(width: 9),
+            SizedBox(
+              width: 42,
+              child: Text(
+                item.time,
+                style: TextStyle(
+                  fontSize: 9.2,
+                  fontWeight: FontWeight.w900,
+                  color: item.color,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    item.meta,
+                    style: const TextStyle(fontSize: 8.7, color: C.muted),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 16,
+              color: C.muted,
+            ),
+          ]),
+        ),
+      );
+}
+
+class _CalendarConflictCard extends ConsumerWidget {
+  const _CalendarConflictCard({required this.conflict});
+
+  final CalendarConflictUi conflict;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: C.orangeSoft,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '日程存在同步冲突',
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              conflict.reason,
+              style: const TextStyle(fontSize: 8.7, color: C.muted),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => ref
+                      .read(calendarCommandsProvider)
+                      .keepServer(conflict.conflictId),
+                  child: const Text('保留云端'),
+                ),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => ref
+                      .read(calendarCommandsProvider)
+                      .keepLocal(conflict.conflictId),
+                  child: const Text('保留本地'),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      );
+}
+
+Future<void> _editCalendarEvent(
+  BuildContext context,
+  WidgetRef ref, {
+  required DateTime initialDate,
+  ExecutionCalendarEvent? event,
+}) async {
+  final titleController = TextEditingController(text: event?.title ?? '');
+  final descriptionController =
+      TextEditingController(text: event?.description ?? '');
+  final locationController =
+      TextEditingController(text: event?.location ?? '');
+
+  final defaultStart = DateTime(
+    initialDate.year,
+    initialDate.month,
+    initialDate.day,
+    9,
+  );
+  DateTime start =
+      DateTime.tryParse(event?.startAt ?? '')?.toLocal() ?? defaultStart;
+  DateTime? end = DateTime.tryParse(event?.endAt ?? '')?.toLocal() ??
+      start.add(const Duration(hours: 1));
+  var allDay = event?.allDay ?? false;
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (sheetContext, setSheetState) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              controller: titleController,
+              autofocus: event == null,
+              decoration: const InputDecoration(labelText: '日程标题'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: descriptionController,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: '描述'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: locationController,
+              decoration: const InputDecoration(labelText: '地点'),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('全天事件'),
+              value: allDay,
+              onChanged: (value) => setSheetState(() => allDay = value),
+            ),
+            _DateField(
+              label: allDay ? '开始日期' : '开始时间',
+              value: start,
+              onPick: () async {
+                final value = await _pickDateTime(sheetContext, start);
+                if (value != null) setSheetState(() => start = value);
+              },
+              onClear: null,
+            ),
+            const SizedBox(height: 8),
+            _DateField(
+              label: allDay ? '结束日期' : '结束时间',
+              value: end,
+              onPick: () async {
+                final value = await _pickDateTime(sheetContext, end);
+                if (value != null) setSheetState(() => end = value);
+              },
+              onClear: end == null
+                  ? null
+                  : () => setSheetState(() => end = null),
+            ),
+            const SizedBox(height: 14),
+            Row(children: [
+              if (event != null) ...[
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      await ref.read(calendarCommandsProvider).delete(event);
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    },
+                    child: const Text('删除'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                flex: 2,
+                child: FilledButton(
+                  onPressed: () async {
+                    try {
+                      var saveStart = start;
+                      DateTime? saveEnd = end;
+                      if (allDay) {
+                        saveStart = DateTime(
+                          start.year,
+                          start.month,
+                          start.day,
+                        );
+                        final endDate = end ?? start;
+                        saveEnd = DateTime(
+                          endDate.year,
+                          endDate.month,
+                          endDate.day,
+                          23,
+                          59,
+                          59,
+                          999,
+                        );
+                      }
+
+                      final commands = ref.read(calendarCommandsProvider);
+                      if (event == null) {
+                        await commands.create(
+                          title: titleController.text,
+                          description: descriptionController.text,
+                          location: locationController.text,
+                          allDay: allDay,
+                          startAt: saveStart.toUtc().toIso8601String(),
+                          endAt: saveEnd?.toUtc().toIso8601String(),
+                        );
+                      } else {
+                        await commands.update(
+                          event: event,
+                          title: titleController.text,
+                          description: descriptionController.text,
+                          location: locationController.text,
+                          allDay: allDay,
+                          startAt: saveStart.toUtc().toIso8601String(),
+                          endAt: saveEnd?.toUtc().toIso8601String(),
+                          clearDescription:
+                              descriptionController.text.trim().isEmpty,
+                          clearLocation:
+                              locationController.text.trim().isEmpty,
+                          clearEndAt: saveEnd == null,
+                        );
+                      }
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    } catch (error) {
+                      if (sheetContext.mounted) {
+                        ScaffoldMessenger.of(sheetContext).showSnackBar(
+                          SnackBar(content: Text('$error')),
+                        );
+                      }
+                    }
+                  },
+                  child: Text(event == null ? '创建日程' : '保存日程'),
+                ),
+              ),
+            ]),
+          ]),
+        ),
+      ),
+    ),
+  );
+
+  titleController.dispose();
+  descriptionController.dispose();
+  locationController.dispose();
+}
+
+String _calendarTime(DateTime value) {
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${two(value.hour)}:${two(value.minute)}';
+}
+
+String _calendarDateHeader(DateTime date) {
+  final today = DateTime.now();
+  final suffix = sameCalendarDate(date, today) ? ' · 今天' : '';
+  return '${date.month}月${date.day}日$suffix';
 }
