@@ -13,7 +13,6 @@ import 'package:lifetrace_execute/data/repository/calendar_event_repository.dart
 import 'package:lifetrace_execute/data/repository/project_repository.dart';
 import 'package:lifetrace_execute/data/repository/task_repository.dart';
 import 'package:lifetrace_execute/data/sync/task_sync_coordinator.dart';
-import 'package:lifetrace_execute/domain/calendar/execution_calendar_event.dart';
 import 'package:lifetrace_execute/domain/project/execution_project.dart';
 import 'package:lifetrace_execute/domain/task/execution_task.dart';
 
