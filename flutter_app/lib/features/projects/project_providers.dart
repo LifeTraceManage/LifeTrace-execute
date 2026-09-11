@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/background/background_sync.dart';
 import '../../data/repository/project_repository.dart';
 import '../../data/sync/project_conflict_resolver.dart';
 import '../../domain/project/execution_project.dart';
@@ -182,6 +183,7 @@ class ProjectCommands {
     unawaited(
       ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true),
     );
+    unawaited(BackgroundSyncScheduler.enqueueAfterLocalChange());
   }
 }
 
