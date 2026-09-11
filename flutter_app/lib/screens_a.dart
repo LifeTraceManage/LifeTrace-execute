@@ -1723,34 +1723,6 @@ Future<DateTime?> _pickDateTime(BuildContext context, DateTime? initial) async {
   return DateTime(date.year, date.month, date.day, time.hour, time.minute);
 }
 
-class _Prop extends StatelessWidget {
-  const _Prop(this.icon, this.label, this.value);
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext c) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(children: [
-          Icon(icon, size: 15, color: C.muted),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 10, color: C.muted)),
-          const Spacer(),
-          Flexible(
-            child: Text(
-              value,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right_rounded, size: 15, color: C.muted),
-        ]),
-      );
-}
-
 String _priorityBadge(ExecutionTaskPriority priority) => switch (priority) {
       ExecutionTaskPriority.urgent => 'P1',
       ExecutionTaskPriority.high => 'P2',
