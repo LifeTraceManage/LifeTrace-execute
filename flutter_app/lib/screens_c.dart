@@ -81,21 +81,33 @@ class _CollectionState extends ConsumerState<Collection> {
           '语音',
           C.purple,
           C.purpleSoft,
-          () => _showPendingMediaMessage(context, '语音'),
+          () => _pickMediaForInbox(
+            context,
+            ref,
+            ExecutionMemoKind.audio,
+          ),
         ),
         _Quick(
           Icons.image_outlined,
           '图片',
           C.pink,
           C.pinkSoft,
-          () => _showPendingMediaMessage(context, '图片'),
+          () => _pickMediaForInbox(
+            context,
+            ref,
+            ExecutionMemoKind.image,
+          ),
         ),
         _Quick(
           Icons.insert_drive_file_outlined,
           '文件',
           C.orange,
           C.orangeSoft,
-          () => _showPendingMediaMessage(context, '文件'),
+          () => _pickMediaForInbox(
+            context,
+            ref,
+            ExecutionMemoKind.file,
+          ),
         ),
       ]),
       const SizedBox(height: 16),
@@ -166,6 +178,14 @@ List<ExecutionMemo> _filterInbox(List<ExecutionMemo> items, int filter) {
         .toList(growable: false),
     4 => items
         .where((memo) => memo.kind == ExecutionMemoKind.link)
+        .toList(growable: false),
+    5 => items
+        .where(
+          (memo) =>
+              memo.kind == ExecutionMemoKind.image ||
+              memo.kind == ExecutionMemoKind.audio ||
+              memo.kind == ExecutionMemoKind.file,
+        )
         .toList(growable: false),
     _ => items,
   };
@@ -420,7 +440,7 @@ class _InboxFilters extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['全部', '重点', '文本', '想法', '链接'];
+    const labels = ['全部', '重点', '文本', '想法', '链接', '媒体'];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -575,6 +595,36 @@ class InboxDetail extends ConsumerWidget {
     final visual = _memoVisual(current.kind);
     final projects =
         ref.watch(projectListProvider).valueOrNull ?? const <ExecutionProject>[];
+    final uploads =
+        ref.watch(mediaUploadListProvider).valueOrNull ??
+            const <PendingMediaUpload>[];
+    PendingMediaUpload? upload;
+    for (final item in uploads) {
+      if (item.memoId == current.id) {
+        upload = item;
+        break;
+      }
+    }
+    final attachmentLinks =
+        ref.watch(memoAttachmentLinksProvider(current.id)).valueOrNull ??
+            const <ExecutionEntityLink>[];
+    final files =
+        ref.watch(fileMetadataListProvider).valueOrNull ??
+            const <ExecutionFileMetadata>[];
+    ExecutionFileMetadata? syncedFile;
+    for (final link in attachmentLinks) {
+      if (link.relationType != 'attachment' ||
+          link.targetType != 'file.metadata') {
+        continue;
+      }
+      for (final file in files) {
+        if (file.id == link.targetId) {
+          syncedFile = file;
+          break;
+        }
+      }
+      if (syncedFile != null) break;
+    }
 
     return DetailFrame(
       titleText: 'Inbox',
@@ -658,6 +708,22 @@ class InboxDetail extends ConsumerWidget {
               current.sourceUrl!,
               style: const TextStyle(fontSize: 9.5, color: C.teal),
             ),
+          ),
+        ],
+        if ({
+          ExecutionMemoKind.image,
+          ExecutionMemoKind.audio,
+          ExecutionMemoKind.file,
+        }.contains(current.kind)) ...[
+          h('附件'),
+          _MediaAttachmentCard(
+            upload: upload,
+            file: syncedFile,
+            onRetry: upload == null
+                ? null
+                : () => ref
+                    .read(mediaUploadControllerProvider.notifier)
+                    .retryOne(upload!.id),
           ),
         ],
         if (current.isInbox) ...[
@@ -1026,12 +1092,113 @@ Future<void> _confirmDeleteMemo(
   if (context.mounted) Navigator.pop(context);
 }
 
-void _showPendingMediaMessage(BuildContext context, String type) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text('$type将在文件上传链接入后开放；当前不会创建伪数据。'),
-    ),
-  );
+Future<void> _pickMediaForInbox(
+  BuildContext context,
+  WidgetRef ref,
+  ExecutionMemoKind kind,
+) async {
+  try {
+    final memo = await ref.read(mediaCommandsProvider).pickAndQueue(kind);
+    if (memo != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('附件已保存到本地并加入上传队列')),
+      );
+    }
+  } catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$error')),
+      );
+    }
+  }
+}
+
+class _MediaAttachmentCard extends StatelessWidget {
+  const _MediaAttachmentCard({
+    required this.upload,
+    required this.file,
+    required this.onRetry,
+  });
+
+  final PendingMediaUpload? upload;
+  final ExecutionFileMetadata? file;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final local = upload;
+    final remote = file;
+    final status = remote != null
+        ? '已存云端'
+        : switch (local?.status) {
+            MediaUploadStatus.localOnly => '等待上传',
+            MediaUploadStatus.pendingUpload => '等待对象存储',
+            MediaUploadStatus.uploading => '上传中',
+            MediaUploadStatus.failed => '上传失败',
+            MediaUploadStatus.serverStored => '已存云端',
+            null => '等待附件同步',
+          };
+    final color = remote != null || local?.status == MediaUploadStatus.serverStored
+        ? C.green
+        : local?.status == MediaUploadStatus.failed
+            ? C.red
+            : C.orange;
+    final name = remote?.originalName ?? local?.originalName ?? '附件';
+    final size = remote?.sizeBytes ?? local?.sizeBytes;
+    final error = local?.errorMessage;
+
+    return panel(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.attach_file_rounded, size: 17, color: color),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            chip(status, bg: color.withValues(alpha: .1), fg: color),
+          ]),
+          if (size != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              _fileSizeLabel(size),
+              style: const TextStyle(fontSize: 8.5, color: C.muted),
+            ),
+          ],
+          if (error != null && error.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              error,
+              style: const TextStyle(fontSize: 8.5, color: C.red),
+            ),
+          ],
+          if (local?.status == MediaUploadStatus.failed && onRetry != null) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 15),
+              label: const Text('重试上传'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+String _fileSizeLabel(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  final kb = bytes / 1024;
+  if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+  final mb = kb / 1024;
+  return '${mb.toStringAsFixed(1)} MB';
 }
 
 ({IconData icon, String label, Color color, Color background}) _memoVisual(
