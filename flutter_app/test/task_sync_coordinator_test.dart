@@ -10,9 +10,11 @@ import 'package:lifetrace_execute/core/cloud/secure_session_store.dart';
 import 'package:lifetrace_execute/core/cloud/sync_models.dart';
 import 'package:lifetrace_execute/data/local/app_database.dart';
 import 'package:lifetrace_execute/data/repository/calendar_event_repository.dart';
+import 'package:lifetrace_execute/data/repository/memo_repository.dart';
 import 'package:lifetrace_execute/data/repository/project_repository.dart';
 import 'package:lifetrace_execute/data/repository/task_repository.dart';
 import 'package:lifetrace_execute/data/sync/task_sync_coordinator.dart';
+import 'package:lifetrace_execute/domain/collection/execution_memo.dart';
 import 'package:lifetrace_execute/domain/project/execution_project.dart';
 import 'package:lifetrace_execute/domain/task/execution_task.dart';
 
@@ -21,12 +23,14 @@ void main() {
   late DriftTaskRepository repository;
   late DriftProjectRepository projectRepository;
   late DriftCalendarEventRepository calendarRepository;
+  late DriftMemoRepository memoRepository;
 
   setUp(() {
     database = AppDatabase(NativeDatabase.memory());
     repository = DriftTaskRepository(database);
     projectRepository = DriftProjectRepository(database);
     calendarRepository = DriftCalendarEventRepository(database);
+    memoRepository = DriftMemoRepository(database);
   });
 
   tearDown(() async => database.close());
@@ -207,6 +211,67 @@ void main() {
     expect(
       events.singleWhere((item) => item.id == 'remote-event').title,
       'Pulled event',
+    );
+  });
+
+  test('memo snapshot, push and pull share execution sync pipeline', () async {
+    final local = await memoRepository.createMemo(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      kind: ExecutionMemoKind.idea,
+      content: 'Local memo',
+    );
+    final client = _FakeSyncClient(
+      snapshots: [
+        SnapshotPageResult(
+          requestId: 'memo-snapshot',
+          snapshotId: 'memo-snapshot-1',
+          snapshotCursor: '24',
+          items: [
+            SnapshotItem(
+              entityType: DriftMemoRepository.entityType,
+              entityId: 'remote-memo',
+              serverVersion: '2',
+              payload: _memoPayload('remote-memo', 'Snapshot memo'),
+            ),
+          ],
+          completed: true,
+          serverTime: '2026-09-11T00:00:00.000Z',
+        ),
+      ],
+      pulls: [
+        PullBatchResult(
+          requestId: 'memo-pull',
+          serverTime: '2026-09-11T00:01:00.000Z',
+          changes: [
+            PulledChange(
+              cursor: '25',
+              entityType: DriftMemoRepository.entityType,
+              entityId: 'remote-memo',
+              operation: 'upsert',
+              serverVersion: '3',
+              serverModifiedAt: '2026-09-11T00:01:00.000Z',
+              payload: _memoPayload('remote-memo', 'Pulled memo'),
+            ),
+          ],
+          nextCursor: '25',
+          hasMore: false,
+        ),
+      ],
+      acceptAllPushes: true,
+    );
+
+    final summary = await _coordinatorFor(database, client).syncNow();
+
+    expect(summary.snapshotItems, 1);
+    expect(summary.pushed, 1);
+    expect(summary.pulled, 1);
+    final memos = await database.select(database.memos).get();
+    expect(memos, hasLength(2));
+    expect(memos.singleWhere((item) => item.id == local.id).serverVersion, '101');
+    expect(
+      memos.singleWhere((item) => item.id == 'remote-memo').content,
+      'Pulled memo',
     );
   });
 
@@ -477,6 +542,25 @@ Map<String, dynamic> _calendarPayload(String id, String title) => {
       'allDay': false,
       'startAt': '2026-09-11T06:30:00.000Z',
       'endAt': '2026-09-11T07:30:00.000Z',
+    };
+
+Map<String, dynamic> _memoPayload(String id, String content) => {
+      'meta': {
+        'id': id,
+        'userId': 'user-1',
+        'createdAt': '2026-09-10T00:00:00.000Z',
+        'updatedAt': '2026-09-11T00:00:00.000Z',
+        'deletedAt': null,
+        'localVersion': 1,
+        'serverVersion': null,
+        'modifiedByDevice': 'remote-device',
+      },
+      'kind': ExecutionMemoKind.idea.wireValue,
+      'title': null,
+      'content': content,
+      'sourceUrl': null,
+      'important': false,
+      'status': ExecutionMemoStatus.inbox.wireValue,
     };
 
 Map<String, dynamic> _projectPayload(String id, String title) => {
