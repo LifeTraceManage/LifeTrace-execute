@@ -13,6 +13,7 @@ import '../repository/calendar_event_database_mapper.dart';
 import '../repository/calendar_event_repository.dart';
 import '../repository/calendar_event_wire_mapper.dart';
 import '../repository/entity_link_repository.dart';
+import '../repository/file_metadata_repository.dart';
 import '../repository/memo_repository.dart';
 import '../repository/project_database_mapper.dart';
 import '../repository/project_repository.dart';
@@ -51,12 +52,13 @@ class TaskSyncCoordinator {
         _deviceIdLoader = deviceIdLoader ?? DeviceIdentityStore().getOrCreate;
 
   static const taskScopeKey =
-      'entities:execution.task,execution.project,execution.calendar_event,execution.memo,entity.link';
+      'entities:execution.task,execution.project,execution.calendar_event,execution.memo,file.metadata,entity.link';
   static const syncEntityTypes = <String>[
     DriftTaskRepository.entityType,
     DriftProjectRepository.entityType,
     DriftCalendarEventRepository.entityType,
     DriftMemoRepository.entityType,
+    DriftFileMetadataRepository.entityType,
     DriftEntityLinkRepository.entityType,
   ];
   static const _pushBatchSize = 100;
@@ -206,6 +208,14 @@ class TaskSyncCoordinator {
               await database
                   .into(database.memos)
                   .insertOnConflictUpdate(MemoDatabaseMapper.toRow(memo));
+            case DriftFileMetadataRepository.entityType:
+              final file = FileMetadataWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+              );
+              await database
+                  .into(database.fileRecords)
+                  .insertOnConflictUpdate(FileMetadataDatabaseMapper.toRow(file));
             case DriftEntityLinkRepository.entityType:
               final link = EntityLinkWireMapper.fromPayload(
                 item.payload,
@@ -403,6 +413,18 @@ class TaskSyncCoordinator {
               .write(
             db.MemosCompanion(serverVersion: Value(result.serverVersion)),
           );
+        case DriftFileMetadataRepository.entityType:
+          await (database.update(database.fileRecords)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.FileRecordsCompanion(
+              serverVersion: Value(result.serverVersion),
+            ),
+          );
         case DriftEntityLinkRepository.entityType:
           await (database.update(database.entityLinks)
                 ..where(
@@ -485,6 +507,22 @@ class TaskSyncCoordinator {
                 serverVersion: result.serverVersion,
               );
               payloadJson = jsonEncode(MemoWireMapper.toPayload(current));
+            }
+          case DriftFileMetadataRepository.entityType:
+            final row = await (database.select(database.fileRecords)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = FileMetadataDatabaseMapper.fromRow(row).copyWith(
+                serverVersion: result.serverVersion,
+              );
+              payloadJson = jsonEncode(
+                FileMetadataWireMapper.toPayload(current),
+              );
             }
           case DriftEntityLinkRepository.entityType:
             final row = await (database.select(database.entityLinks)
@@ -651,6 +689,16 @@ class TaskSyncCoordinator {
                   await database.into(database.memos).insertOnConflictUpdate(
                         MemoDatabaseMapper.toRow(memo),
                       );
+                case DriftFileMetadataRepository.entityType:
+                  final file = FileMetadataWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                  );
+                  await database
+                      .into(database.fileRecords)
+                      .insertOnConflictUpdate(
+                        FileMetadataDatabaseMapper.toRow(file),
+                      );
                 case DriftEntityLinkRepository.entityType:
                   final link = EntityLinkWireMapper.fromPayload(
                     payload,
@@ -688,6 +736,14 @@ class TaskSyncCoordinator {
                       .go();
                 case DriftMemoRepository.entityType:
                   await (database.delete(database.memos)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+                case DriftFileMetadataRepository.entityType:
+                  await (database.delete(database.fileRecords)
                         ..where(
                           (table) =>
                               table.userId.equals(userId) &
