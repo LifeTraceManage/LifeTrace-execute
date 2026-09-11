@@ -15,18 +15,29 @@ void main() => runApp(const ProviderScope(child: LifeTraceExecuteApp()));
 
 abstract final class C {
   static const p = Color(0xff2468f2),
-      ps = Color(0xffedf4ff),
-      ink = Color(0xff111827),
-      muted = Color(0xff6b7280),
-      bg = Color(0xfffbfcfe),
+      ps = Color(0xffeaf2ff),
+      ink = Color(0xff172033),
+      muted = Color(0xff697386),
+      bg = Color(0xfff7f8fc),
       surface = Colors.white,
-      soft = Color(0xfff5f7fb),
-      border = Color(0xffe6eaf0),
-      orange = Color(0xffff9f2f),
+      soft = Color(0xfff1f4f9),
+      border = Color(0xffe2e7f0),
+      orange = Color(0xffff9a3d),
+      orangeSoft = Color(0xfffff1e3),
       green = Color(0xff16a36a),
-      red = Color(0xfff05252),
-      purple = Color(0xff7c3aed),
-      teal = Color(0xff0f9f83);
+      greenSoft = Color(0xffe8f8ef),
+      red = Color(0xffef5350),
+      redSoft = Color(0xffffeceb),
+      purple = Color(0xff7657e8),
+      purpleSoft = Color(0xfff0ecff),
+      teal = Color(0xff0f9f83),
+      tealSoft = Color(0xffe7f8f4),
+      pink = Color(0xffd9568b),
+      pinkSoft = Color(0xffffedf5),
+      amber = Color(0xffd98b00),
+      amberSoft = Color(0xfffff5dc),
+      sky = Color(0xff2786c7),
+      skySoft = Color(0xffe9f6ff);
 }
 
 ThemeData buildTheme() => ThemeData(
@@ -34,6 +45,8 @@ ThemeData buildTheme() => ThemeData(
       scaffoldBackgroundColor: C.bg,
       colorScheme: const ColorScheme.light(
         primary: C.p,
+        secondary: C.purple,
+        tertiary: C.teal,
         surface: C.surface,
         onSurface: C.ink,
         outline: C.border,
@@ -199,11 +212,11 @@ class _BottomNav extends StatelessWidget {
   final ValueChanged<int> onChanged;
 
   static const items = [
-    (Icons.home_outlined, Icons.home_rounded, '今天'),
-    (Icons.check_box_outlined, Icons.check_box_rounded, '任务'),
-    (Icons.folder_outlined, Icons.folder_rounded, '项目'),
-    (Icons.calendar_today_outlined, Icons.calendar_month_rounded, '日历'),
-    (Icons.inbox_outlined, Icons.inbox_rounded, '收集'),
+    (Icons.home_outlined, Icons.home_rounded, '今天', C.p, C.ps),
+    (Icons.check_box_outlined, Icons.check_box_rounded, '任务', C.sky, C.skySoft),
+    (Icons.folder_outlined, Icons.folder_rounded, '项目', C.purple, C.purpleSoft),
+    (Icons.calendar_today_outlined, Icons.calendar_month_rounded, '日历', C.orange, C.orangeSoft),
+    (Icons.inbox_outlined, Icons.inbox_rounded, '收集', C.teal, C.tealSoft),
   ];
 
   @override
@@ -223,18 +236,28 @@ class _BottomNav extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      selected ? item.$2 : item.$1,
-                      size: 18,
-                      color: selected ? C.p : C.muted,
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 34,
+                      height: 26,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: selected ? item.$5 : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        selected ? item.$2 : item.$1,
+                        size: 18,
+                        color: selected ? item.$4 : C.muted,
+                      ),
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       item.$3,
                       style: TextStyle(
-                        fontSize: 9.5,
+                        fontSize: 9.2,
                         fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                        color: selected ? C.p : C.muted,
+                        color: selected ? item.$4 : C.muted,
                       ),
                     ),
                   ],
