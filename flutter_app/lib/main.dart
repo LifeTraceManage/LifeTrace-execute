@@ -220,11 +220,15 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
     switch (target.subjectType) {
       case ReminderSubjectTypes.task:
         setState(() => i = 1);
-        final task = ref
-            .read(taskListProvider)
-            .valueOrNull
-            ?.where((item) => item.id == target.subjectId)
-            .firstOrNull;
+        final tasks =
+            ref.read(taskListProvider).valueOrNull ?? const <ExecutionTask>[];
+        ExecutionTask? task;
+        for (final item in tasks) {
+          if (item.id == target.subjectId) {
+            task = item;
+            break;
+          }
+        }
         if (task != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) push(context, TaskDetail(task: task));
@@ -232,11 +236,15 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
         }
       case ReminderSubjectTypes.calendarEvent:
         setState(() => i = 3);
-        final event = ref
-            .read(calendarEventListProvider)
-            .valueOrNull
-            ?.where((item) => item.id == target.subjectId)
-            .firstOrNull;
+        final events = ref.read(calendarEventListProvider).valueOrNull ??
+            const <ExecutionCalendarEvent>[];
+        ExecutionCalendarEvent? event;
+        for (final item in events) {
+          if (item.id == target.subjectId) {
+            event = item;
+            break;
+          }
+        }
         if (event != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
