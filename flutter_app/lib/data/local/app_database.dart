@@ -62,6 +62,44 @@ class CalendarEvents extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class Memos extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get kind => text()();
+  TextColumn get title => text().nullable()();
+  TextColumn get content => text()();
+  TextColumn get sourceUrl => text().nullable()();
+  BoolColumn get important => boolean().withDefault(const Constant(false))();
+  TextColumn get status => text()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+  IntColumn get localVersion => integer()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get modifiedByDevice => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class EntityLinks extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get sourceType => text()();
+  TextColumn get sourceId => text()();
+  TextColumn get targetType => text()();
+  TextColumn get targetId => text()();
+  TextColumn get relationType => text()();
+  TextColumn get metadataJson => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+  IntColumn get localVersion => integer()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get modifiedByDevice => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class SyncOutbox extends Table {
   TextColumn get changeId => text()();
   TextColumn get userId => text()();
@@ -116,13 +154,13 @@ class SyncConflicts extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, SyncOutbox, SyncState, SyncConflicts])
+@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, SyncOutbox, SyncState, SyncConflicts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
   AppDatabase.production() : super(openProductionConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -147,6 +185,10 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 4) {
             await migrator.createTable(calendarEvents);
+          }
+          if (from < 5) {
+            await migrator.createTable(memos);
+            await migrator.createTable(entityLinks);
           }
         },
       );
