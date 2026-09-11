@@ -10,6 +10,7 @@ import 'domain/collection/entity_link.dart';
 import 'domain/collection/execution_file_metadata.dart';
 import 'domain/collection/execution_memo.dart';
 import 'domain/project/execution_project.dart';
+import 'domain/reminder/execution_reminder.dart';
 import 'domain/review/daily_review.dart';
 import 'domain/task/execution_task.dart';
 import 'features/calendar/calendar_math.dart';
@@ -17,6 +18,7 @@ import 'features/calendar/calendar_providers.dart';
 import 'features/collection/collection_providers.dart';
 import 'features/collection/media_providers.dart';
 import 'features/projects/project_providers.dart';
+import 'features/reminders/reminder_providers.dart';
 import 'features/review/review_providers.dart';
 import 'features/review/review_stats.dart';
 import 'features/tasks/task_providers.dart';
@@ -179,7 +181,13 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     if (_runsOnProductionAndroid) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _syncSilently());
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await ref
+            .read(reminderNotificationBridgeProvider)
+            .service
+            .initialize();
+        _syncSilently();
+      });
     }
   }
 
@@ -197,18 +205,61 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
   }
 
   void _syncSilently() {
-    unawaited(
-      ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true),
-    );
-    unawaited(
-      ref
-          .read(mediaUploadControllerProvider.notifier)
-          .processPending(silent: true),
-    );
+    unawaited(_syncAndReconcile());
+  }
+
+  Future<void> _syncAndReconcile() async {
+    await ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true);
+    await ref
+        .read(mediaUploadControllerProvider.notifier)
+        .processPending(silent: true);
+    await ref.read(reminderCommandsProvider).reconcile();
+  }
+
+  void _openReminderTarget(ReminderNotificationTarget target) {
+    switch (target.subjectType) {
+      case ReminderSubjectTypes.task:
+        setState(() => i = 1);
+        final task = ref
+            .read(taskListProvider)
+            .valueOrNull
+            ?.where((item) => item.id == target.subjectId)
+            .firstOrNull;
+        if (task != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) push(context, TaskDetail(task: task));
+          });
+        }
+      case ReminderSubjectTypes.calendarEvent:
+        setState(() => i = 3);
+        final event = ref
+            .read(calendarEventListProvider)
+            .valueOrNull
+            ?.where((item) => item.id == target.subjectId)
+            .firstOrNull;
+        if (event != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _editCalendarEvent(
+              context,
+              ref,
+              initialDate: DateTime.parse(event.startAt).toLocal(),
+              event: event,
+            );
+          });
+        }
+      default:
+        setState(() => i = 0);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<ReminderNotificationTarget>>(
+      reminderNotificationTapProvider,
+      (_, next) => next.whenData(_openReminderTarget),
+    );
+
     final pages = [
       const Today(),
       const Tasks(),
