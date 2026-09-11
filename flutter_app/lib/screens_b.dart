@@ -1216,6 +1216,18 @@ Future<void> _editCalendarEvent(
   required DateTime initialDate,
   ExecutionCalendarEvent? event,
 }) async {
+  final existingReminders = event == null
+      ? const <ExecutionReminder>[]
+      : await ref.read(
+          remindersForSubjectProvider(
+            ReminderSubjectKey(
+              subjectType: ReminderSubjectTypes.calendarEvent,
+              subjectId: event.id,
+            ),
+          ).future,
+        );
+  final existingReminder = _activeReminder(existingReminders);
+
   final titleController = TextEditingController(text: event?.title ?? '');
   final descriptionController =
       TextEditingController(text: event?.description ?? '');
@@ -1233,6 +1245,10 @@ Future<void> _editCalendarEvent(
   DateTime? end = DateTime.tryParse(event?.endAt ?? '')?.toLocal() ??
       start.add(const Duration(hours: 1));
   var allDay = event?.allDay ?? false;
+  var reminderEnabled = existingReminder != null;
+  DateTime? reminderAt = existingReminder == null
+      ? null
+      : DateTime.parse(existingReminder.effectiveTriggerAt).toLocal();
 
   await showModalBottomSheet<void>(
     context: context,
@@ -1291,12 +1307,48 @@ Future<void> _editCalendarEvent(
                   ? null
                   : () => setSheetState(() => end = null),
             ),
-            const SizedBox(height: 14),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('日程提醒'),
+              subtitle: Text(
+                reminderEnabled
+                    ? '在指定时间发送系统通知'
+                    : '关闭后会同步取消已有提醒',
+                style: const TextStyle(fontSize: 8.5, color: C.muted),
+              ),
+              value: reminderEnabled,
+              onChanged: (value) => setSheetState(() {
+                reminderEnabled = value;
+                if (value && reminderAt == null) {
+                  reminderAt = _suggestCalendarReminder(start);
+                }
+              }),
+            ),
+            if (reminderEnabled) ...[
+              _DateField(
+                label: '提醒时间',
+                value: reminderAt,
+                onPick: () async {
+                  final value =
+                      await _pickDateTime(sheetContext, reminderAt ?? start);
+                  if (value != null) {
+                    setSheetState(() => reminderAt = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 6),
             Row(children: [
               if (event != null) ...[
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
+                      if (existingReminder != null) {
+                        await ref
+                            .read(reminderCommandsProvider)
+                            .cancel(existingReminder);
+                      }
                       await ref.read(calendarCommandsProvider).delete(event);
                       if (sheetContext.mounted) Navigator.pop(sheetContext);
                     },
@@ -1331,8 +1383,9 @@ Future<void> _editCalendarEvent(
                       }
 
                       final commands = ref.read(calendarCommandsProvider);
+                      late final ExecutionCalendarEvent savedEvent;
                       if (event == null) {
-                        await commands.create(
+                        savedEvent = await commands.create(
                           title: titleController.text,
                           description: descriptionController.text,
                           location: locationController.text,
@@ -1341,7 +1394,7 @@ Future<void> _editCalendarEvent(
                           endAt: saveEnd?.toUtc().toIso8601String(),
                         );
                       } else {
-                        await commands.update(
+                        savedEvent = await commands.update(
                           event: event,
                           title: titleController.text,
                           description: descriptionController.text,
@@ -1356,6 +1409,26 @@ Future<void> _editCalendarEvent(
                           clearEndAt: saveEnd == null,
                         );
                       }
+
+                      if (reminderEnabled) {
+                        final trigger =
+                            reminderAt ?? _suggestCalendarReminder(saveStart);
+                        await ref.read(reminderCommandsProvider).schedule(
+                              subjectType:
+                                  ReminderSubjectTypes.calendarEvent,
+                              subjectId: savedEvent.id,
+                              triggerAt: trigger,
+                              title: savedEvent.title,
+                              body: savedEvent.location ??
+                                  savedEvent.description ??
+                                  'LifeTrace 日程提醒',
+                            );
+                      } else if (existingReminder != null) {
+                        await ref
+                            .read(reminderCommandsProvider)
+                            .cancel(existingReminder);
+                      }
+
                       if (sheetContext.mounted) Navigator.pop(sheetContext);
                     } catch (error) {
                       if (sheetContext.mounted) {
@@ -1378,6 +1451,14 @@ Future<void> _editCalendarEvent(
   titleController.dispose();
   descriptionController.dispose();
   locationController.dispose();
+}
+
+DateTime _suggestCalendarReminder(DateTime start) {
+  final now = DateTime.now();
+  final candidate = start.subtract(const Duration(minutes: 10));
+  return candidate.isAfter(now)
+      ? candidate
+      : now.add(const Duration(hours: 1));
 }
 
 String _calendarTime(DateTime value) {
