@@ -148,6 +148,11 @@ abstract final class ReminderWireMapper {
 abstract interface class ReminderRepository {
   Stream<List<ExecutionReminder>> watchReminders(String userId);
   Future<List<ExecutionReminder>> listReminders(String userId);
+  Future<List<ExecutionReminder>> listForSubject({
+    required String userId,
+    required String subjectType,
+    required String subjectId,
+  });
 
   Stream<List<ExecutionReminder>> watchForSubject({
     required String userId,
@@ -211,6 +216,40 @@ class DriftReminderRepository implements ReminderRepository {
         .map(ReminderDatabaseMapper.fromRow)
         .toList(growable: false);
   }
+
+  @override
+  Future<List<ExecutionReminder>> listForSubject({
+    required String userId,
+    required String subjectType,
+    required String subjectId,
+  }) async {
+    final query = database.select(database.reminders)
+      ..where(
+        (table) =>
+            table.userId.equals(userId) &
+            table.subjectType.equals(subjectType) &
+            table.subjectId.equals(subjectId),
+      )
+      ..orderBy([(table) => OrderingTerm.desc(table.updatedAt)]);
+    return (await query.get())
+        .map(ReminderDatabaseMapper.fromRow)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<List<ExecutionReminder>> listForSubject({
+    required String userId,
+    required String subjectType,
+    required String subjectId,
+  }) async =>
+      _items
+          .where(
+            (item) =>
+                item.userId == userId &&
+                item.subjectType == subjectType &&
+                item.subjectId == subjectId,
+          )
+          .toList(growable: false);
 
   @override
   Stream<List<ExecutionReminder>> watchForSubject({
