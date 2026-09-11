@@ -39,7 +39,7 @@ jobs:
       - name: Bootstrap Android and Web platform files
         run: flutter create . --platforms=android,web --org com.lifetrace --project-name lifetrace_execute --no-pub
 
-      - name: Preserve production Android applicationId
+      - name: Preserve production Android configuration
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -47,6 +47,22 @@ jobs:
           gradle = Path('android/app/build.gradle.kts')
           text = gradle.read_text()
           text = text.replace('com.lifetrace.lifetrace_execute', 'com.lifetrace.execute')
+          text = text.replace(
+              'sourceCompatibility = JavaVersion.VERSION_11',
+              'sourceCompatibility = JavaVersion.VERSION_17',
+          )
+          text = text.replace(
+              'targetCompatibility = JavaVersion.VERSION_11',
+              'targetCompatibility = JavaVersion.VERSION_17',
+          )
+          if 'isCoreLibraryDesugaringEnabled = true' not in text:
+              text = text.replace(
+                  'compileOptions {',
+                  'compileOptions {\n        isCoreLibraryDesugaringEnabled = true',
+                  1,
+              )
+          if 'coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")' not in text:
+              text += '\n\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
           gradle.write_text(text)
 
           old = Path('android/app/src/main/kotlin/com/lifetrace/lifetrace_execute/MainActivity.kt')
@@ -55,6 +71,34 @@ jobs:
               new.parent.mkdir(parents=True, exist_ok=True)
               new.write_text(old.read_text().replace('package com.lifetrace.lifetrace_execute', 'package com.lifetrace.execute'))
               old.unlink()
+
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          xml = manifest.read_text()
+          if 'android.permission.RECEIVE_BOOT_COMPLETED' not in xml:
+              xml = xml.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+                  '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>',
+                  1,
+              )
+          receivers = '''
+                  <receiver
+                      android:exported="false"
+                      android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+                  <receiver
+                      android:exported="false"
+                      android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+                      <intent-filter>
+                          <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                          <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                          <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                          <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+                      </intent-filter>
+                  </receiver>
+          '''
+          if 'ScheduledNotificationReceiver' not in xml:
+              xml = xml.replace('</application>', receivers + '\n    </application>', 1)
+          manifest.write_text(xml)
           PY
 
       - name: Get dependencies
