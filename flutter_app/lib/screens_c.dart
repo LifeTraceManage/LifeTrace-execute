@@ -2,83 +2,35 @@
 
 part of 'main.dart';
 
-class Collection extends StatefulWidget {
+class Collection extends ConsumerStatefulWidget {
   const Collection({super.key});
 
   @override
-  State<Collection> createState() => _CollectionState();
+  ConsumerState<Collection> createState() => _CollectionState();
 }
 
-class _CollectionState extends State<Collection> {
+class _CollectionState extends ConsumerState<Collection> {
   int inboxFilter = 0;
 
-  static const inboxItems = <({
-    IconData icon,
-    String title,
-    String type,
-    String time,
-    String preview,
-    Color color,
-    Color background,
-    bool important,
-  })>[
-    (
-      icon: Icons.link_rounded,
-      title: 'Transformer 新论文',
-      type: '链接',
-      time: '10分钟前',
-      preview: 'Set-membership estimation 与预测控制相关资料，稍后归档到 Academic Research。',
-      color: C.teal,
-      background: C.tealSoft,
-      important: true,
-    ),
-    (
-      icon: Icons.notes_rounded,
-      title: '明天找导师讨论实验方案',
-      type: '文本',
-      time: '1小时前',
-      preview: '重点确认扰动集合预测的理论边界，以及实验对比是否足够完整。',
-      color: C.p,
-      background: C.ps,
-      important: true,
-    ),
-    (
-      icon: Icons.image_outlined,
-      title: 'IMG_2931.jpg',
-      type: '图片',
-      time: '今天',
-      preview: '会议白板照片 · 1 张图片',
-      color: C.pink,
-      background: C.pinkSoft,
-      important: false,
-    ),
-    (
-      icon: Icons.lightbulb_outline_rounded,
-      title: 'LifeTrace 设计灵感',
-      type: '想法',
-      time: '今天',
-      preview: '把收集箱做成真正的临时工作区，而不是一串等待清理的文本。',
-      color: C.amber,
-      background: C.amberSoft,
-      important: false,
-    ),
-  ];
-
   @override
-  Widget build(BuildContext c) {
-    final visible = switch (inboxFilter) {
-      1 => inboxItems.where((item) => item.important).toList(growable: false),
-      2 => inboxItems.where((item) => item.type == '图片' || item.type == '链接').toList(growable: false),
-      _ => inboxItems,
-    };
+  Widget build(BuildContext context) {
+    final inboxState = ref.watch(inboxMemoListProvider);
+    final conflicts =
+        ref.watch(collectionConflictsProvider).valueOrNull ??
+            const <CollectionConflictUi>[];
+    final inbox = inboxState.valueOrNull ?? const <ExecutionMemo>[];
+    final visible = _filterInbox(inbox, inboxFilter);
 
     return page([
       Row(children: [
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            title('收集'),
-            sub('先记下来，再决定它属于哪里'),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              title('收集'),
+              sub('先记下来，再决定它属于哪里'),
+            ],
+          ),
         ),
         Container(
           width: 37,
@@ -90,19 +42,64 @@ class _CollectionState extends State<Collection> {
           child: const Icon(Icons.inbox_rounded, color: C.teal, size: 19),
         ),
       ]),
+      if (conflicts.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        _CollectionConflictCard(conflict: conflicts.first),
+      ],
       const SizedBox(height: 12),
-      _CaptureComposer(onCapture: capture),
+      _CaptureComposer(
+        onSubmit: (text) => ref.read(collectionCommandsProvider).create(
+              kind: ExecutionMemoKind.text,
+              content: text,
+            ),
+      ),
       h('快速收集'),
       Wrap(spacing: 7, runSpacing: 7, children: [
-        _Quick(Icons.edit_note_rounded, '文本', C.p, C.ps, () => capture(c, '文本')),
-        _Quick(Icons.mic_none_rounded, '语音', C.purple, C.purpleSoft, () => capture(c, '语音')),
-        _Quick(Icons.image_outlined, '图片', C.pink, C.pinkSoft, () => capture(c, '图片')),
-        _Quick(Icons.link_rounded, '链接', C.teal, C.tealSoft, () => capture(c, '链接')),
-        _Quick(Icons.insert_drive_file_outlined, '文件', C.orange, C.orangeSoft, () => capture(c, '文件')),
-        _Quick(Icons.lightbulb_outline_rounded, '想法', C.amber, C.amberSoft, () => capture(c, '想法')),
+        _Quick(
+          Icons.edit_note_rounded,
+          '文本',
+          C.p,
+          C.ps,
+          () => _showMemoEditor(context, ref, kind: ExecutionMemoKind.text),
+        ),
+        _Quick(
+          Icons.lightbulb_outline_rounded,
+          '想法',
+          C.amber,
+          C.amberSoft,
+          () => _showMemoEditor(context, ref, kind: ExecutionMemoKind.idea),
+        ),
+        _Quick(
+          Icons.link_rounded,
+          '链接',
+          C.teal,
+          C.tealSoft,
+          () => _showMemoEditor(context, ref, kind: ExecutionMemoKind.link),
+        ),
+        _Quick(
+          Icons.mic_none_rounded,
+          '语音',
+          C.purple,
+          C.purpleSoft,
+          () => _showPendingMediaMessage(context, '语音'),
+        ),
+        _Quick(
+          Icons.image_outlined,
+          '图片',
+          C.pink,
+          C.pinkSoft,
+          () => _showPendingMediaMessage(context, '图片'),
+        ),
+        _Quick(
+          Icons.insert_drive_file_outlined,
+          '文件',
+          C.orange,
+          C.orangeSoft,
+          () => _showPendingMediaMessage(context, '文件'),
+        ),
       ]),
       const SizedBox(height: 16),
-      const _InboxOverview(),
+      _InboxOverview(items: inbox),
       const SizedBox(height: 12),
       Row(children: [
         const Expanded(
@@ -122,82 +119,102 @@ class _CollectionState extends State<Collection> {
         onChanged: (value) => setState(() => inboxFilter = value),
       ),
       const SizedBox(height: 10),
-      for (final item in visible)
-        _InboxCard(
-          icon: item.icon,
-          title: item.title,
-          type: item.type,
-          time: item.time,
-          preview: item.preview,
-          color: item.color,
-          background: item.background,
-          important: item.important,
-          onTap: () => push(
-            c,
-            InboxDetail(
-              icon: item.icon,
-              title: item.title,
-              type: item.type,
-              time: item.time,
-              preview: item.preview,
-              color: item.color,
-              background: item.background,
-            ),
+      if (inboxState.isLoading)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 28),
+          child: Center(child: CircularProgressIndicator()),
+        )
+      else if (inboxState.hasError)
+        panel(
+          Text(
+            '读取 Inbox 失败：${inboxState.error}',
+            style: const TextStyle(fontSize: 9.5, color: C.red),
           ),
-        ),
+        )
+      else if (visible.isEmpty)
+        panel(
+          const Column(
+            children: [
+              Icon(Icons.inbox_outlined, color: C.muted),
+              SizedBox(height: 6),
+              Text(
+                '当前筛选下没有待整理内容',
+                style: TextStyle(fontSize: 9.5, color: C.muted),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(18),
+        )
+      else
+        for (final memo in visible)
+          _InboxCard(
+            memo: memo,
+            onTap: () => push(context, InboxDetail(memoId: memo.id)),
+          ),
     ]);
   }
-
-  Future<void> capture(BuildContext c, String t) => showModalBottomSheet(
-        context: c,
-        showDragHandle: true,
-        isScrollControlled: true,
-        builder: (x) => Padding(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            0,
-            16,
-            20 + MediaQuery.of(x).viewInsets.bottom,
-          ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Row(children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: C.tealSoft,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: const Icon(Icons.add_rounded, color: C.teal),
-              ),
-              const SizedBox(width: 9),
-              Text('新建$t', style: Theme.of(x).textTheme.titleLarge),
-            ]),
-            const SizedBox(height: 12),
-            const TextField(
-              maxLines: 4,
-              decoration: InputDecoration(hintText: '记录内容'),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => Navigator.pop(x),
-                icon: const Icon(Icons.inbox_rounded, size: 16),
-                label: const Text('保存到 Inbox'),
-              ),
-            ),
-          ]),
-        ),
-      );
 }
 
-class _CaptureComposer extends StatelessWidget {
-  const _CaptureComposer({required this.onCapture});
-  final Future<void> Function(BuildContext, String) onCapture;
+List<ExecutionMemo> _filterInbox(List<ExecutionMemo> items, int filter) {
+  return switch (filter) {
+    1 => items.where((memo) => memo.important).toList(growable: false),
+    2 => items
+        .where((memo) => memo.kind == ExecutionMemoKind.text)
+        .toList(growable: false),
+    3 => items
+        .where((memo) => memo.kind == ExecutionMemoKind.idea)
+        .toList(growable: false),
+    4 => items
+        .where((memo) => memo.kind == ExecutionMemoKind.link)
+        .toList(growable: false),
+    _ => items,
+  };
+}
+
+class _CaptureComposer extends StatefulWidget {
+  const _CaptureComposer({required this.onSubmit});
+
+  final Future<ExecutionMemo> Function(String text) onSubmit;
 
   @override
-  Widget build(BuildContext c) => Container(
+  State<_CaptureComposer> createState() => _CaptureComposerState();
+}
+
+class _CaptureComposerState extends State<_CaptureComposer> {
+  final controller = TextEditingController();
+  bool saving = false;
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> submit() async {
+    final value = controller.text.trim();
+    if (value.isEmpty || saving) return;
+    setState(() => saving = true);
+    try {
+      await widget.onSubmit(value);
+      controller.clear();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已保存到 Inbox')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(17),
@@ -209,88 +226,43 @@ class _CaptureComposer extends StatelessWidget {
           border: Border.all(color: C.teal.withValues(alpha: .12)),
         ),
         child: Column(children: [
-          const TextField(
+          TextField(
+            controller: controller,
             maxLines: 3,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               hintText: '输入想法、任务、备忘...',
               fillColor: Colors.white,
             ),
           ),
           const SizedBox(height: 9),
           Row(children: [
-            _CaptureIcon(
-              icon: Icons.attach_file_rounded,
-              color: C.orange,
-              background: C.orangeSoft,
-              onTap: () => onCapture(c, '文件'),
-            ),
-            const SizedBox(width: 6),
-            _CaptureIcon(
-              icon: Icons.mic_none_rounded,
-              color: C.purple,
-              background: C.purpleSoft,
-              onTap: () => onCapture(c, '语音'),
-            ),
-            const SizedBox(width: 6),
-            _CaptureIcon(
-              icon: Icons.image_outlined,
-              color: C.pink,
-              background: C.pinkSoft,
-              onTap: () => onCapture(c, '图片'),
+            const Text(
+              '默认保存为文本 Memo',
+              style: TextStyle(fontSize: 8.3, color: C.muted),
             ),
             const Spacer(),
-            Container(
-              height: 33,
-              padding: const EdgeInsets.symmetric(horizontal: 11),
-              decoration: BoxDecoration(
-                color: C.teal,
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: const Row(children: [
-                Icon(Icons.send_rounded, size: 14, color: Colors.white),
-                SizedBox(width: 5),
-                Text(
-                  '收集',
-                  style: TextStyle(fontSize: 9.5, color: Colors.white, fontWeight: FontWeight.w800),
-                ),
-              ]),
+            FilledButton.icon(
+              onPressed: saving ? null : submit,
+              icon: saving
+                  ? const SizedBox(
+                      width: 13,
+                      height: 13,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.send_rounded, size: 14),
+              label: const Text('收集'),
             ),
           ]),
         ]),
       );
 }
 
-class _CaptureIcon extends StatelessWidget {
-  const _CaptureIcon({
-    required this.icon,
-    required this.color,
-    required this.background,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final Color color;
-  final Color background;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext c) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: 33,
-          height: 33,
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 16, color: color),
-        ),
-      );
-}
-
 class _Quick extends StatelessWidget {
   const _Quick(this.icon, this.label, this.color, this.background, this.tap);
+
   final IconData icon;
   final String label;
   final Color color;
@@ -298,7 +270,7 @@ class _Quick extends StatelessWidget {
   final VoidCallback tap;
 
   @override
-  Widget build(BuildContext c) => InkWell(
+  Widget build(BuildContext context) => InkWell(
         onTap: tap,
         borderRadius: BorderRadius.circular(13),
         child: Container(
@@ -309,347 +281,823 @@ class _Quick extends StatelessWidget {
             color: background,
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Container(
-              width: 29,
-              height: 29,
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9)),
-              child: Icon(icon, size: 15, color: color),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(fontSize: 9.3, fontWeight: FontWeight.w800, color: color),
-            ),
-          ]),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 29,
+                height: 29,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(icon, size: 15, color: color),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 9.3,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
         ),
       );
 }
 
 class _InboxOverview extends StatelessWidget {
-  const _InboxOverview();
+  const _InboxOverview({required this.items});
+
+  final List<ExecutionMemo> items;
 
   @override
-  Widget build(BuildContext c) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: C.ink,
-          borderRadius: BorderRadius.circular(17),
-        ),
-        child: Row(children: [
-          SizedBox(
-            width: 56,
-            height: 56,
-            child: Stack(fit: StackFit.expand, children: [
-              const CircularProgressIndicator(
-                value: .43,
+  Widget build(BuildContext context) {
+    final important = items.where((memo) => memo.important).length;
+    final links =
+        items.where((memo) => memo.kind == ExecutionMemoKind.link).length;
+    final ideas =
+        items.where((memo) => memo.kind == ExecutionMemoKind.idea).length;
+    final progress = items.isEmpty ? 1.0 : important / items.length;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: C.ink,
+        borderRadius: BorderRadius.circular(17),
+      ),
+      child: Row(children: [
+        SizedBox(
+          width: 56,
+          height: 56,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CircularProgressIndicator(
+                value: progress.clamp(0.0, 1.0),
                 strokeWidth: 6,
                 color: C.teal,
-                backgroundColor: Color(0xff313b4f),
+                backgroundColor: const Color(0xff313b4f),
               ),
-              const Center(
+              Center(
                 child: Text(
-                  '3/7',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.white),
+                  '${items.length}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-            ]),
+            ],
           ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                '收集箱需要整理',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: Colors.white),
+                items.isEmpty ? 'Inbox 已清空' : '收集箱需要整理',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
               ),
-              SizedBox(height: 3),
+              const SizedBox(height: 3),
               Text(
-                '今天还有 4 条内容等待归类',
-                style: TextStyle(fontSize: 8.8, color: Colors.white60),
+                items.isEmpty
+                    ? '新的内容会先进入这里'
+                    : '还有 ${items.length} 条真实内容等待归类',
+                style: const TextStyle(fontSize: 8.8, color: Colors.white60),
               ),
-              SizedBox(height: 8),
-              Row(children: [
-                _InboxStatDot(color: C.teal, label: '2 链接'),
-                SizedBox(width: 10),
-                _InboxStatDot(color: C.pink, label: '1 图片'),
-                SizedBox(width: 10),
-                _InboxStatDot(color: C.amber, label: '1 想法'),
+              const SizedBox(height: 8),
+              Wrap(spacing: 10, runSpacing: 5, children: [
+                _InboxStatDot(color: C.amber, label: '$important 重点'),
+                _InboxStatDot(color: C.teal, label: '$links 链接'),
+                _InboxStatDot(color: C.purple, label: '$ideas 想法'),
               ]),
-            ]),
+            ],
           ),
-        ]),
-      );
+        ),
+      ]),
+    );
+  }
 }
 
 class _InboxStatDot extends StatelessWidget {
   const _InboxStatDot({required this.color, required this.label});
+
   final Color color;
   final String label;
 
   @override
-  Widget build(BuildContext c) => Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-        ),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 8, color: Colors.white70)),
-      ]);
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 8, color: Colors.white70),
+          ),
+        ],
+      );
 }
 
 class _InboxFilters extends StatelessWidget {
   const _InboxFilters({required this.selected, required this.onChanged});
+
   final int selected;
   final ValueChanged<int> onChanged;
 
   @override
-  Widget build(BuildContext c) {
-    const labels = ['全部', '重点', '媒体'];
-    const icons = [Icons.grid_view_rounded, Icons.star_outline_rounded, Icons.perm_media_outlined];
-    return Row(
-      children: List.generate(labels.length, (i) {
-        final active = selected == i;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: i == labels.length - 1 ? 0 : 6),
-            child: InkWell(
-              onTap: () => onChanged(i),
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: active ? C.tealSoft : C.soft,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(icons[i], size: 13, color: active ? C.teal : C.muted),
-                  const SizedBox(width: 5),
-                  Text(
-                    labels[i],
-                    style: TextStyle(
-                      fontSize: 8.8,
-                      fontWeight: FontWeight.w800,
-                      color: active ? C.teal : C.muted,
-                    ),
-                  ),
-                ]),
+  Widget build(BuildContext context) {
+    const labels = ['全部', '重点', '文本', '想法', '链接'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List.generate(labels.length, (index) {
+          final active = selected == index;
+          return Padding(
+            padding: EdgeInsets.only(
+              right: index == labels.length - 1 ? 0 : 6,
+            ),
+            child: ChoiceChip(
+              selected: active,
+              label: Text(labels[index]),
+              onSelected: (_) => onChanged(index),
+              selectedColor: C.tealSoft,
+              labelStyle: TextStyle(
+                fontSize: 8.8,
+                fontWeight: FontWeight.w800,
+                color: active ? C.teal : C.muted,
               ),
             ),
-          ),
-        );
-      }),
+          );
+        }),
+      ),
     );
   }
 }
 
 class _InboxCard extends StatelessWidget {
-  const _InboxCard({
-    required this.icon,
-    required this.title,
-    required this.type,
-    required this.time,
-    required this.preview,
-    required this.color,
-    required this.background,
-    required this.important,
-    required this.onTap,
-  });
+  const _InboxCard({required this.memo, required this.onTap});
 
-  final IconData icon;
-  final String title;
-  final String type;
-  final String time;
-  final String preview;
-  final Color color;
-  final Color background;
-  final bool important;
+  final ExecutionMemo memo;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext c) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(15),
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: color.withValues(alpha: .12)),
-          ),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  Widget build(BuildContext context) {
+    final visual = _memoVisual(memo.kind);
+    final displayTitle = _memoTitle(memo);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: visual.color.withValues(alpha: .12)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Container(
               width: 39,
               height: 39,
-              decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, size: 18, color: color),
+              decoration: BoxDecoration(
+                color: visual.background,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(visual.icon, size: 18, color: visual.color),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w900),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    Expanded(
+                      child: Text(
+                        displayTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10.8,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    if (memo.important)
+                      const Icon(Icons.star_rounded, size: 13, color: C.amber),
+                  ]),
+                  const SizedBox(height: 3),
+                  Text(
+                    memo.content,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 8.7,
+                      color: C.muted,
+                      height: 1.35,
                     ),
                   ),
-                  if (important) const Icon(Icons.star_rounded, size: 13, color: C.amber),
-                ]),
-                const SizedBox(height: 3),
-                Text(
-                  preview,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 8.7, color: C.muted, height: 1.35),
-                ),
-                const SizedBox(height: 7),
-                Row(children: [
-                  chip(type, bg: background, fg: color),
-                  const SizedBox(width: 6),
-                  Text(time, style: const TextStyle(fontSize: 8, color: C.muted)),
-                  const Spacer(),
-                  Icon(Icons.chevron_right_rounded, size: 15, color: color.withValues(alpha: .72)),
-                ]),
-              ]),
+                  const SizedBox(height: 7),
+                  Row(children: [
+                    chip(
+                      visual.label,
+                      bg: visual.background,
+                      fg: visual.color,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _memoUpdatedLabel(memo.updatedAt),
+                      style: const TextStyle(fontSize: 8, color: C.muted),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 15,
+                      color: visual.color.withValues(alpha: .72),
+                    ),
+                  ]),
+                ],
+              ),
             ),
-          ]),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
-class InboxDetail extends StatelessWidget {
-  const InboxDetail({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.type,
-    required this.time,
-    required this.preview,
-    required this.color,
-    required this.background,
-  });
+class InboxDetail extends ConsumerWidget {
+  const InboxDetail({super.key, required this.memoId});
 
-  final IconData icon;
-  final String title;
-  final String type;
-  final String time;
-  final String preview;
-  final Color color;
-  final Color background;
+  final String memoId;
 
   @override
-  Widget build(BuildContext c) => DetailFrame(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final memos = ref.watch(memoListProvider).valueOrNull ??
+        const <ExecutionMemo>[];
+    ExecutionMemo? memo;
+    for (final item in memos) {
+      if (item.id == memoId) {
+        memo = item;
+        break;
+      }
+    }
+    if (memo == null) {
+      return DetailFrame(
         titleText: 'Inbox',
-        actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert_rounded, size: 19)),
-        ],
         child: page([
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(17),
+          panel(
+            const Text(
+              '这条内容已被整理或删除。',
+              style: TextStyle(fontSize: 10, color: C.muted),
             ),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ),
+        ]),
+      );
+    }
+
+    final current = memo;
+    final visual = _memoVisual(current.kind);
+    final projects =
+        ref.watch(projectListProvider).valueOrNull ?? const <ExecutionProject>[];
+
+    return DetailFrame(
+      titleText: 'Inbox',
+      actions: [
+        IconButton(
+          tooltip: current.important ? '取消重点' : '标记重点',
+          onPressed: () =>
+              ref.read(collectionCommandsProvider).toggleImportant(current),
+          icon: Icon(
+            current.important ? Icons.star_rounded : Icons.star_outline_rounded,
+            size: 19,
+            color: current.important ? C.amber : C.muted,
+          ),
+        ),
+        IconButton(
+          tooltip: '编辑',
+          onPressed: () =>
+              _showMemoEditor(context, ref, kind: current.kind, memo: current),
+          icon: const Icon(Icons.edit_outlined, size: 18),
+        ),
+      ],
+      child: page([
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: visual.background,
+            borderRadius: BorderRadius.circular(17),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Container(
                 width: 45,
                 height: 45,
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-                child: Icon(icon, size: 21, color: color),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(visual.icon, size: 21, color: visual.color),
               ),
               const SizedBox(width: 11),
               Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 5),
-                  Wrap(spacing: 6, children: [
-                    chip(type, bg: Colors.white, fg: color),
-                    chip(time, bg: Colors.white, fg: C.muted),
-                  ]),
-                ]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _memoTitle(current),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Wrap(spacing: 6, runSpacing: 5, children: [
+                      chip(visual.label, bg: Colors.white, fg: visual.color),
+                      chip(
+                        _memoUpdatedLabel(current.updatedAt),
+                        bg: Colors.white,
+                        fg: C.muted,
+                      ),
+                      if (current.status == ExecutionMemoStatus.archived)
+                        chip('已归档', bg: Colors.white, fg: C.muted),
+                    ]),
+                  ],
+                ),
               ),
-            ]),
+            ],
           ),
-          h('内容'),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: C.border),
-            ),
-            child: Text(
-              preview,
-              style: const TextStyle(fontSize: 10.3, color: C.muted, height: 1.5),
+        ),
+        h('内容'),
+        panel(
+          SelectableText(
+            current.content,
+            style: const TextStyle(fontSize: 10.3, color: C.muted, height: 1.5),
+          ),
+        ),
+        if (current.sourceUrl != null) ...[
+          h('链接'),
+          panel(
+            SelectableText(
+              current.sourceUrl!,
+              style: const TextStyle(fontSize: 9.5, color: C.teal),
             ),
           ),
-          h('整理到'),
+        ],
+        if (current.isInbox) ...[
+          h('整理'),
           Row(children: [
-            Expanded(child: _InboxDestination(Icons.check_box_outlined, '任务', C.p, C.ps)),
+            Expanded(
+              child: _InboxDestination(
+                Icons.check_box_outlined,
+                '转任务',
+                C.p,
+                C.ps,
+                onTap: () async {
+                  try {
+                    final task = await ref
+                        .read(collectionCommandsProvider)
+                        .convertToTask(current);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      push(context, TaskDetail(task: task));
+                    }
+                  } catch (error) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('$error')),
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
             const SizedBox(width: 7),
-            Expanded(child: _InboxDestination(Icons.folder_outlined, '项目', C.purple, C.purpleSoft)),
+            Expanded(
+              child: _InboxDestination(
+                Icons.folder_outlined,
+                '到项目',
+                C.purple,
+                C.purpleSoft,
+                onTap: projects.isEmpty
+                    ? null
+                    : () => _chooseProjectForMemo(
+                          context,
+                          ref,
+                          current,
+                          projects,
+                        ),
+              ),
+            ),
             const SizedBox(width: 7),
-            Expanded(child: _InboxDestination(Icons.calendar_month_outlined, '日历', C.orange, C.orangeSoft)),
+            Expanded(
+              child: _InboxDestination(
+                Icons.archive_outlined,
+                '归档',
+                C.muted,
+                C.soft,
+                onTap: () async {
+                  await ref.read(collectionCommandsProvider).archive(current);
+                  if (context.mounted) Navigator.pop(context);
+                },
+              ),
+            ),
           ]),
           const SizedBox(height: 8),
-          Row(children: [
-            Expanded(child: _InboxDestination(Icons.notes_rounded, '备忘', C.teal, C.tealSoft)),
-            const SizedBox(width: 7),
-            Expanded(child: _InboxDestination(Icons.archive_outlined, '归档', C.muted, C.soft)),
-            const SizedBox(width: 7),
-            Expanded(child: _InboxDestination(Icons.delete_outline_rounded, '删除', C.red, C.redSoft)),
-          ]),
-          h('建议'),
-          Container(
-            padding: const EdgeInsets.all(11),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [C.purpleSoft, C.ps]),
-              borderRadius: BorderRadius.circular(14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _confirmDeleteMemo(context, ref, current),
+              icon: const Icon(Icons.delete_outline_rounded, size: 16),
+              label: const Text('删除'),
             ),
-            child: const Row(children: [
-              CircleAvatar(
-                radius: 17,
-                backgroundColor: Colors.white,
-                child: Icon(Icons.auto_awesome_rounded, size: 16, color: C.purple),
-              ),
-              SizedBox(width: 9),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('建议整理到项目', style: TextStyle(fontSize: 10.2, fontWeight: FontWeight.w900)),
-                  Text('根据内容语义，可以关联到当前项目或转成下一步任务。', style: TextStyle(fontSize: 8.5, color: C.muted)),
-                ]),
-              ),
-            ]),
           ),
-        ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 22)),
-      );
+        ],
+      ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 22)),
+    );
+  }
 }
 
 class _InboxDestination extends StatelessWidget {
-  const _InboxDestination(this.icon, this.label, this.color, this.background);
+  const _InboxDestination(
+    this.icon,
+    this.label,
+    this.color,
+    this.background, {
+    this.onTap,
+  });
+
   final IconData icon;
   final String label;
   final Color color;
   final Color background;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext c) => Container(
-        height: 64,
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(13),
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(13),
+        child: Opacity(
+          opacity: onTap == null ? .45 : 1,
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 17, color: color),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 8.7,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 17, color: color),
-          const SizedBox(height: 5),
-          Text(label, style: TextStyle(fontSize: 8.7, fontWeight: FontWeight.w800, color: color)),
-        ]),
       );
+}
+
+class _CollectionConflictCard extends ConsumerWidget {
+  const _CollectionConflictCard({required this.conflict});
+
+  final CollectionConflictUi conflict;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: C.orangeSoft,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '收集数据存在同步冲突',
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              conflict.reason,
+              style: const TextStyle(fontSize: 8.7, color: C.muted),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => ref
+                      .read(collectionCommandsProvider)
+                      .keepServer(conflict.conflictId),
+                  child: const Text('保留云端'),
+                ),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => ref
+                      .read(collectionCommandsProvider)
+                      .keepLocal(conflict.conflictId),
+                  child: const Text('保留本地'),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      );
+}
+
+Future<void> _showMemoEditor(
+  BuildContext context,
+  WidgetRef ref, {
+  required ExecutionMemoKind kind,
+  ExecutionMemo? memo,
+}) async {
+  final titleController = TextEditingController(text: memo?.title ?? '');
+  final contentController = TextEditingController(text: memo?.content ?? '');
+  final urlController = TextEditingController(text: memo?.sourceUrl ?? '');
+  var important = memo?.important ?? false;
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (sheetContext, setSheetState) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                memo == null
+                    ? '新建${_memoVisual(kind).label}'
+                    : '编辑${_memoVisual(kind).label}',
+                style: Theme.of(sheetContext).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: '标题（可选）',
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (kind == ExecutionMemoKind.link) ...[
+                TextField(
+                  controller: urlController,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(
+                    labelText: '链接',
+                    hintText: 'https://...',
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              TextField(
+                controller: contentController,
+                autofocus: memo == null,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: '内容',
+                  hintText: '记录内容',
+                ),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('标记为重点'),
+                value: important,
+                onChanged: (value) =>
+                    setSheetState(() => important = value),
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () async {
+                    try {
+                      if (memo == null) {
+                        await ref.read(collectionCommandsProvider).create(
+                              kind: kind,
+                              title: titleController.text,
+                              content: contentController.text,
+                              sourceUrl: kind == ExecutionMemoKind.link
+                                  ? urlController.text
+                                  : null,
+                              important: important,
+                            );
+                      } else {
+                        await ref.read(collectionCommandsProvider).update(
+                              memo: memo,
+                              title: titleController.text,
+                              content: contentController.text,
+                              sourceUrl: kind == ExecutionMemoKind.link
+                                  ? urlController.text
+                                  : null,
+                              important: important,
+                              clearTitle:
+                                  titleController.text.trim().isEmpty,
+                              clearSourceUrl: kind == ExecutionMemoKind.link &&
+                                  urlController.text.trim().isEmpty,
+                            );
+                      }
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    } catch (error) {
+                      if (sheetContext.mounted) {
+                        ScaffoldMessenger.of(sheetContext).showSnackBar(
+                          SnackBar(content: Text('$error')),
+                        );
+                      }
+                    }
+                  },
+                  child: Text(memo == null ? '保存到 Inbox' : '保存修改'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
+  titleController.dispose();
+  contentController.dispose();
+  urlController.dispose();
+}
+
+Future<void> _chooseProjectForMemo(
+  BuildContext context,
+  WidgetRef ref,
+  ExecutionMemo memo,
+  List<ExecutionProject> projects,
+) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+        children: [
+          const ListTile(
+            title: Text(
+              '整理到项目',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+          for (final project in projects)
+            ListTile(
+              leading: const Icon(Icons.folder_outlined, color: C.purple),
+              title: Text(project.title),
+              subtitle: Text(project.status.wireValue),
+              onTap: () async {
+                try {
+                  await ref
+                      .read(collectionCommandsProvider)
+                      .organizeToProject(memo, project.id);
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  if (context.mounted) Navigator.pop(context);
+                } catch (error) {
+                  if (sheetContext.mounted) {
+                    ScaffoldMessenger.of(sheetContext).showSnackBar(
+                      SnackBar(content: Text('$error')),
+                    );
+                  }
+                }
+              },
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+Future<void> _confirmDeleteMemo(
+  BuildContext context,
+  WidgetRef ref,
+  ExecutionMemo memo,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('删除这条收集内容？'),
+      content: const Text('删除会通过 Sync v1 同步为 tombstone。'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text('删除'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  await ref.read(collectionCommandsProvider).delete(memo);
+  if (context.mounted) Navigator.pop(context);
+}
+
+void _showPendingMediaMessage(BuildContext context, String type) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('$type将在文件上传链接入后开放；当前不会创建伪数据。'),
+    ),
+  );
+}
+
+({IconData icon, String label, Color color, Color background}) _memoVisual(
+  ExecutionMemoKind kind,
+) {
+  return switch (kind) {
+    ExecutionMemoKind.text => (
+        icon: Icons.notes_rounded,
+        label: '文本',
+        color: C.p,
+        background: C.ps,
+      ),
+    ExecutionMemoKind.idea => (
+        icon: Icons.lightbulb_outline_rounded,
+        label: '想法',
+        color: C.amber,
+        background: C.amberSoft,
+      ),
+    ExecutionMemoKind.link => (
+        icon: Icons.link_rounded,
+        label: '链接',
+        color: C.teal,
+        background: C.tealSoft,
+      ),
+    ExecutionMemoKind.image => (
+        icon: Icons.image_outlined,
+        label: '图片',
+        color: C.pink,
+        background: C.pinkSoft,
+      ),
+    ExecutionMemoKind.audio => (
+        icon: Icons.mic_none_rounded,
+        label: '语音',
+        color: C.purple,
+        background: C.purpleSoft,
+      ),
+    ExecutionMemoKind.file => (
+        icon: Icons.insert_drive_file_outlined,
+        label: '文件',
+        color: C.orange,
+        background: C.orangeSoft,
+      ),
+  };
+}
+
+String _memoTitle(ExecutionMemo memo) {
+  final title = memo.title?.trim();
+  if (title != null && title.isNotEmpty) return title;
+  final oneLine = memo.content.replaceAll(RegExp(r'\s+'), ' ').trim();
+  return oneLine.length <= 36 ? oneLine : '${oneLine.substring(0, 36)}…';
+}
+
+String _memoUpdatedLabel(String raw) {
+  final value = DateTime.tryParse(raw)?.toLocal();
+  if (value == null) return raw;
+  final now = DateTime.now();
+  final diff = now.difference(value);
+  if (diff.inMinutes < 1) return '刚刚';
+  if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
+  if (diff.inHours < 24) return '${diff.inHours}小时前';
+  if (value.year == now.year &&
+      value.month == now.month &&
+      value.day == now.day - 1) {
+    return '昨天';
+  }
+  return '${value.month}月${value.day}日';
 }
 
 class Review extends StatefulWidget {
