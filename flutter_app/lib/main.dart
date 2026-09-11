@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/background/background_sync.dart';
+import 'core/notifications/reminder_notification_service.dart';
+import 'data/repository/reminder_repository.dart';
 import 'domain/calendar/execution_calendar_event.dart';
 import 'domain/collection/entity_link.dart';
 import 'domain/collection/execution_file_metadata.dart';
@@ -251,7 +253,7 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
             _editCalendarEvent(
               context,
               ref,
-              initialDate: DateTime.parse(event.startAt).toLocal(),
+              initialDate: DateTime.parse(event!.startAt).toLocal(),
               event: event,
             );
           });
