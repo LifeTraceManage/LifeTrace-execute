@@ -580,6 +580,7 @@ class _TasksState extends ConsumerState<Tasks> {
               decoration: const InputDecoration(
                 hintText: '搜索任务...',
                 prefixIcon: Icon(Icons.search_rounded, size: 18),
+                suffixIcon: Icon(Icons.tune_rounded, size: 17, color: C.sky),
               ),
             ),
             const SizedBox(height: 9),
@@ -588,30 +589,22 @@ class _TasksState extends ConsumerState<Tasks> {
               selected: filter,
               onTap: (value) => setState(() => filter = value),
             ),
-            h('任务 · ${visible.length}'),
+            h(
+              '任务 · ${visible.length}',
+              tail: chip('卡片视图', bg: C.skySoft, fg: C.sky),
+            ),
             if (visible.isEmpty)
-              panel(
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                    child: Text('暂无符合条件的任务', style: TextStyle(fontSize: 10.5, color: C.muted)),
-                  ),
-                ),
-              )
+              const _TaskEmptyState()
             else
-              panel(
-                Column(
-                  children: [
-                    for (var index = 0; index < visible.length; index++) ...[
-                      _TaskRow(
-                        visible[index],
-                        onTap: () => push(c, TaskDetail(task: visible[index])),
-                        onToggle: () => ref.read(taskCommandsProvider).toggleDone(visible[index]),
-                      ),
-                      if (index != visible.length - 1) const Divider(height: 1),
-                    ],
-                  ],
-                ),
+              Column(
+                children: [
+                  for (final task in visible)
+                    _TaskRow(
+                      task,
+                      onTap: () => push(c, TaskDetail(task: task)),
+                      onToggle: () => ref.read(taskCommandsProvider).toggleDone(task),
+                    ),
+                ],
               ),
           ]);
         },
@@ -930,6 +923,30 @@ class _Tabs extends StatelessWidget {
       );
 }
 
+class _TaskEmptyState extends StatelessWidget {
+  const _TaskEmptyState();
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 28),
+        decoration: BoxDecoration(
+          color: C.skySoft,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Column(children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.white,
+            child: Icon(Icons.task_alt_rounded, color: C.sky, size: 25),
+          ),
+          SizedBox(height: 9),
+          Text('这里很清爽', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+          SizedBox(height: 3),
+          Text('暂无符合条件的任务', style: TextStyle(fontSize: 9.2, color: C.muted)),
+        ]),
+      );
+}
+
 class _TaskRow extends StatelessWidget {
   const _TaskRow(this.task, {required this.onTap, required this.onToggle});
 
@@ -939,43 +956,144 @@ class _TaskRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) {
-    final badge = switch (task.priority) {
+    final urgent = task.priority == ExecutionTaskPriority.urgent;
+    final high = task.priority == ExecutionTaskPriority.high;
+    final waiting = task.status == ExecutionTaskStatus.waiting;
+
+    final accent = task.isDone
+        ? C.green
+        : waiting
+            ? C.purple
+            : urgent
+                ? C.red
+                : high
+                    ? C.orange
+                    : C.sky;
+    final tint = task.isDone
+        ? C.greenSoft
+        : waiting
+            ? C.purpleSoft
+            : urgent
+                ? C.redSoft
+                : high
+                    ? C.orangeSoft
+                    : C.skySoft;
+    final icon = task.isDone
+        ? Icons.done_all_rounded
+        : waiting
+            ? Icons.hourglass_bottom_rounded
+            : urgent
+                ? Icons.local_fire_department_rounded
+                : high
+                    ? Icons.flag_rounded
+                    : Icons.task_alt_rounded;
+    final priority = switch (task.priority) {
       ExecutionTaskPriority.urgent => 'P1',
       ExecutionTaskPriority.high => 'P2',
-      ExecutionTaskPriority.normal => '',
-      ExecutionTaskPriority.low => '',
+      ExecutionTaskPriority.normal => '普通',
+      ExecutionTaskPriority.low => '低',
     };
-    final color = task.priority == ExecutionTaskPriority.urgent ? C.red : C.orange;
+
     return InkWell(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
-        child: Row(children: [
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 9),
+        padding: const EdgeInsets.fromLTRB(10, 10, 9, 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: accent.withValues(alpha: .12)),
+          boxShadow: [
+            BoxShadow(
+              color: C.ink.withValues(alpha: .035),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           InkWell(
             onTap: onToggle,
             borderRadius: BorderRadius.circular(12),
-            child: Icon(
-              task.isDone ? Icons.check_circle_rounded : Icons.circle_outlined,
-              size: 18,
-              color: task.isDone ? C.green : C.muted,
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: tint,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Stack(alignment: Alignment.center, children: [
+                Icon(icon, size: 18, color: accent),
+                if (!task.isDone)
+                  Positioned(
+                    right: 5,
+                    bottom: 5,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: accent, width: 1.4),
+                      ),
+                    ),
+                  ),
+              ]),
             ),
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(
-                task.title,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                  decoration: task.isDone ? TextDecoration.lineThrough : null,
-                  color: task.isDone ? C.muted : C.ink,
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(
+                  child: Text(
+                    task.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.7,
+                      height: 1.2,
+                      fontWeight: FontWeight.w900,
+                      decoration: task.isDone ? TextDecoration.lineThrough : null,
+                      color: task.isDone ? C.muted : C.ink,
+                    ),
+                  ),
                 ),
-              ),
-              Text(_taskMeta(task), style: const TextStyle(fontSize: 9.2, color: C.muted)),
+                const SizedBox(width: 6),
+                chip(priority, bg: tint, fg: accent),
+              ]),
+              if ((task.description ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  task.description!.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 8.8, color: C.muted),
+                ),
+              ],
+              const SizedBox(height: 7),
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: C.soft,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Row(children: [
+                    Icon(Icons.schedule_rounded, size: 10, color: accent),
+                    const SizedBox(width: 4),
+                    Text(
+                      _taskMeta(task),
+                      style: const TextStyle(fontSize: 8.2, color: C.muted, fontWeight: FontWeight.w700),
+                    ),
+                  ]),
+                ),
+                const Spacer(),
+                Icon(Icons.chevron_right_rounded, size: 17, color: accent.withValues(alpha: .72)),
+              ]),
             ]),
           ),
-          if (badge.isNotEmpty) chip(badge, bg: color.withValues(alpha: .12), fg: color),
         ]),
       ),
     );
