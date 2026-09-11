@@ -237,21 +237,6 @@ class DriftReminderRepository implements ReminderRepository {
   }
 
   @override
-  Future<List<ExecutionReminder>> listForSubject({
-    required String userId,
-    required String subjectType,
-    required String subjectId,
-  }) async =>
-      _items
-          .where(
-            (item) =>
-                item.userId == userId &&
-                item.subjectType == subjectType &&
-                item.subjectId == subjectId,
-          )
-          .toList(growable: false);
-
-  @override
   Stream<List<ExecutionReminder>> watchForSubject({
     required String userId,
     required String subjectType,
@@ -446,6 +431,21 @@ class PreviewReminderRepository implements ReminderRepository {
   @override
   Future<List<ExecutionReminder>> listReminders(String userId) async =>
       _items.where((item) => item.userId == userId).toList(growable: false);
+
+  @override
+  Future<List<ExecutionReminder>> listForSubject({
+    required String userId,
+    required String subjectType,
+    required String subjectId,
+  }) async =>
+      _items
+          .where(
+            (item) =>
+                item.userId == userId &&
+                item.subjectType == subjectType &&
+                item.subjectId == subjectId,
+          )
+          .toList(growable: false);
 
   @override
   Stream<List<ExecutionReminder>> watchForSubject({
