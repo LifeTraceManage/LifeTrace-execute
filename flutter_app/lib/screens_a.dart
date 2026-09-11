@@ -18,8 +18,8 @@ class Today extends StatelessWidget {
             onTap: () => push(c, const Profile()),
             child: const CircleAvatar(
               radius: 19,
-              backgroundColor: C.ps,
-              child: Icon(Icons.person, color: C.p, size: 20),
+              backgroundColor: C.purpleSoft,
+              child: Icon(Icons.person, color: C.purple, size: 20),
             ),
           ),
         ]),
@@ -30,7 +30,7 @@ class Today extends StatelessWidget {
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text(
               'TODAY FOCUS',
-              style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: C.p),
+              style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: C.purple),
             ),
             const SizedBox(height: 8),
             const Row(children: [
@@ -61,7 +61,7 @@ class Today extends StatelessWidget {
               ),
             ),
           ]),
-          color: C.ps,
+          color: C.purpleSoft,
         ),
         h('今天'),
         const _InlineStats(),
@@ -125,9 +125,9 @@ class _InlineStats extends StatelessWidget {
         child: Row(children: [
           Text('5', style: TextStyle(color: C.p, fontWeight: FontWeight.w900, fontSize: 15)),
           Text(' 待完成  ·  ', style: TextStyle(fontSize: 10, color: C.muted)),
-          Text('2', style: TextStyle(color: C.p, fontWeight: FontWeight.w900, fontSize: 15)),
+          Text('2', style: TextStyle(color: C.orange, fontWeight: FontWeight.w900, fontSize: 15)),
           Text(' 日程  ·  ', style: TextStyle(fontSize: 10, color: C.muted)),
-          Text('1', style: TextStyle(color: C.p, fontWeight: FontWeight.w900, fontSize: 15)),
+          Text('1', style: TextStyle(color: C.green, fontWeight: FontWeight.w900, fontSize: 15)),
           Text(' 习惯', style: TextStyle(fontSize: 10, color: C.muted)),
         ]),
       );
