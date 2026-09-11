@@ -219,11 +219,17 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
   }
 
   void _openReminderTarget(ReminderNotificationTarget target) {
+    unawaited(_openReminderTargetAsync(target));
+  }
+
+  Future<void> _openReminderTargetAsync(
+    ReminderNotificationTarget target,
+  ) async {
     switch (target.subjectType) {
       case ReminderSubjectTypes.task:
-        setState(() => i = 1);
-        final tasks =
-            ref.read(taskListProvider).valueOrNull ?? const <ExecutionTask>[];
+        if (mounted) setState(() => i = 1);
+        final tasks = await ref.read(taskListProvider.future);
+        if (!mounted) return;
         ExecutionTask? task;
         for (final item in tasks) {
           if (item.id == target.subjectId) {
@@ -231,15 +237,13 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
             break;
           }
         }
-        if (task != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) push(context, TaskDetail(task: task));
-          });
+        if (task != null && mounted) {
+          push(context, TaskDetail(task: task));
         }
       case ReminderSubjectTypes.calendarEvent:
-        setState(() => i = 3);
-        final events = ref.read(calendarEventListProvider).valueOrNull ??
-            const <ExecutionCalendarEvent>[];
+        if (mounted) setState(() => i = 3);
+        final events = await ref.read(calendarEventListProvider.future);
+        if (!mounted) return;
         ExecutionCalendarEvent? event;
         for (final item in events) {
           if (item.id == target.subjectId) {
@@ -247,19 +251,16 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
             break;
           }
         }
-        if (event != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            _editCalendarEvent(
-              context,
-              ref,
-              initialDate: DateTime.parse(event!.startAt).toLocal(),
-              event: event,
-            );
-          });
+        if (event != null && mounted) {
+          await _editCalendarEvent(
+            context,
+            ref,
+            initialDate: DateTime.parse(event.startAt).toLocal(),
+            event: event,
+          );
         }
       default:
-        setState(() => i = 0);
+        if (mounted) setState(() => i = 0);
     }
   }
 
