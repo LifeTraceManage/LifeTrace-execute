@@ -55,6 +55,12 @@ class ReminderNotificationService {
       },
     );
     _initialized = true;
+
+    final launch = await _plugin.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp == true) {
+      final target = _decodePayload(launch?.notificationResponse?.payload);
+      if (target != null) _onTap?.call(target);
+    }
   }
 
   Future<bool> requestPermission() async {
