@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../domain/collection/entity_link.dart';
 import '../local/app_database.dart' as db;
 import '../repository/entity_link_repository.dart';
 import '../repository/memo_repository.dart';
