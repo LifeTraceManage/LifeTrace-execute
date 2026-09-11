@@ -19,6 +19,7 @@ import '../repository/memo_repository.dart';
 import '../repository/project_database_mapper.dart';
 import '../repository/project_repository.dart';
 import '../repository/project_wire_mapper.dart';
+import '../repository/reminder_repository.dart';
 import '../repository/task_database_mapper.dart';
 import '../repository/task_repository.dart';
 import '../repository/task_wire_mapper.dart';
@@ -53,12 +54,13 @@ class TaskSyncCoordinator {
         _deviceIdLoader = deviceIdLoader ?? DeviceIdentityStore().getOrCreate;
 
   static const taskScopeKey =
-      'entities:execution.task,execution.project,execution.calendar_event,execution.memo,review.daily,file.metadata,entity.link';
+      'entities:execution.task,execution.project,execution.calendar_event,execution.memo,execution.reminder,review.daily,file.metadata,entity.link';
   static const syncEntityTypes = <String>[
     DriftTaskRepository.entityType,
     DriftProjectRepository.entityType,
     DriftCalendarEventRepository.entityType,
     DriftMemoRepository.entityType,
+    DriftReminderRepository.entityType,
     DriftDailyReviewRepository.entityType,
     DriftFileMetadataRepository.entityType,
     DriftEntityLinkRepository.entityType,
@@ -210,6 +212,14 @@ class TaskSyncCoordinator {
               await database
                   .into(database.memos)
                   .insertOnConflictUpdate(MemoDatabaseMapper.toRow(memo));
+            case DriftReminderRepository.entityType:
+              final reminder = ReminderWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+              );
+              await database
+                  .into(database.reminders)
+                  .insertOnConflictUpdate(ReminderDatabaseMapper.toRow(reminder));
             case DriftDailyReviewRepository.entityType:
               final review = DailyReviewWireMapper.fromPayload(
                 item.payload,
@@ -425,6 +435,16 @@ class TaskSyncCoordinator {
               .write(
             db.MemosCompanion(serverVersion: Value(result.serverVersion)),
           );
+        case DriftReminderRepository.entityType:
+          await (database.update(database.reminders)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.RemindersCompanion(serverVersion: Value(result.serverVersion)),
+          );
         case DriftDailyReviewRepository.entityType:
           await (database.update(database.dailyReviews)
                 ..where(
@@ -531,6 +551,20 @@ class TaskSyncCoordinator {
                 serverVersion: result.serverVersion,
               );
               payloadJson = jsonEncode(MemoWireMapper.toPayload(current));
+            }
+          case DriftReminderRepository.entityType:
+            final row = await (database.select(database.reminders)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = ReminderDatabaseMapper.fromRow(row).copyWith(
+                serverVersion: result.serverVersion,
+              );
+              payloadJson = jsonEncode(ReminderWireMapper.toPayload(current));
             }
           case DriftDailyReviewRepository.entityType:
             final row = await (database.select(database.dailyReviews)
@@ -728,6 +762,14 @@ class TaskSyncCoordinator {
                   await database.into(database.memos).insertOnConflictUpdate(
                         MemoDatabaseMapper.toRow(memo),
                       );
+                case DriftReminderRepository.entityType:
+                  final reminder = ReminderWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                  );
+                  await database.into(database.reminders).insertOnConflictUpdate(
+                        ReminderDatabaseMapper.toRow(reminder),
+                      );
                 case DriftDailyReviewRepository.entityType:
                   final review = DailyReviewWireMapper.fromPayload(
                     payload,
@@ -785,6 +827,14 @@ class TaskSyncCoordinator {
                       .go();
                 case DriftMemoRepository.entityType:
                   await (database.delete(database.memos)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+                case DriftReminderRepository.entityType:
+                  await (database.delete(database.reminders)
                         ..where(
                           (table) =>
                               table.userId.equals(userId) &
