@@ -1,77 +1,176 @@
 part of 'main.dart';
 
-class Collection extends StatelessWidget {
+class Collection extends StatefulWidget {
   const Collection({super.key});
 
   @override
-  Widget build(BuildContext c) => page([
-        title('收集'),
-        sub('有什么需要记下来？'),
-        const SizedBox(height: 11),
-        panel(
-          Column(children: [
-            const TextField(
-              maxLines: 3,
-              decoration: InputDecoration(hintText: '输入想法、任务、备忘...'),
+  State<Collection> createState() => _CollectionState();
+}
+
+class _CollectionState extends State<Collection> {
+  int inboxFilter = 0;
+
+  static const inboxItems = <({
+    IconData icon,
+    String title,
+    String type,
+    String time,
+    String preview,
+    Color color,
+    Color background,
+    bool important,
+  })>[
+    (
+      icon: Icons.link_rounded,
+      title: 'Transformer 新论文',
+      type: '链接',
+      time: '10分钟前',
+      preview: 'Set-membership estimation 与预测控制相关资料，稍后归档到 Academic Research。',
+      color: C.teal,
+      background: C.tealSoft,
+      important: true,
+    ),
+    (
+      icon: Icons.notes_rounded,
+      title: '明天找导师讨论实验方案',
+      type: '文本',
+      time: '1小时前',
+      preview: '重点确认扰动集合预测的理论边界，以及实验对比是否足够完整。',
+      color: C.p,
+      background: C.ps,
+      important: true,
+    ),
+    (
+      icon: Icons.image_outlined,
+      title: 'IMG_2931.jpg',
+      type: '图片',
+      time: '今天',
+      preview: '会议白板照片 · 1 张图片',
+      color: C.pink,
+      background: C.pinkSoft,
+      important: false,
+    ),
+    (
+      icon: Icons.lightbulb_outline_rounded,
+      title: 'LifeTrace 设计灵感',
+      type: '想法',
+      time: '今天',
+      preview: '把收集箱做成真正的临时工作区，而不是一串等待清理的文本。',
+      color: C.amber,
+      background: C.amberSoft,
+      important: false,
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext c) {
+    final visible = switch (inboxFilter) {
+      1 => inboxItems.where((item) => item.important).toList(growable: false),
+      2 => inboxItems.where((item) => item.type == '图片' || item.type == '链接').toList(growable: false),
+      _ => inboxItems,
+    };
+
+    return page([
+      Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            title('收集'),
+            sub('先记下来，再决定它属于哪里'),
+          ]),
+        ),
+        Container(
+          width: 37,
+          height: 37,
+          decoration: BoxDecoration(
+            color: C.tealSoft,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.inbox_rounded, color: C.teal, size: 19),
+        ),
+      ]),
+      const SizedBox(height: 12),
+      _CaptureComposer(onCapture: capture),
+      h('快速收集'),
+      Wrap(spacing: 7, runSpacing: 7, children: [
+        _Quick(Icons.edit_note_rounded, '文本', C.p, C.ps, () => capture(c, '文本')),
+        _Quick(Icons.mic_none_rounded, '语音', C.purple, C.purpleSoft, () => capture(c, '语音')),
+        _Quick(Icons.image_outlined, '图片', C.pink, C.pinkSoft, () => capture(c, '图片')),
+        _Quick(Icons.link_rounded, '链接', C.teal, C.tealSoft, () => capture(c, '链接')),
+        _Quick(Icons.insert_drive_file_outlined, '文件', C.orange, C.orangeSoft, () => capture(c, '文件')),
+        _Quick(Icons.lightbulb_outline_rounded, '想法', C.amber, C.amberSoft, () => capture(c, '想法')),
+      ]),
+      const SizedBox(height: 16),
+      const _InboxOverview(),
+      const SizedBox(height: 12),
+      Row(children: [
+        const Expanded(
+          child: Text(
+            'Inbox',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+          ),
+        ),
+        Text(
+          '${visible.length} 条待整理',
+          style: const TextStyle(fontSize: 8.8, color: C.muted),
+        ),
+      ]),
+      const SizedBox(height: 8),
+      _InboxFilters(
+        selected: inboxFilter,
+        onChanged: (value) => setState(() => inboxFilter = value),
+      ),
+      const SizedBox(height: 10),
+      for (final item in visible)
+        _InboxCard(
+          icon: item.icon,
+          title: item.title,
+          type: item.type,
+          time: item.time,
+          preview: item.preview,
+          color: item.color,
+          background: item.background,
+          important: item.important,
+          onTap: () => push(
+            c,
+            InboxDetail(
+              icon: item.icon,
+              title: item.title,
+              type: item.type,
+              time: item.time,
+              preview: item.preview,
+              color: item.color,
+              background: item.background,
             ),
-            const SizedBox(height: 8),
-            Row(children: [
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.attach_file_rounded, size: 18),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.mic_none_rounded, size: 18),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.image_outlined, size: 18),
-              ),
-              const Spacer(),
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: C.teal,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () {},
-                  icon: const Icon(Icons.send_rounded, size: 15, color: Colors.white),
-                ),
-              ),
-            ]),
-          ]),
-          color: C.tealSoft,
+          ),
         ),
-        h('快速收集'),
-        Wrap(spacing: 7, runSpacing: 7, children: [
-          _Quick(Icons.edit_note_rounded, '文本', C.p, C.ps, () => capture(c, '文本')),
-          _Quick(Icons.mic_none_rounded, '语音', C.purple, C.purpleSoft, () => capture(c, '语音')),
-          _Quick(Icons.image_outlined, '图片', C.pink, C.pinkSoft, () => capture(c, '图片')),
-          _Quick(Icons.link_rounded, '链接', C.teal, C.tealSoft, () => capture(c, '链接')),
-          _Quick(Icons.insert_drive_file_outlined, '文件', C.orange, C.orangeSoft, () => capture(c, '文件')),
-          _Quick(Icons.lightbulb_outline_rounded, '想法', C.amber, C.amberSoft, () => capture(c, '想法')),
-        ]),
-        h('Inbox · 7'),
-        panel(
-          const Column(children: [
-            _Inbox(Icons.link_rounded, 'Transformer 新论文', '链接 · 10分钟前', C.teal, C.tealSoft),
-            Divider(height: 1),
-            _Inbox(Icons.notes_rounded, '明天找导师讨论实验方案', '文本 · 1小时前', C.p, C.ps),
-            Divider(height: 1),
-            _Inbox(Icons.image_outlined, 'IMG_2931.jpg', '图片 · 今天', C.pink, C.pinkSoft),
-            Divider(height: 1),
-            _Inbox(Icons.lightbulb_outline_rounded, 'LifeTrace 设计灵感', '想法 · 今天', C.amber, C.amberSoft),
-          ]),
-        ),
-      ]);
+    ]);
+  }
 
   Future<void> capture(BuildContext c, String t) => showModalBottomSheet(
         context: c,
         showDragHandle: true,
+        isScrollControlled: true,
         builder: (x) => Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            20 + MediaQuery.of(x).viewInsets.bottom,
+          ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('新建$t', style: Theme.of(x).textTheme.titleLarge),
+            Row(children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: C.tealSoft,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(Icons.add_rounded, color: C.teal),
+              ),
+              const SizedBox(width: 9),
+              Text('新建$t', style: Theme.of(x).textTheme.titleLarge),
+            ]),
             const SizedBox(height: 12),
             const TextField(
               maxLines: 4,
@@ -80,12 +179,110 @@ class Collection extends StatelessWidget {
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
+              child: FilledButton.icon(
                 onPressed: () => Navigator.pop(x),
-                child: const Text('保存到 Inbox'),
+                icon: const Icon(Icons.inbox_rounded, size: 16),
+                label: const Text('保存到 Inbox'),
               ),
             ),
           ]),
+        ),
+      );
+}
+
+class _CaptureComposer extends StatelessWidget {
+  const _CaptureComposer({required this.onCapture});
+  final Future<void> Function(BuildContext, String) onCapture;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(17),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [C.tealSoft, Colors.white],
+          ),
+          border: Border.all(color: C.teal.withValues(alpha: .12)),
+        ),
+        child: Column(children: [
+          const TextField(
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: '输入想法、任务、备忘...',
+              fillColor: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 9),
+          Row(children: [
+            _CaptureIcon(
+              icon: Icons.attach_file_rounded,
+              color: C.orange,
+              background: C.orangeSoft,
+              onTap: () => onCapture(c, '文件'),
+            ),
+            const SizedBox(width: 6),
+            _CaptureIcon(
+              icon: Icons.mic_none_rounded,
+              color: C.purple,
+              background: C.purpleSoft,
+              onTap: () => onCapture(c, '语音'),
+            ),
+            const SizedBox(width: 6),
+            _CaptureIcon(
+              icon: Icons.image_outlined,
+              color: C.pink,
+              background: C.pinkSoft,
+              onTap: () => onCapture(c, '图片'),
+            ),
+            const Spacer(),
+            Container(
+              height: 33,
+              padding: const EdgeInsets.symmetric(horizontal: 11),
+              decoration: BoxDecoration(
+                color: C.teal,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: const Row(children: [
+                Icon(Icons.send_rounded, size: 14, color: Colors.white),
+                SizedBox(width: 5),
+                Text(
+                  '收集',
+                  style: TextStyle(fontSize: 9.5, color: Colors.white, fontWeight: FontWeight.w800),
+                ),
+              ]),
+            ),
+          ]),
+        ]),
+      );
+}
+
+class _CaptureIcon extends StatelessWidget {
+  const _CaptureIcon({
+    required this.icon,
+    required this.color,
+    required this.background,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final Color background;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext c) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 33,
+          height: 33,
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 16, color: color),
         ),
       );
 }
@@ -127,35 +324,328 @@ class _Quick extends StatelessWidget {
       );
 }
 
-class _Inbox extends StatelessWidget {
-  const _Inbox(this.icon, this.title, this.meta, this.color, this.background);
+class _InboxOverview extends StatelessWidget {
+  const _InboxOverview();
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: C.ink,
+          borderRadius: BorderRadius.circular(17),
+        ),
+        child: Row(children: [
+          SizedBox(
+            width: 56,
+            height: 56,
+            child: Stack(fit: StackFit.expand, children: [
+              const CircularProgressIndicator(
+                value: .43,
+                strokeWidth: 6,
+                color: C.teal,
+                backgroundColor: Color(0xff313b4f),
+              ),
+              const Center(
+                child: Text(
+                  '3/7',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.white),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                '收集箱需要整理',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900, color: Colors.white),
+              ),
+              SizedBox(height: 3),
+              Text(
+                '今天还有 4 条内容等待归类',
+                style: TextStyle(fontSize: 8.8, color: Colors.white60),
+              ),
+              SizedBox(height: 8),
+              Row(children: [
+                _InboxStatDot(color: C.teal, label: '2 链接'),
+                SizedBox(width: 10),
+                _InboxStatDot(color: C.pink, label: '1 图片'),
+                SizedBox(width: 10),
+                _InboxStatDot(color: C.amber, label: '1 想法'),
+              ]),
+            ]),
+          ),
+        ]),
+      );
+}
+
+class _InboxStatDot extends StatelessWidget {
+  const _InboxStatDot({required this.color, required this.label});
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext c) => Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 8, color: Colors.white70)),
+      ]);
+}
+
+class _InboxFilters extends StatelessWidget {
+  const _InboxFilters({required this.selected, required this.onChanged});
+  final int selected;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext c) {
+    const labels = ['全部', '重点', '媒体'];
+    const icons = [Icons.grid_view_rounded, Icons.star_outline_rounded, Icons.perm_media_outlined];
+    return Row(
+      children: List.generate(labels.length, (i) {
+        final active = selected == i;
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: i == labels.length - 1 ? 0 : 6),
+            child: InkWell(
+              onTap: () => onChanged(i),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: active ? C.tealSoft : C.soft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(icons[i], size: 13, color: active ? C.teal : C.muted),
+                  const SizedBox(width: 5),
+                  Text(
+                    labels[i],
+                    style: TextStyle(
+                      fontSize: 8.8,
+                      fontWeight: FontWeight.w800,
+                      color: active ? C.teal : C.muted,
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _InboxCard extends StatelessWidget {
+  const _InboxCard({
+    required this.icon,
+    required this.title,
+    required this.type,
+    required this.time,
+    required this.preview,
+    required this.color,
+    required this.background,
+    required this.important,
+    required this.onTap,
+  });
+
   final IconData icon;
   final String title;
-  final String meta;
+  final String type;
+  final String time;
+  final String preview;
+  final Color color;
+  final Color background;
+  final bool important;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext c) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: color.withValues(alpha: .12)),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 39,
+              height: 39,
+              decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  if (important) const Icon(Icons.star_rounded, size: 13, color: C.amber),
+                ]),
+                const SizedBox(height: 3),
+                Text(
+                  preview,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 8.7, color: C.muted, height: 1.35),
+                ),
+                const SizedBox(height: 7),
+                Row(children: [
+                  chip(type, bg: background, fg: color),
+                  const SizedBox(width: 6),
+                  Text(time, style: const TextStyle(fontSize: 8, color: C.muted)),
+                  const Spacer(),
+                  Icon(Icons.chevron_right_rounded, size: 15, color: color.withValues(alpha: .72)),
+                ]),
+              ]),
+            ),
+          ]),
+        ),
+      );
+}
+
+class InboxDetail extends StatelessWidget {
+  const InboxDetail({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.type,
+    required this.time,
+    required this.preview,
+    required this.color,
+    required this.background,
+  });
+
+  final IconData icon;
+  final String title;
+  final String type;
+  final String time;
+  final String preview;
   final Color color;
   final Color background;
 
   @override
-  Widget build(BuildContext c) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(children: [
+  Widget build(BuildContext c) => DetailFrame(
+        titleText: 'Inbox',
+        actions: [
+          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert_rounded, size: 19)),
+        ],
+        child: page([
           Container(
-            width: 33,
-            height: 33,
-            decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(10)),
-            child: Icon(icon, size: 16, color: color),
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(
-                title,
-                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(17),
+            ),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: 45,
+                height: 45,
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                child: Icon(icon, size: 21, color: color),
               ),
-              Text(meta, style: const TextStyle(fontSize: 8.5, color: C.muted)),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 5),
+                  Wrap(spacing: 6, children: [
+                    chip(type, bg: Colors.white, fg: color),
+                    chip(time, bg: Colors.white, fg: C.muted),
+                  ]),
+                ]),
+              ),
             ]),
           ),
-          const Icon(Icons.chevron_right_rounded, size: 15, color: C.muted),
+          h('内容'),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: C.border),
+            ),
+            child: Text(
+              preview,
+              style: const TextStyle(fontSize: 10.3, color: C.muted, height: 1.5),
+            ),
+          ),
+          h('整理到'),
+          Row(children: [
+            Expanded(child: _InboxDestination(Icons.check_box_outlined, '任务', C.p, C.ps)),
+            const SizedBox(width: 7),
+            Expanded(child: _InboxDestination(Icons.folder_outlined, '项目', C.purple, C.purpleSoft)),
+            const SizedBox(width: 7),
+            Expanded(child: _InboxDestination(Icons.calendar_month_outlined, '日历', C.orange, C.orangeSoft)),
+          ]),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: _InboxDestination(Icons.notes_rounded, '备忘', C.teal, C.tealSoft)),
+            const SizedBox(width: 7),
+            Expanded(child: _InboxDestination(Icons.archive_outlined, '归档', C.muted, C.soft)),
+            const SizedBox(width: 7),
+            Expanded(child: _InboxDestination(Icons.delete_outline_rounded, '删除', C.red, C.redSoft)),
+          ]),
+          h('建议'),
+          Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [C.purpleSoft, C.ps]),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Row(children: [
+              CircleAvatar(
+                radius: 17,
+                backgroundColor: Colors.white,
+                child: Icon(Icons.auto_awesome_rounded, size: 16, color: C.purple),
+              ),
+              SizedBox(width: 9),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('建议整理到项目', style: TextStyle(fontSize: 10.2, fontWeight: FontWeight.w900)),
+                  Text('根据内容语义，可以关联到当前项目或转成下一步任务。', style: TextStyle(fontSize: 8.5, color: C.muted)),
+                ]),
+              ),
+            ]),
+          ),
+        ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 22)),
+      );
+}
+
+class _InboxDestination extends StatelessWidget {
+  const _InboxDestination(this.icon, this.label, this.color, this.background);
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        height: 64,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(13),
+        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 17, color: color),
+          const SizedBox(height: 5),
+          Text(label, style: TextStyle(fontSize: 8.7, fontWeight: FontWeight.w800, color: color)),
         ]),
       );
 }
