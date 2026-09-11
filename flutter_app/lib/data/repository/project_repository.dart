@@ -176,9 +176,20 @@ class DriftProjectRepository implements ProjectRepository {
           localVersion: task.localVersion + 1,
           modifiedByDevice: deviceId,
         );
-        await database
-            .into(database.tasks)
-            .insertOnConflictUpdate(TaskDatabaseMapper.toRow(unlinked));
+        await (database.update(database.tasks)
+              ..where(
+                (table) =>
+                    table.userId.equals(task.userId) &
+                    table.id.equals(task.id),
+              ))
+            .write(
+          db.TasksCompanion(
+            projectId: const Value(null),
+            updatedAt: Value(unlinked.updatedAt),
+            localVersion: Value(unlinked.localVersion),
+            modifiedByDevice: Value(unlinked.modifiedByDevice),
+          ),
+        );
         await database.into(database.syncOutbox).insert(
               db.SyncOutboxCompanion.insert(
                 changeId: _uuid.v4(),
