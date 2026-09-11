@@ -5,75 +5,255 @@ class Today extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) => page([
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _TodayHero(onProfile: () => push(c, const Profile())),
+        const SizedBox(height: 13),
+        const _Week(),
+        const SizedBox(height: 13),
+        _FocusHero(onStart: () => push(c, const Focus())),
+        h('今日概览'),
+        const _InlineStats(),
+        h('时间线'),
+        _TimeItem(
+          '19:00',
+          '健身',
+          '胸 + 三头',
+          color: C.green,
+          icon: Icons.fitness_center_rounded,
+          active: true,
+          tap: () => push(c, const TaskDetail()),
+        ),
+        _TimeItem(
+          '21:00',
+          '修改实验代码',
+          'Academic Research',
+          color: C.purple,
+          icon: Icons.code_rounded,
+          tap: () => push(c, const TaskDetail()),
+        ),
+        _TimeItem(
+          '22:30',
+          '英语学习',
+          '个人成长',
+          color: C.orange,
+          icon: Icons.menu_book_rounded,
+          tap: () => push(c, const TaskDetail()),
+        ),
+        h('待完成', tail: const Text('2项', style: TextStyle(fontSize: 9, color: C.muted))),
+        _TaskLine(
+          '修复 MPC 仿真',
+          'Academic · 今天',
+          accent: C.purple,
+          icon: Icons.science_outlined,
+          tap: () => push(c, const TaskDetail()),
+        ),
+        _TaskLine(
+          '完成周报',
+          '工作 · 明天',
+          accent: C.sky,
+          icon: Icons.work_outline_rounded,
+          tap: () => push(c, const TaskDetail()),
+        ),
+      ]);
+}
+
+class _TodayHero extends StatelessWidget {
+  const _TodayHero({required this.onProfile});
+
+  final VoidCallback onProfile;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        height: 116,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xffedf4ff), Color(0xfff6efff)],
+          ),
+        ),
+        child: Stack(children: [
+          Positioned(
+            right: -22,
+            top: -28,
+            child: Container(
+              width: 104,
+              height: 104,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: C.purple.withValues(alpha: .08),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 34,
+            bottom: -40,
+            child: Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: C.p.withValues(alpha: .07),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(15, 14, 13, 12),
+            child: Row(children: [
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text(
+                    '9月9日 · 星期三',
+                    style: TextStyle(fontSize: 9.5, color: C.muted, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '晚上好，Alex',
+                    style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: -.4),
+                  ),
+                  const Spacer(),
+                  Row(children: [
+                    _HeroTag(Icons.bolt_rounded, '连续 7 天', C.orange),
+                    const SizedBox(width: 6),
+                    _HeroTag(Icons.check_rounded, '8 已完成', C.green),
+                  ]),
+                ]),
+              ),
+              InkWell(
+                onTap: onProfile,
+                borderRadius: BorderRadius.circular(40),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  SizedBox(
+                    width: 66,
+                    height: 66,
+                    child: Stack(fit: StackFit.expand, children: [
+                      const CircularProgressIndicator(
+                        value: .73,
+                        strokeWidth: 5,
+                        color: C.purple,
+                        backgroundColor: Colors.white,
+                      ),
+                      const Center(
+                        child: CircleAvatar(
+                          radius: 25,
+                          backgroundColor: Colors.white,
+                          child: Icon(Icons.person_rounded, color: C.purple, size: 25),
+                        ),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('今日 73%', style: TextStyle(fontSize: 8.5, color: C.muted)),
+                ]),
+              ),
+            ]),
+          ),
+        ]),
+      );
+}
+
+class _HeroTag extends StatelessWidget {
+  const _HeroTag(this.icon, this.label, this.color);
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: .86),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800)),
+        ]),
+      );
+}
+
+class _FocusHero extends StatelessWidget {
+  const _FocusHero({required this.onStart});
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(17),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xff6f58e8), Color(0xff4d7df4)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: C.purple.withValues(alpha: .16),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              sub('9月9日 · 星期三'),
-              const SizedBox(height: 3),
-              title('晚上好，Alex'),
+              const Row(children: [
+                Icon(Icons.auto_awesome_rounded, size: 13, color: Colors.white70),
+                SizedBox(width: 5),
+                Text(
+                  'TODAY FOCUS',
+                  style: TextStyle(
+                    fontSize: 9,
+                    letterSpacing: .9,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white70,
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 9),
+              const Text(
+                '完成论文实验设计',
+                style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: Colors.white),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Academic Research  ·  23:00 截止',
+                style: TextStyle(fontSize: 9, color: Colors.white70),
+              ),
+              const SizedBox(height: 11),
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .16),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'P1 高优先级',
+                    style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                const Text('预计 50 min', style: TextStyle(fontSize: 8.5, color: Colors.white70)),
+              ]),
             ]),
           ),
           InkWell(
-            borderRadius: BorderRadius.circular(24),
-            onTap: () => push(c, const Profile()),
-            child: const CircleAvatar(
-              radius: 19,
-              backgroundColor: C.purpleSoft,
-              child: Icon(Icons.person, color: C.purple, size: 20),
+            onTap: onStart,
+            borderRadius: BorderRadius.circular(32),
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: .96),
+              ),
+              child: const Icon(Icons.play_arrow_rounded, color: C.purple, size: 30),
             ),
           ),
         ]),
-        const SizedBox(height: 12),
-        const _Week(),
-        const SizedBox(height: 11),
-        panel(
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text(
-              'TODAY FOCUS',
-              style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: C.purple),
-            ),
-            const SizedBox(height: 8),
-            const Row(children: [
-              Icon(Icons.favorite_rounded, size: 14, color: C.red),
-              SizedBox(width: 7),
-              Expanded(
-                child: Text(
-                  '完成论文实验设计',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-                ),
-              ),
-            ]),
-            const Padding(
-              padding: EdgeInsets.only(left: 21, top: 3),
-              child: Text('♙ Academic Research', style: TextStyle(fontSize: 9.5, color: C.muted)),
-            ),
-            const Padding(
-              padding: EdgeInsets.only(left: 21, top: 3),
-              child: Text('今天 23:00  ·  高优先级', style: TextStyle(fontSize: 9.5, color: C.muted)),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => push(c, const Focus()),
-                icon: const Icon(Icons.play_arrow_rounded, size: 17),
-                label: const Text('开始专注', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-              ),
-            ),
-          ]),
-          color: C.purpleSoft,
-        ),
-        h('今天'),
-        const _InlineStats(),
-        h('现在'),
-        _TimeItem('19:00', '健身', '胸 + 三头', active: true, tap: () => push(c, const TaskDetail())),
-        h('接下来'),
-        _TimeItem('21:00', '修改实验代码', '', tap: () => push(c, const TaskDetail())),
-        _TimeItem('22:30', '英语学习', '', tap: () => push(c, const TaskDetail())),
-        h('任务', tail: const Text('2项', style: TextStyle(fontSize: 9, color: C.muted))),
-        _TaskLine('修复 MPC 仿真', 'Academic · 今天', tap: () => push(c, const TaskDetail())),
-        _TaskLine('完成周报', '工作 · 明天', tap: () => push(c, const TaskDetail())),
-      ]);
+      );
 }
 
 class _Week extends StatelessWidget {
@@ -83,35 +263,53 @@ class _Week extends StatelessWidget {
   Widget build(BuildContext c) {
     const ds = ['7', '8', '9', '10', '11', '12', '13'];
     const ws = ['一', '二', '三', '四', '五', '六', '日'];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(7, (i) {
-        final selected = i == 2;
-        return SizedBox(
-          width: 37,
-          child: Column(children: [
-            Text(ws[i], style: const TextStyle(fontSize: 8, color: C.muted)),
-            const SizedBox(height: 4),
-            Container(
-              width: 29,
-              height: 29,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? C.p : Colors.transparent,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Text(
-                ds[i],
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: selected ? Colors.white : C.ink,
+    const dots = [C.sky, C.teal, C.purple, C.orange, C.red, C.green, C.pink];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: C.border),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(7, (i) {
+          final selected = i == 2;
+          return SizedBox(
+            width: 39,
+            child: Column(children: [
+              Text(ws[i], style: const TextStyle(fontSize: 8, color: C.muted)),
+              const SizedBox(height: 4),
+              Container(
+                width: 29,
+                height: 29,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? C.p : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  ds[i],
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: selected ? Colors.white : C.ink,
+                  ),
                 ),
               ),
-            ),
-          ]),
-        );
-      }),
+              const SizedBox(height: 4),
+              Container(
+                width: selected ? 12 : 5,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: dots[i],
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ]),
+          );
+        }),
+      ),
     );
   }
 }
@@ -120,79 +318,178 @@ class _InlineStats extends StatelessWidget {
   const _InlineStats();
 
   @override
-  Widget build(BuildContext c) => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 3),
+  Widget build(BuildContext c) => const Row(children: [
+        Expanded(
+          child: _MiniMetric(
+            Icons.check_circle_outline_rounded,
+            '5',
+            '待完成',
+            C.p,
+            C.ps,
+          ),
+        ),
+        SizedBox(width: 7),
+        Expanded(
+          child: _MiniMetric(
+            Icons.calendar_month_rounded,
+            '2',
+            '日程',
+            C.orange,
+            C.orangeSoft,
+          ),
+        ),
+        SizedBox(width: 7),
+        Expanded(
+          child: _MiniMetric(
+            Icons.local_fire_department_outlined,
+            '1',
+            '习惯',
+            C.green,
+            C.greenSoft,
+          ),
+        ),
+      ]);
+}
+
+class _MiniMetric extends StatelessWidget {
+  const _MiniMetric(this.icon, this.value, this.label, this.color, this.background);
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(13),
+        ),
         child: Row(children: [
-          Text('5', style: TextStyle(color: C.p, fontWeight: FontWeight.w900, fontSize: 15)),
-          Text(' 待完成  ·  ', style: TextStyle(fontSize: 10, color: C.muted)),
-          Text('2', style: TextStyle(color: C.orange, fontWeight: FontWeight.w900, fontSize: 15)),
-          Text(' 日程  ·  ', style: TextStyle(fontSize: 10, color: C.muted)),
-          Text('1', style: TextStyle(color: C.green, fontWeight: FontWeight.w900, fontSize: 15)),
-          Text(' 习惯', style: TextStyle(fontSize: 10, color: C.muted)),
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9)),
+            child: Icon(icon, size: 15, color: color),
+          ),
+          const SizedBox(width: 7),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              value,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: color),
+            ),
+            Text(label, style: const TextStyle(fontSize: 8.5, color: C.muted)),
+          ]),
         ]),
       );
 }
 
 class _TimeItem extends StatelessWidget {
-  const _TimeItem(this.time, this.name, this.meta, {this.active = false, this.tap});
+  const _TimeItem(
+    this.time,
+    this.name,
+    this.meta, {
+    this.color = C.p,
+    this.icon = Icons.circle,
+    this.active = false,
+    this.tap,
+  });
 
   final String time;
   final String name;
   final String meta;
+  final Color color;
+  final IconData icon;
   final bool active;
   final VoidCallback? tap;
 
   @override
   Widget build(BuildContext c) => InkWell(
         onTap: tap,
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 5),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SizedBox(width: 45, child: Text(time, style: const TextStyle(fontSize: 10, color: C.muted))),
-            Container(
-              width: 7,
-              height: 7,
-              margin: const EdgeInsets.only(top: 4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: active ? C.p : Colors.white,
-                border: Border.all(color: active ? C.p : C.muted),
+          child: Row(children: [
+            SizedBox(
+              width: 42,
+              child: Text(
+                time,
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: active ? FontWeight.w900 : FontWeight.w600,
+                  color: active ? color : C.muted,
+                ),
               ),
+            ),
+            Container(
+              width: 31,
+              height: 31,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .11),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 15, color: color),
             ),
             const SizedBox(width: 9),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(name, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
-                if (meta.isNotEmpty) Text(meta, style: const TextStyle(fontSize: 9.5, color: C.muted)),
+                Text(name, style: const TextStyle(fontSize: 11.3, fontWeight: FontWeight.w850)),
+                if (meta.isNotEmpty)
+                  Text(meta, style: const TextStyle(fontSize: 8.8, color: C.muted)),
               ]),
             ),
-            if (active) chip('进行中', bg: const Color(0xffe8f8ef), fg: C.green),
+            if (active) chip('进行中', bg: C.greenSoft, fg: C.green),
           ]),
         ),
       );
 }
 
 class _TaskLine extends StatelessWidget {
-  const _TaskLine(this.name, this.meta, {this.tap});
+  const _TaskLine(
+    this.name,
+    this.meta, {
+    this.accent = C.p,
+    this.icon = Icons.check_rounded,
+    this.tap,
+  });
 
   final String name;
   final String meta;
+  final Color accent;
+  final IconData icon;
   final VoidCallback? tap;
 
   @override
   Widget build(BuildContext c) => InkWell(
         onTap: tap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 7),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: C.border),
+          ),
           child: Row(children: [
-            const Icon(Icons.circle_outlined, size: 17, color: C.muted),
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, size: 15, color: accent),
+            ),
             const SizedBox(width: 9),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(name, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
-                Text(meta, style: const TextStyle(fontSize: 9.5, color: C.muted)),
+                Text(name, style: const TextStyle(fontSize: 11.2, fontWeight: FontWeight.w850)),
+                Text(meta, style: const TextStyle(fontSize: 8.8, color: C.muted)),
               ]),
             ),
+            Icon(Icons.chevron_right_rounded, size: 16, color: accent.withValues(alpha: .75)),
           ]),
         ),
       );
