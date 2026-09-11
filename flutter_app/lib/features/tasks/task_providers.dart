@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/background/background_sync.dart';
 import '../../core/cloud/cloud_session_manager.dart';
 import '../../core/cloud/secure_session_store.dart';
 import '../../core/identity/device_identity_store.dart';
@@ -271,6 +272,7 @@ class TaskCommands {
     unawaited(
       ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true),
     );
+    unawaited(BackgroundSyncScheduler.enqueueAfterLocalChange());
   }
 }
 
@@ -350,11 +352,18 @@ class CloudCommands {
           clientVersion: executeClientVersion,
         );
     _refreshSessionState();
+    if (!kIsWeb) {
+      unawaited(BackgroundSyncScheduler.schedulePeriodic());
+      unawaited(BackgroundSyncScheduler.enqueueInitialSync());
+    }
     return session;
   }
 
   Future<void> logout() async {
     await ref.read(cloudSessionManagerProvider).logout();
+    if (!kIsWeb) {
+      await BackgroundSyncScheduler.cancelForLogout();
+    }
     _refreshSessionState();
   }
 
