@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/background/background_sync.dart';
 import '../../data/repository/calendar_event_repository.dart';
 import '../../data/sync/calendar_event_conflict_resolver.dart';
 import '../../domain/calendar/execution_calendar_event.dart';
@@ -188,6 +189,7 @@ class CalendarCommands {
     unawaited(
       ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true),
     );
+    unawaited(BackgroundSyncScheduler.enqueueAfterLocalChange());
   }
 }
 
