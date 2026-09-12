@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lifetrace_execute/data/local/app_database.dart';
+import 'package:lifetrace_execute/data/local/app_database.dart' hide FocusTimerState;
 import 'package:lifetrace_execute/data/repository/focus_repository.dart';
 import 'package:lifetrace_execute/domain/focus/execution_focus_session.dart';
 import 'package:lifetrace_execute/domain/focus/focus_timer_state.dart';
