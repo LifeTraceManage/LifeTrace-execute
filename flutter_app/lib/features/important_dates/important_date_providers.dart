@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/background/background_sync.dart';
 import '../../data/repository/important_date_repository.dart';
+import '../../data/repository/reminder_repository.dart';
 import '../../data/sync/important_date_conflict_resolver.dart';
 import '../../domain/important_date/execution_important_date.dart';
 import '../reminders/reminder_providers.dart';
