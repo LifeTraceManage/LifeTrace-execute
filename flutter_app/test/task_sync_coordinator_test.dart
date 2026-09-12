@@ -12,6 +12,7 @@ import 'package:lifetrace_execute/data/local/app_database.dart';
 import 'package:lifetrace_execute/data/repository/calendar_event_repository.dart';
 import 'package:lifetrace_execute/data/repository/daily_review_repository.dart';
 import 'package:lifetrace_execute/data/repository/file_metadata_repository.dart';
+import 'package:lifetrace_execute/data/repository/important_date_repository.dart';
 import 'package:lifetrace_execute/data/repository/memo_repository.dart';
 import 'package:lifetrace_execute/data/repository/project_repository.dart';
 import 'package:lifetrace_execute/data/repository/reminder_repository.dart';
@@ -19,6 +20,7 @@ import 'package:lifetrace_execute/data/repository/task_repository.dart';
 import 'package:lifetrace_execute/data/sync/task_sync_coordinator.dart';
 import 'package:lifetrace_execute/domain/collection/execution_file_metadata.dart';
 import 'package:lifetrace_execute/domain/collection/execution_memo.dart';
+import 'package:lifetrace_execute/domain/important_date/execution_important_date.dart';
 import 'package:lifetrace_execute/domain/project/execution_project.dart';
 import 'package:lifetrace_execute/domain/reminder/execution_reminder.dart';
 import 'package:lifetrace_execute/domain/task/execution_task.dart';
@@ -32,6 +34,7 @@ void main() {
   late DriftFileMetadataRepository fileMetadataRepository;
   late DriftDailyReviewRepository reviewRepository;
   late DriftReminderRepository reminderRepository;
+  late DriftImportantDateRepository importantDateRepository;
 
   setUp(() {
     database = AppDatabase(NativeDatabase.memory());
@@ -42,6 +45,7 @@ void main() {
     fileMetadataRepository = DriftFileMetadataRepository(database);
     reviewRepository = DriftDailyReviewRepository(database);
     reminderRepository = DriftReminderRepository(database);
+    importantDateRepository = DriftImportantDateRepository(database);
   });
 
   tearDown(() async => database.close());
@@ -430,6 +434,80 @@ void main() {
     );
   });
 
+  test('important date snapshot, push and pull share sync pipeline', () async {
+    final local = await importantDateRepository.createImportantDate(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      title: 'Local important date',
+      repeat: ImportantDateRepeat.yearly,
+      kind: ImportantDateKind.anniversary,
+      calendar: ImportantDateCalendar.solar,
+      solarDate: DateTime(2026, 9, 12),
+    );
+
+    final client = _FakeSyncClient(
+      snapshots: [
+        SnapshotPageResult(
+          requestId: 'important-snapshot',
+          snapshotId: 'important-snapshot-1',
+          snapshotCursor: '31',
+          items: [
+            SnapshotItem(
+              entityType: DriftImportantDateRepository.entityType,
+              entityId: 'remote-important',
+              serverVersion: '2',
+              payload: _importantDatePayload(
+                'remote-important',
+                'Snapshot important',
+              ),
+            ),
+          ],
+          completed: true,
+          serverTime: '2026-09-12T00:00:00.000Z',
+        ),
+      ],
+      pulls: [
+        PullBatchResult(
+          requestId: 'important-pull',
+          serverTime: '2026-09-12T00:01:00.000Z',
+          changes: [
+            PulledChange(
+              cursor: '32',
+              entityType: DriftImportantDateRepository.entityType,
+              entityId: 'remote-important',
+              operation: 'upsert',
+              serverVersion: '3',
+              serverModifiedAt: '2026-09-12T00:01:00.000Z',
+              payload: _importantDatePayload(
+                'remote-important',
+                'Pulled important',
+              ),
+            ),
+          ],
+          nextCursor: '32',
+          hasMore: false,
+        ),
+      ],
+      acceptAllPushes: true,
+    );
+
+    final summary = await _coordinatorFor(database, client).syncNow();
+
+    expect(summary.snapshotItems, 1);
+    expect(summary.pushed, 1);
+    expect(summary.pulled, 1);
+    final dates = await database.select(database.importantDates).get();
+    expect(dates, hasLength(2));
+    expect(
+      dates.singleWhere((item) => item.id == local.id).serverVersion,
+      '101',
+    );
+    expect(
+      dates.singleWhere((item) => item.id == 'remote-important').title,
+      'Pulled important',
+    );
+  });
+
   test('reminder snapshot, push and fired pull share sync pipeline', () async {
     final local = await reminderRepository.schedule(
       userId: 'user-1',
@@ -814,6 +892,21 @@ Map<String, dynamic> _reviewPayload(String id, String bestThing) => {
       'note': null,
       'completedTaskCount': 1,
       'totalTaskCount': 2,
+    };
+
+Map<String, dynamic> _importantDatePayload(String id, String title) => {
+      'id': id,
+      'userId': 'user-1',
+      'title': title,
+      'date': '2026-09-12',
+      'repeat': 'yearly',
+      'kind': 'anniversary',
+      'calendar': 'solar',
+      'lunarYear': null,
+      'lunarMonth': null,
+      'lunarDay': null,
+      'lunarLeapMonth': false,
+      'enabled': true,
     };
 
 Map<String, dynamic> _reminderPayload(String id, String status) => {
