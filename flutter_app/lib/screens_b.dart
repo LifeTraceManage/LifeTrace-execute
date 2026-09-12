@@ -797,14 +797,22 @@ class _CalendarState extends ConsumerState<Calendar> {
   Widget build(BuildContext context) {
     final eventsState = ref.watch(calendarEventListProvider);
     final events = eventsState.valueOrNull ?? const <ExecutionCalendarEvent>[];
-    final tasks = ref.watch(taskListProvider).valueOrNull ?? const <ExecutionTask>[];
+    final tasks =
+        ref.watch(taskListProvider).valueOrNull ?? const <ExecutionTask>[];
+    final importantDateState = ref.watch(importantDateListProvider);
+    final importantDates =
+        importantDateState.valueOrNull ?? const <ExecutionImportantDate>[];
     final conflicts = ref.watch(calendarConflictsProvider).valueOrNull ??
         const <CalendarConflictUi>[];
     final reminderConflicts =
         ref.watch(reminderConflictsProvider).valueOrNull ??
             const <ReminderConflictUi>[];
+    final importantDateConflicts =
+        ref.watch(importantDateConflictsProvider).valueOrNull ??
+            const <ImportantDateConflictUi>[];
     final grid = calendarMonthGrid(visibleMonth);
-    final agenda = _calendarAgendaFor(selectedDate, events, tasks);
+    final agenda =
+        _calendarAgendaFor(selectedDate, events, tasks, importantDates);
 
     bool hasContent(DateTime date) =>
         events.any(
@@ -818,7 +826,12 @@ class _CalendarState extends ConsumerState<Calendar> {
           (task) =>
               instantFallsOnLocalDate(task.scheduledAt, date) ||
               instantFallsOnLocalDate(task.dueAt, date),
-        );
+        ) ||
+        importantDates.any((item) {
+          final occurrence =
+              importantDateOccurrenceForSolarYear(item, date.year);
+          return occurrence != null && sameCalendarDate(occurrence, date);
+        });
 
     return Scaffold(
       backgroundColor: C.bg,
@@ -840,6 +853,11 @@ class _CalendarState extends ConsumerState<Calendar> {
               children: [title('日历'), sub('日程与任务时间统一视图')],
             ),
           ),
+          TextButton.icon(
+            onPressed: () => _manageImportantDates(context, ref),
+            icon: const Icon(Icons.cake_outlined, size: 15),
+            label: const Text('重要日期'),
+          ),
           TextButton(
             onPressed: () {
               final now = DateTime.now();
@@ -858,6 +876,10 @@ class _CalendarState extends ConsumerState<Calendar> {
         if (reminderConflicts.isNotEmpty) ...[
           const SizedBox(height: 8),
           _ReminderConflictBanner(conflict: reminderConflicts.first),
+        ],
+        if (importantDateConflicts.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _ImportantDateConflictCard(conflict: importantDateConflicts.first),
         ],
         const SizedBox(height: 8),
         Row(children: [
@@ -979,12 +1001,12 @@ class _CalendarState extends ConsumerState<Calendar> {
           ),
         ),
         h(_calendarDateHeader(selectedDate)),
-        if (eventsState.isLoading)
+        if (eventsState.isLoading || importantDateState.isLoading)
           const Center(child: CircularProgressIndicator())
         else if (agenda.isEmpty)
           panel(
             const Text(
-              '当天没有日程或带时间的任务。',
+              '当天没有日程、任务或重要日期。',
               style: TextStyle(fontSize: 9.5, color: C.muted),
             ),
             padding: const EdgeInsets.all(14),
@@ -1004,6 +1026,12 @@ class _CalendarState extends ConsumerState<Calendar> {
                   );
                 } else if (item.task != null) {
                   push(context, TaskDetail(task: item.task));
+                } else if (item.importantDate != null) {
+                  _editImportantDate(
+                    context,
+                    ref,
+                    item: item.importantDate,
+                  );
                 }
               },
             ),
@@ -1021,6 +1049,7 @@ class _CalendarAgendaItem {
     required this.color,
     this.event,
     this.task,
+    this.importantDate,
   });
 
   final DateTime sortAt;
@@ -1030,12 +1059,14 @@ class _CalendarAgendaItem {
   final Color color;
   final ExecutionCalendarEvent? event;
   final ExecutionTask? task;
+  final ExecutionImportantDate? importantDate;
 }
 
 List<_CalendarAgendaItem> _calendarAgendaFor(
   DateTime date,
   List<ExecutionCalendarEvent> events,
   List<ExecutionTask> tasks,
+  List<ExecutionImportantDate> importantDates,
 ) {
   final items = <_CalendarAgendaItem>[];
 
@@ -1061,6 +1092,23 @@ List<_CalendarAgendaItem> _calendarAgendaFor(
         ].join(' · '),
         color: C.orange,
         event: event,
+      ),
+    );
+  }
+
+  for (final importantDate in importantDates) {
+    final occurrence =
+        importantDateOccurrenceForSolarYear(importantDate, date.year);
+    if (occurrence == null || !sameCalendarDate(occurrence, date)) continue;
+    items.add(
+      _CalendarAgendaItem(
+        sortAt: DateTime(date.year, date.month, date.day),
+        time: '重要',
+        title: importantDate.title,
+        meta:
+            '重要日期 · ${_importantDateKindText(importantDate.kind)} · ${_importantDateCalendarText(importantDate)}',
+        color: C.pink,
+        importantDate: importantDate,
       ),
     );
   }
