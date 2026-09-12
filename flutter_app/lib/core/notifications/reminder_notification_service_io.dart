@@ -306,7 +306,7 @@ class ReminderNotificationService {
       _stableId('focus:$userId:${phase.wireValue}');
 
   static int _notificationId(String reminderId) =>
-      _stableId('reminder:$reminderId');
+      _stableId(reminderId);
 
   static int _stableId(String value) {
     var hash = 0x811c9dc5;
@@ -317,6 +317,4 @@ class ReminderNotificationService {
     return hash == 0 ? 1 : hash;
   }
 
-  static int _legacyNotificationId(String reminderId) =>
-      _stableId('reminder:$reminderId');
 }
