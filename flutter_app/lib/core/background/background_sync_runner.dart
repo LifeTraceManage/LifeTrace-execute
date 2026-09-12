@@ -2,7 +2,9 @@ import '../../core/cloud/cloud_contract.dart';
 import '../../core/cloud/cloud_session_manager.dart';
 import '../../core/identity/device_identity_store.dart';
 import '../../core/notifications/reminder_notification_service.dart';
+import '../../data/focus/focus_timer_engine.dart';
 import '../../data/local/app_database.dart';
+import '../../data/repository/focus_repository.dart';
 import '../../data/repository/important_date_repository.dart';
 import '../../data/repository/reminder_repository.dart';
 import '../../data/sync/important_date_reminder_coordinator.dart';
@@ -65,6 +67,22 @@ Future<BackgroundSyncOutcome> runProductionBackgroundSync() async {
   final database = AppDatabase.production();
   try {
     final identityStore = DeviceIdentityStore();
+    final deviceId = await identityStore.getOrCreate();
+    final focusState = await FocusTimerEngine(
+      repository: DriftFocusRepository(database),
+    ).reconcile(
+      userId: session.userId,
+      deviceId: deviceId,
+    );
+
+    try {
+      final notifications = ReminderNotificationService();
+      await notifications.initialize();
+      await notifications.reconcileFocus(focusState);
+    } catch (_) {
+      // Focus notifications are best effort; persisted timer state is primary.
+    }
+
     final runner = BackgroundSyncRunner(
       sync: () => TaskSyncCoordinator(
         database: database,
