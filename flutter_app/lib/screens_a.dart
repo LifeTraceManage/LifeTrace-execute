@@ -1435,7 +1435,7 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
           ],
           Expanded(
             child: FilledButton.icon(
-              onPressed: () => push(c, const Focus()),
+              onPressed: () => push(c, Focus(task: task)),
               icon: const Icon(Icons.play_arrow_rounded, size: 17),
               label: const Text('开始专注'),
             ),
