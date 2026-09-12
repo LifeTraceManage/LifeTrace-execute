@@ -1265,6 +1265,661 @@ class _CalendarConflictCard extends ConsumerWidget {
       );
 }
 
+class _ImportantDateConflictCard extends ConsumerWidget {
+  const _ImportantDateConflictCard({required this.conflict});
+
+  final ImportantDateConflictUi conflict;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: C.pinkSoft,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '重要日期存在同步冲突',
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              conflict.serverDeleted ? '云端记录已删除' : conflict.reason,
+              style: const TextStyle(fontSize: 8.7, color: C.muted),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => ref
+                      .read(importantDateCommandsProvider)
+                      .keepServer(conflict),
+                  child: const Text('保留云端'),
+                ),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => ref
+                      .read(importantDateCommandsProvider)
+                      .keepLocal(conflict.conflictId),
+                  child: const Text('保留本地'),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      );
+}
+
+Future<void> _manageImportantDates(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) => Consumer(
+      builder: (sheetContext, sheetRef, _) {
+        final state = sheetRef.watch(importantDateListProvider);
+        final items = List<ExecutionImportantDate>.from(
+          state.valueOrNull ?? const <ExecutionImportantDate>[],
+        );
+        items.sort((a, b) {
+          final aa = nextImportantDateOccurrence(a);
+          final bb = nextImportantDateOccurrence(b);
+          if (aa == null && bb == null) return a.title.compareTo(b.title);
+          if (aa == null) return 1;
+          if (bb == null) return -1;
+          return aa.compareTo(bb);
+        });
+
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(sheetContext).size.height * .72,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(children: [
+                Row(children: [
+                  const Expanded(
+                    child: Text(
+                      '重要日期',
+                      style:
+                          TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        _editImportantDate(sheetContext, sheetRef),
+                    icon: const Icon(Icons.add_rounded, size: 16),
+                    label: const Text('新增'),
+                  ),
+                ]),
+                const SizedBox(height: 8),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '公历与农历原始日期同步到云端；每年日期按原始规则动态计算。',
+                    style: TextStyle(fontSize: 8.8, color: C.muted),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: state.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : items.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.event_repeat_rounded,
+                                    size: 30,
+                                    color: C.muted,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    '还没有重要日期',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  const Text(
+                                    '可添加生日、纪念日、里程碑等',
+                                    style: TextStyle(
+                                      fontSize: 8.8,
+                                      color: C.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: items.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 7),
+                              itemBuilder: (_, index) {
+                                final item = items[index];
+                                final next = nextImportantDateOccurrence(item);
+                                return InkWell(
+                                  onTap: () => _editImportantDate(
+                                    sheetContext,
+                                    sheetRef,
+                                    item: item,
+                                  ),
+                                  borderRadius: BorderRadius.circular(13),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 11,
+                                      vertical: 9,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: item.enabled
+                                          ? C.pinkSoft
+                                          : C.soft,
+                                      borderRadius: BorderRadius.circular(13),
+                                    ),
+                                    child: Row(children: [
+                                      CircleAvatar(
+                                        radius: 17,
+                                        backgroundColor: Colors.white,
+                                        child: Icon(
+                                          _importantDateKindIcon(item.kind),
+                                          size: 16,
+                                          color:
+                                              item.enabled ? C.pink : C.muted,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 9),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item.title,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 10.8,
+                                                fontWeight: FontWeight.w900,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${_importantDateSourceText(item)} · '
+                                              '${_importantDateRepeatText(item.repeat)}'
+                                              '${next == null ? '' : ' · 下次 ${_formatImportantDate(next)}'}',
+                                              style: const TextStyle(
+                                                fontSize: 8.4,
+                                                color: C.muted,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Switch(
+                                        value: item.enabled,
+                                        onChanged: (value) => sheetRef
+                                            .read(
+                                              importantDateCommandsProvider,
+                                            )
+                                            .setEnabled(item, value),
+                                      ),
+                                    ]),
+                                  ),
+                                );
+                              },
+                            ),
+                ),
+              ]),
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
+
+Future<void> _editImportantDate(
+  BuildContext context,
+  WidgetRef ref, {
+  ExecutionImportantDate? item,
+}) async {
+  final titleController = TextEditingController(text: item?.title ?? '');
+  var repeat = item?.repeat ?? ImportantDateRepeat.yearly;
+  var kind = item?.kind ?? ImportantDateKind.birthday;
+  var calendar = item?.calendar ?? ImportantDateCalendar.solar;
+  var solarDate =
+      DateTime.tryParse(item?.date ?? '')?.toLocal() ?? DateTime.now();
+  final lunarYearController = TextEditingController(
+    text: '${item?.lunarYear ?? DateTime.now().year}',
+  );
+  final lunarMonthController = TextEditingController(
+    text: '${item?.lunarMonth ?? 1}',
+  );
+  final lunarDayController = TextEditingController(
+    text: '${item?.lunarDay ?? 1}',
+  );
+  var lunarLeapMonth = item?.lunarLeapMonth ?? false;
+  var enabled = item?.enabled ?? true;
+
+  final existingReminders = item == null
+      ? const <ExecutionReminder>[]
+      : await ref.read(
+          remindersForSubjectProvider(
+            ReminderSubjectKey(
+              subjectType: ReminderSubjectTypes.importantDate,
+              subjectId: item.id,
+            ),
+          ).future,
+        );
+  if (!context.mounted) {
+    titleController.dispose();
+    lunarYearController.dispose();
+    lunarMonthController.dispose();
+    lunarDayController.dispose();
+    return;
+  }
+
+  final existingReminder = _activeReminder(existingReminders);
+  var reminderEnabled = existingReminder != null;
+  DateTime? reminderAt = existingReminder == null
+      ? _suggestImportantDateReminder(item)
+      : DateTime.parse(existingReminder.effectiveTriggerAt).toLocal();
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (sheetContext, setSheetState) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              controller: titleController,
+              autofocus: item == null,
+              decoration: const InputDecoration(labelText: '标题'),
+            ),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                child: DropdownButtonFormField<ImportantDateKind>(
+                  initialValue: kind,
+                  decoration: const InputDecoration(labelText: '类型'),
+                  items: ImportantDateKind.values
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(_importantDateKindText(value)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setSheetState(() => kind = value);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButtonFormField<ImportantDateRepeat>(
+                  initialValue: repeat,
+                  decoration: const InputDecoration(labelText: '重复'),
+                  items: ImportantDateRepeat.values
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(_importantDateRepeatText(value)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setSheetState(() => repeat = value);
+                  },
+                ),
+              ),
+            ]),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<ImportantDateCalendar>(
+              initialValue: calendar,
+              decoration: const InputDecoration(labelText: '历法'),
+              items: ImportantDateCalendar.values
+                  .map(
+                    (value) => DropdownMenuItem(
+                      value: value,
+                      child: Text(
+                        value == ImportantDateCalendar.solar ? '公历' : '农历',
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) setSheetState(() => calendar = value);
+              },
+            ),
+            const SizedBox(height: 10),
+            if (calendar == ImportantDateCalendar.solar)
+              _DateField(
+                label: '日期',
+                value: solarDate,
+                onPick: () async {
+                  final picked = await showDatePicker(
+                    context: sheetContext,
+                    initialDate: solarDate,
+                    firstDate: DateTime(1900),
+                    lastDate: DateTime(2199, 12, 31),
+                  );
+                  if (picked != null) {
+                    setSheetState(() => solarDate = picked);
+                  }
+                },
+              )
+            else ...[
+              Row(children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: lunarYearController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: '农历年'),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: TextField(
+                    controller: lunarMonthController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: '月'),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: TextField(
+                    controller: lunarDayController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: '日'),
+                  ),
+                ),
+              ]),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('闰月'),
+                subtitle: const Text(
+                  '仅当该农历年确实存在此闰月时可保存',
+                  style: TextStyle(fontSize: 8.4, color: C.muted),
+                ),
+                value: lunarLeapMonth,
+                onChanged: (value) =>
+                    setSheetState(() => lunarLeapMonth = value),
+              ),
+            ],
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('启用'),
+              subtitle: const Text(
+                '停用后保留记录，但不进入日历和提醒',
+                style: TextStyle(fontSize: 8.4, color: C.muted),
+              ),
+              value: enabled,
+              onChanged: (value) => setSheetState(() {
+                enabled = value;
+                if (!value) reminderEnabled = false;
+              }),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('系统提醒'),
+              subtitle: const Text(
+                '提醒本身通过 execution.reminder 独立同步',
+                style: TextStyle(fontSize: 8.4, color: C.muted),
+              ),
+              value: enabled && reminderEnabled,
+              onChanged: enabled
+                  ? (value) => setSheetState(() {
+                        reminderEnabled = value;
+                        if (value && reminderAt == null) {
+                          reminderAt = _suggestImportantDateReminder(item);
+                        }
+                      })
+                  : null,
+            ),
+            if (enabled && reminderEnabled)
+              _DateField(
+                label: '提醒时间',
+                value: reminderAt,
+                onPick: () async {
+                  final value = await _pickDateTime(
+                    sheetContext,
+                    reminderAt ??
+                        DateTime.now().add(const Duration(hours: 1)),
+                  );
+                  if (value != null) {
+                    setSheetState(() => reminderAt = value);
+                  }
+                },
+              ),
+            const SizedBox(height: 14),
+            Row(children: [
+              if (item != null) ...[
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      await ref.read(importantDateCommandsProvider).delete(item);
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    },
+                    child: const Text('删除'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                flex: 2,
+                child: FilledButton(
+                  onPressed: () async {
+                    try {
+                      final lunarYear =
+                          int.tryParse(lunarYearController.text.trim());
+                      final lunarMonth =
+                          int.tryParse(lunarMonthController.text.trim());
+                      final lunarDay =
+                          int.tryParse(lunarDayController.text.trim());
+
+                      final commands =
+                          ref.read(importantDateCommandsProvider);
+                      late final ExecutionImportantDate saved;
+                      if (item == null) {
+                        saved = await commands.create(
+                          title: titleController.text,
+                          repeat: repeat,
+                          kind: kind,
+                          calendar: calendar,
+                          solarDate: calendar == ImportantDateCalendar.solar
+                              ? solarDate
+                              : null,
+                          lunarYear:
+                              calendar == ImportantDateCalendar.lunar
+                                  ? lunarYear
+                                  : null,
+                          lunarMonth:
+                              calendar == ImportantDateCalendar.lunar
+                                  ? lunarMonth
+                                  : null,
+                          lunarDay:
+                              calendar == ImportantDateCalendar.lunar
+                                  ? lunarDay
+                                  : null,
+                          lunarLeapMonth: calendar ==
+                                  ImportantDateCalendar.lunar &&
+                              lunarLeapMonth,
+                          enabled: enabled,
+                        );
+                      } else {
+                        saved = await commands.update(
+                          item: item,
+                          title: titleController.text,
+                          repeat: repeat,
+                          kind: kind,
+                          calendar: calendar,
+                          solarDate: calendar == ImportantDateCalendar.solar
+                              ? solarDate
+                              : null,
+                          lunarYear:
+                              calendar == ImportantDateCalendar.lunar
+                                  ? lunarYear
+                                  : null,
+                          lunarMonth:
+                              calendar == ImportantDateCalendar.lunar
+                                  ? lunarMonth
+                                  : null,
+                          lunarDay:
+                              calendar == ImportantDateCalendar.lunar
+                                  ? lunarDay
+                                  : null,
+                          lunarLeapMonth: calendar ==
+                                  ImportantDateCalendar.lunar &&
+                              lunarLeapMonth,
+                          enabled: enabled,
+                        );
+                      }
+
+                      if (saved.enabled && reminderEnabled) {
+                        var trigger = reminderAt ??
+                            _suggestImportantDateReminder(saved);
+                        if (trigger == null ||
+                            !trigger.isAfter(DateTime.now())) {
+                          trigger = _suggestImportantDateReminder(
+                            saved,
+                            afterToday: true,
+                          );
+                        }
+                        if (trigger == null ||
+                            !trigger.isAfter(DateTime.now())) {
+                          throw StateError('无法为该日期计算未来提醒时间');
+                        }
+                        await ref.read(reminderCommandsProvider).schedule(
+                              subjectType:
+                                  ReminderSubjectTypes.importantDate,
+                              subjectId: saved.id,
+                              triggerAt: trigger,
+                              title: saved.title,
+                              body:
+                                  '${_importantDateKindText(saved.kind)} · ${_importantDateSourceText(saved)}',
+                            );
+                      } else {
+                        await ref
+                            .read(reminderCommandsProvider)
+                            .cancelForSubject(
+                              subjectType:
+                                  ReminderSubjectTypes.importantDate,
+                              subjectId: saved.id,
+                            );
+                      }
+
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    } catch (error) {
+                      if (sheetContext.mounted) {
+                        ScaffoldMessenger.of(sheetContext).showSnackBar(
+                          SnackBar(content: Text('$error')),
+                        );
+                      }
+                    }
+                  },
+                  child: Text(item == null ? '创建重要日期' : '保存'),
+                ),
+              ),
+            ]),
+          ]),
+        ),
+      ),
+    ),
+  );
+
+  titleController.dispose();
+  lunarYearController.dispose();
+  lunarMonthController.dispose();
+  lunarDayController.dispose();
+}
+
+DateTime? _suggestImportantDateReminder(
+  ExecutionImportantDate? item, {
+  bool afterToday = false,
+}) {
+  if (item == null) {
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 9);
+  }
+  final now = DateTime.now();
+  final base = afterToday
+      ? DateTime(now.year, now.month, now.day).add(const Duration(days: 1))
+      : now;
+  final occurrence = nextImportantDateOccurrence(item, from: base);
+  if (occurrence == null) return null;
+  final atNine =
+      DateTime(occurrence.year, occurrence.month, occurrence.day, 9);
+  if (atNine.isAfter(now)) return atNine;
+  final next = nextImportantDateOccurrence(
+    item,
+    from: DateTime(now.year, now.month, now.day)
+        .add(const Duration(days: 1)),
+  );
+  if (next == null) return null;
+  return DateTime(next.year, next.month, next.day, 9);
+}
+
+String _importantDateKindText(ImportantDateKind kind) => switch (kind) {
+      ImportantDateKind.birthday => '生日',
+      ImportantDateKind.anniversary => '纪念日',
+      ImportantDateKind.milestone => '里程碑',
+      ImportantDateKind.other => '其他',
+    };
+
+IconData _importantDateKindIcon(ImportantDateKind kind) => switch (kind) {
+      ImportantDateKind.birthday => Icons.cake_outlined,
+      ImportantDateKind.anniversary => Icons.favorite_border_rounded,
+      ImportantDateKind.milestone => Icons.flag_outlined,
+      ImportantDateKind.other => Icons.event_available_outlined,
+    };
+
+String _importantDateRepeatText(ImportantDateRepeat repeat) =>
+    repeat == ImportantDateRepeat.yearly ? '每年' : '一次';
+
+String _importantDateCalendarText(ExecutionImportantDate item) =>
+    item.calendar == ImportantDateCalendar.solar ? '公历' : '农历';
+
+String _importantDateSourceText(ExecutionImportantDate item) {
+  if (item.calendar == ImportantDateCalendar.solar) {
+    final date = DateTime.tryParse(item.date);
+    return date == null
+        ? item.date
+        : '公历 ${date.month}月${date.day}日';
+  }
+
+  final year = item.lunarYear;
+  final month = item.lunarMonth;
+  final day = item.lunarDay;
+  return [
+    '农历',
+    if (year != null) '${year}年',
+    if (item.lunarLeapMonth) '闰',
+    if (month != null) '${month}月',
+    if (day != null) '${day}日',
+  ].join();
+}
+
+String _formatImportantDate(DateTime date) =>
+    '${date.month}月${date.day}日';
+
 Future<void> _editCalendarEvent(
   BuildContext context,
   WidgetRef ref, {
