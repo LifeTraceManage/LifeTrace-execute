@@ -3,7 +3,9 @@ import '../../core/cloud/cloud_session_manager.dart';
 import '../../core/identity/device_identity_store.dart';
 import '../../core/notifications/reminder_notification_service.dart';
 import '../../data/local/app_database.dart';
+import '../../data/repository/important_date_repository.dart';
 import '../../data/repository/reminder_repository.dart';
+import '../../data/sync/important_date_reminder_coordinator.dart';
 import '../../data/sync/media_upload_coordinator.dart';
 import '../../data/sync/task_sync_coordinator.dart';
 
@@ -78,8 +80,16 @@ Future<BackgroundSyncOutcome> runProductionBackgroundSync() async {
     final outcome = await runner.run();
 
     try {
+      final reminderRepository = DriftReminderRepository(database);
+      await ImportantDateReminderCoordinator(
+        importantDates: DriftImportantDateRepository(database),
+        reminders: reminderRepository,
+      ).reconcileYearlyFired(
+        userId: session.userId,
+        deviceId: await identityStore.getOrCreate(),
+      );
       final reminders =
-          await DriftReminderRepository(database).listReminders(session.userId);
+          await reminderRepository.listReminders(session.userId);
       final notifications = ReminderNotificationService();
       await notifications.initialize();
       await notifications.reconcile(reminders);
