@@ -2,17 +2,534 @@
 
 part of 'main.dart';
 
-class Focus extends StatefulWidget { const Focus({super.key}); @override State<Focus> createState()=>_FocusState(); }
-class _FocusState extends State<Focus>{ static const total=1500; int left=total; Timer? t; bool run=true; @override void dispose(){t?.cancel();super.dispose();} void toggle(){if(run){t?.cancel();setState(()=>run=false);}else{t=Timer.periodic(const Duration(seconds:1),(_){if(left>0)setState(()=>left--);});setState(()=>run=true);}} String get ts=>'${(left~/60).toString().padLeft(2,'0')}:${(left%60).toString().padLeft(2,'0')}'; @override Widget build(BuildContext c)=>DetailFrame(titleText:'专注中',leading:Icons.close,actions:const [Icon(Icons.more_vert_rounded,size:19)],child:page([
-  const SizedBox(height:12),Center(child:SizedBox(width:208,height:208,child:Stack(fit:StackFit.expand,children:[const CircularProgressIndicator(value:.86,strokeWidth:8,color:C.purple,backgroundColor:C.purpleSoft,strokeCap:StrokeCap.round),Center(child:Column(mainAxisSize:MainAxisSize.min,children:[Text(ts,style:const TextStyle(fontSize:37,fontWeight:FontWeight.w900,letterSpacing:-1)),const SizedBox(height:4),const Text('🌿 专注工作',style:TextStyle(fontSize:10,color:C.muted))]))]))),
-  const SizedBox(height:15),panel(const Row(children:[Icon(Icons.favorite_rounded,color:C.red,size:14),SizedBox(width:7),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('完成论文实验设计',style:TextStyle(fontSize:11.5,fontWeight:FontWeight.w800)),Text('Academic Research · P1',style:TextStyle(fontSize:9,color:C.muted))]))]),color:C.purpleSoft,padding:const EdgeInsets.all(10)),
-  const SizedBox(height:18),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_RoundAction(Icons.replay_rounded,'放弃',()=>setState(()=>left=total)),const SizedBox(width:24),InkWell(onTap:toggle,child:CircleAvatar(radius:29,backgroundColor:C.purple,child:Icon(run?Icons.pause_rounded:Icons.play_arrow_rounded,color:Colors.white,size:30))),const SizedBox(width:24),_RoundAction(Icons.skip_next_rounded,'跳过',()=>Navigator.pop(c))]),
-  const SizedBox(height:20),const Row(children:[Expanded(child:_StatBox('今日专注','2h 15m')),SizedBox(width:7),Expanded(child:_StatBox('番茄次数','4')),SizedBox(width:7),Expanded(child:_StatBox('连续天数','7'))]),
-  const SizedBox(height:12),Row(children:[Expanded(child:panel(const Column(children:[Icon(Icons.music_note_outlined,size:16,color:C.muted),SizedBox(height:4),Text('白噪音',style:TextStyle(fontSize:9)),Text('放松',style:TextStyle(fontSize:8,color:C.p))]),padding:const EdgeInsets.symmetric(vertical:9))),const SizedBox(width:7),Expanded(child:panel(const Column(children:[Icon(Icons.center_focus_strong_outlined,size:16,color:C.muted),SizedBox(height:4),Text('专注模式',style:TextStyle(fontSize:9)),Text('开启',style:TextStyle(fontSize:8,color:C.p))]),padding:const EdgeInsets.symmetric(vertical:9))),const SizedBox(width:7),Expanded(child:panel(const Column(children:[Icon(Icons.notifications_none_rounded,size:16,color:C.muted),SizedBox(height:4),Text('提醒',style:TextStyle(fontSize:9)),Text('关闭',style:TextStyle(fontSize:8,color:C.muted))]),padding:const EdgeInsets.symmetric(vertical:9)))])
-],padding:const EdgeInsets.fromLTRB(16,0,16,15)));
+class Focus extends ConsumerStatefulWidget {
+  const Focus({super.key, this.task});
+
+  final ExecutionTask? task;
+
+  @override
+  ConsumerState<Focus> createState() => _FocusState();
 }
-class _RoundAction extends StatelessWidget{const _RoundAction(this.icon,this.label,this.tap);final IconData icon;final String label;final VoidCallback tap;@override Widget build(BuildContext c)=>Column(children:[InkWell(onTap:tap,child:CircleAvatar(radius:20,backgroundColor:C.soft,child:Icon(icon,size:19,color:C.ink))),const SizedBox(height:5),Text(label,style:const TextStyle(fontSize:8.5,color:C.muted))]);}
-class _StatBox extends StatelessWidget{const _StatBox(this.label,this.value);final String label,value;@override Widget build(BuildContext c)=>panel(Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(label,style:const TextStyle(fontSize:8.5,color:C.muted)),const SizedBox(height:3),Text(value,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w900))]),padding:const EdgeInsets.all(9));}
+
+class _FocusState extends ConsumerState<Focus> {
+  Timer? _ticker;
+  bool _reconciling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        ref.read(focusCommandsProvider).initialize(
+              linkedTaskId: widget.task?.id,
+            ),
+      );
+    });
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  void _tick() {
+    if (!mounted) return;
+    setState(() {});
+    final state = ref.read(focusTimerStateProvider).valueOrNull;
+    if (state == null ||
+        !state.isRunning ||
+        state.remainingSeconds() > 0 ||
+        _reconciling) {
+      return;
+    }
+    _reconciling = true;
+    unawaited(
+      ref.read(focusCommandsProvider).reconcile().whenComplete(() {
+        if (mounted) setState(() => _reconciling = false);
+      }),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stateAsync = ref.watch(focusTimerStateProvider);
+    final state = stateAsync.valueOrNull;
+    final sessions =
+        ref.watch(focusSessionListProvider).valueOrNull ??
+            const <ExecutionFocusSession>[];
+    final stats = ref.watch(focusTodayStatsProvider);
+    final conflicts =
+        ref.watch(focusSessionConflictsProvider).valueOrNull ??
+            const <FocusSessionConflictUi>[];
+    final tasks =
+        ref.watch(taskListProvider).valueOrNull ?? const <ExecutionTask>[];
+
+    if (state == null) {
+      return DetailFrame(
+        titleText: '专注',
+        child: page([
+          const SizedBox(height: 100),
+          const Center(child: CircularProgressIndicator()),
+        ]),
+      );
+    }
+
+    ExecutionTask? linkedTask;
+    for (final task in tasks) {
+      if (task.id == state.linkedTaskId) {
+        linkedTask = task;
+        break;
+      }
+    }
+
+    final remaining = state.remainingSeconds();
+    final accent = state.isBreak ? C.green : C.purple;
+    final soft = state.isBreak ? C.greenSoft : C.purpleSoft;
+    final phaseTitle = state.isBreak ? '休息中' : '专注中';
+    final phaseLabel = state.isBreak ? '休息恢复' : '专注工作';
+    final statusText = state.isIdle
+        ? '准备开始'
+        : state.isPaused
+            ? '已暂停'
+            : phaseTitle;
+
+    return DetailFrame(
+      titleText: state.isIdle ? '番茄专注' : phaseTitle,
+      leading: Icons.close,
+      actions: [
+        IconButton(
+          tooltip: '恢复状态',
+          onPressed: () => ref.read(focusCommandsProvider).reconcile(),
+          icon: const Icon(Icons.refresh_rounded, size: 19),
+        ),
+      ],
+      child: page([
+        if (conflicts.isNotEmpty) ...[
+          _FocusConflictCard(conflict: conflicts.first),
+          const SizedBox(height: 10),
+        ],
+        if (state.isIdle) ...[
+          SegmentedButton<FocusMode>(
+            segments: const [
+              ButtonSegment(
+                value: FocusMode.short,
+                label: Text('25 / 5'),
+                icon: Icon(Icons.timer_outlined, size: 16),
+              ),
+              ButtonSegment(
+                value: FocusMode.long,
+                label: Text('50 / 10'),
+                icon: Icon(Icons.hourglass_bottom_rounded, size: 16),
+              ),
+            ],
+            selected: {state.mode},
+            onSelectionChanged: (selection) {
+              if (selection.isNotEmpty) {
+                ref.read(focusCommandsProvider).setMode(selection.first);
+              }
+            },
+          ),
+          const SizedBox(height: 14),
+        ],
+        Center(
+          child: SizedBox(
+            width: 208,
+            height: 208,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                CircularProgressIndicator(
+                  value: state.progress(),
+                  strokeWidth: 8,
+                  color: accent,
+                  backgroundColor: soft,
+                  strokeCap: StrokeCap.round,
+                ),
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _focusClock(remaining),
+                        style: const TextStyle(
+                          fontSize: 37,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$phaseLabel · 第 ${state.round} 轮',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: C.muted,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      chip(statusText, bg: soft, fg: accent),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 15),
+        InkWell(
+          onTap: state.isIdle
+              ? () => _chooseFocusTask(context, ref, tasks, state.linkedTaskId)
+              : null,
+          borderRadius: BorderRadius.circular(12),
+          child: panel(
+            Row(children: [
+              Icon(
+                linkedTask == null
+                    ? Icons.link_rounded
+                    : Icons.check_circle_outline_rounded,
+                color: accent,
+                size: 17,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      linkedTask?.title ?? '未关联任务',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      state.isIdle
+                          ? '点击选择本轮专注任务'
+                          : '计时中保持任务关联不变',
+                      style: const TextStyle(fontSize: 8.8, color: C.muted),
+                    ),
+                  ],
+                ),
+              ),
+              if (state.isIdle)
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 17,
+                  color: C.muted,
+                ),
+            ]),
+            color: soft,
+            padding: const EdgeInsets.all(10),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _RoundAction(
+              Icons.replay_rounded,
+              '重置',
+              state.isIdle
+                  ? null
+                  : () => ref.read(focusCommandsProvider).reset(),
+            ),
+            const SizedBox(width: 24),
+            InkWell(
+              onTap: () {
+                final commands = ref.read(focusCommandsProvider);
+                if (state.isIdle) {
+                  commands.start(linkedTaskId: state.linkedTaskId);
+                } else if (state.isRunning) {
+                  commands.pause();
+                } else {
+                  commands.resume();
+                }
+              },
+              child: CircleAvatar(
+                radius: 29,
+                backgroundColor: accent,
+                child: Icon(
+                  state.isIdle || state.isPaused
+                      ? Icons.play_arrow_rounded
+                      : Icons.pause_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+            ),
+            const SizedBox(width: 24),
+            _RoundAction(
+              Icons.skip_next_rounded,
+              '跳过',
+              state.isIdle
+                  ? null
+                  : () => ref.read(focusCommandsProvider).skip(),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Row(children: [
+          Expanded(
+            child: _StatBox(
+              '今日专注',
+              _focusDuration(stats.focusSeconds),
+            ),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: _StatBox(
+              '完成轮次',
+              '${stats.completedRounds}',
+            ),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: _StatBox(
+              '连续天数',
+              '${stats.streakDays}',
+            ),
+          ),
+        ]),
+        h(
+          '专注历史',
+          tail: Text(
+            '${sessions.length} 条',
+            style: const TextStyle(fontSize: 8.8, color: C.muted),
+          ),
+        ),
+        if (sessions.isEmpty)
+          panel(
+            const Text(
+              '完成或中断一次专注后，会在这里形成真实历史记录。',
+              style: TextStyle(fontSize: 9, color: C.muted),
+            ),
+          )
+        else
+          for (final session in sessions.take(6))
+            _FocusHistoryTile(session: session),
+      ], padding: const EdgeInsets.fromLTRB(16, 0, 16, 18)),
+    );
+  }
+}
+
+class _FocusConflictCard extends ConsumerWidget {
+  const _FocusConflictCard({required this.conflict});
+
+  final FocusSessionConflictUi conflict;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: C.redSoft,
+          borderRadius: BorderRadius.circular(13),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '专注历史存在同步冲突',
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              conflict.serverDeleted ? '云端记录已删除' : conflict.reason,
+              style: const TextStyle(fontSize: 8.5, color: C.muted),
+            ),
+            const SizedBox(height: 7),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => ref
+                      .read(focusCommandsProvider)
+                      .keepServer(conflict.conflictId),
+                  child: const Text('保留云端'),
+                ),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => ref
+                      .read(focusCommandsProvider)
+                      .keepLocal(conflict.conflictId),
+                  child: const Text('保留本地'),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      );
+}
+
+class _FocusHistoryTile extends StatelessWidget {
+  const _FocusHistoryTile({required this.session});
+
+  final ExecutionFocusSession session;
+
+  @override
+  Widget build(BuildContext context) {
+    final ended = DateTime.tryParse(session.endedAt)?.toLocal();
+    final when = ended == null
+        ? session.endedAt
+        : '${ended.month}月${ended.day}日 '
+            '${ended.hour.toString().padLeft(2, '0')}:'
+            '${ended.minute.toString().padLeft(2, '0')}';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: session.completed ? C.greenSoft : C.soft,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(children: [
+        Icon(
+          session.completed
+              ? Icons.check_circle_rounded
+              : Icons.stop_circle_outlined,
+          size: 17,
+          color: session.completed ? C.green : C.muted,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                session.completed ? '完成专注' : '中断专注',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                '$when · ${_focusDuration(session.focusSeconds)}'
+                ' · ${session.mode == FocusMode.short ? '25/5' : '50/10'}',
+                style: const TextStyle(fontSize: 8.5, color: C.muted),
+              ),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+Future<void> _chooseFocusTask(
+  BuildContext context,
+  WidgetRef ref,
+  List<ExecutionTask> tasks,
+  String? selectedId,
+) async {
+  final candidates = tasks
+      .where((task) => task.status != ExecutionTaskStatus.done)
+      .toList(growable: false);
+  final selected = await showModalBottomSheet<String?>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(10, 0, 10, 16),
+        children: [
+          ListTile(
+            leading: const Icon(Icons.link_off_rounded),
+            title: const Text('不关联任务'),
+            trailing:
+                selectedId == null ? const Icon(Icons.check_rounded) : null,
+            onTap: () => Navigator.pop(sheetContext, ''),
+          ),
+          for (final task in candidates)
+            ListTile(
+              leading: const Icon(Icons.check_box_outlined),
+              title: Text(task.title),
+              subtitle: Text(_priorityText(task.priority)),
+              trailing: task.id == selectedId
+                  ? const Icon(Icons.check_rounded)
+                  : null,
+              onTap: () => Navigator.pop(sheetContext, task.id),
+            ),
+        ],
+      ),
+    ),
+  );
+  if (selected == null) return;
+  await ref.read(focusCommandsProvider).linkTask(
+        selected.isEmpty ? null : selected,
+      );
+}
+
+String _focusClock(int seconds) {
+  final safe = seconds < 0 ? 0 : seconds;
+  return '${(safe ~/ 60).toString().padLeft(2, '0')}:'
+      '${(safe % 60).toString().padLeft(2, '0')}';
+}
+
+String _focusDuration(int seconds) {
+  final hours = seconds ~/ 3600;
+  final minutes = (seconds % 3600) ~/ 60;
+  if (hours > 0 && minutes > 0) return '${hours}h ${minutes}m';
+  if (hours > 0) return '${hours}h';
+  if (minutes > 0) return '${minutes}m';
+  return '${seconds}s';
+}
+
+class _RoundAction extends StatelessWidget {
+  const _RoundAction(this.icon, this.label, this.tap);
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? tap;
+
+  @override
+  Widget build(BuildContext context) => Opacity(
+        opacity: tap == null ? .4 : 1,
+        child: Column(children: [
+          InkWell(
+            onTap: tap,
+            child: CircleAvatar(
+              radius: 20,
+              backgroundColor: C.soft,
+              child: Icon(icon, size: 19, color: C.ink),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 8.5, color: C.muted),
+          ),
+        ]),
+      );
+}
+
+class _StatBox extends StatelessWidget {
+  const _StatBox(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => panel(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontSize: 8.5, color: C.muted),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(9),
+      );
+}
 
 class Projects extends ConsumerStatefulWidget {
   const Projects({super.key});
