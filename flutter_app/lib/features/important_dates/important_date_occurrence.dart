@@ -34,7 +34,7 @@ DateTime? importantDateOccurrenceForSolarYear(
   if (item.repeat == ImportantDateRepeat.once) {
     final lunarYear = item.lunarYear;
     if (lunarYear == null) return null;
-    final solar = _lunarToSolar(
+    final solar = lunarDateToSolar(
       lunarYear,
       month,
       day,
@@ -46,7 +46,7 @@ DateTime? importantDateOccurrenceForSolarYear(
   // A lunar year can end in Jan/Feb of the following solar year. Check both
   // candidate lunar years and select the occurrence in the requested solar year.
   for (final lunarYear in [solarYear - 1, solarYear]) {
-    final solar = _lunarToSolar(
+    final solar = lunarDateToSolar(
       lunarYear,
       month,
       day,
@@ -68,7 +68,7 @@ DateTime? nextImportantDateOccurrence(
   if (item.repeat == ImportantDateRepeat.once) {
     final occurrence = item.calendar == ImportantDateCalendar.solar
         ? _parseLocalDate(item.date)
-        : _lunarToSolar(
+        : lunarDateToSolar(
             item.lunarYear ?? -1,
             item.lunarMonth ?? -1,
             item.lunarDay ?? -1,
@@ -111,7 +111,7 @@ List<ImportantDateOccurrence> importantDatesForRange(
   return result;
 }
 
-DateTime? _lunarToSolar(
+DateTime? lunarDateToSolar(
   int year,
   int month,
   int day, {
