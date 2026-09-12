@@ -15,6 +15,7 @@ import '../repository/calendar_event_wire_mapper.dart';
 import '../repository/daily_review_repository.dart';
 import '../repository/entity_link_repository.dart';
 import '../repository/file_metadata_repository.dart';
+import '../repository/focus_repository.dart';
 import '../repository/important_date_repository.dart';
 import '../repository/memo_repository.dart';
 import '../repository/project_database_mapper.dart';
@@ -55,12 +56,13 @@ class TaskSyncCoordinator {
         _deviceIdLoader = deviceIdLoader ?? DeviceIdentityStore().getOrCreate;
 
   static const taskScopeKey =
-      'entities:execution.task,execution.project,execution.calendar_event,execution.important_date,execution.memo,execution.reminder,review.daily,file.metadata,entity.link';
+      'entities:execution.task,execution.project,execution.calendar_event,execution.important_date,execution.focus_session,execution.memo,execution.reminder,review.daily,file.metadata,entity.link';
   static const syncEntityTypes = <String>[
     DriftTaskRepository.entityType,
     DriftProjectRepository.entityType,
     DriftCalendarEventRepository.entityType,
     DriftImportantDateRepository.entityType,
+    DriftFocusRepository.entityType,
     DriftMemoRepository.entityType,
     DriftReminderRepository.entityType,
     DriftDailyReviewRepository.entityType,
@@ -217,6 +219,15 @@ class TaskSyncCoordinator {
                   .insertOnConflictUpdate(
                     ImportantDateDatabaseMapper.toRow(importantDate),
                   );
+            case DriftFocusRepository.entityType:
+              final session = FocusSessionWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+                serverModifiedAt: page.serverTime,
+              );
+              await database
+                  .into(database.focusSessions)
+                  .insertOnConflictUpdate(FocusSessionDatabaseMapper.toRow(session));
             case DriftMemoRepository.entityType:
               final memo = MemoWireMapper.fromPayload(
                 item.payload,
@@ -450,6 +461,18 @@ class TaskSyncCoordinator {
               serverVersion: Value(result.serverVersion),
             ),
           );
+        case DriftFocusRepository.entityType:
+          await (database.update(database.focusSessions)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.FocusSessionsCompanion(
+              serverVersion: Value(result.serverVersion),
+            ),
+          );
         case DriftMemoRepository.entityType:
           await (database.update(database.memos)
                 ..where(
@@ -577,6 +600,21 @@ class TaskSyncCoordinator {
               );
               payloadJson =
                   jsonEncode(ImportantDateWireMapper.toPayload(current));
+            }
+          case DriftFocusRepository.entityType:
+            final row = await (database.select(database.focusSessions)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = FocusSessionDatabaseMapper.fromRow(row).copyWith(
+                serverVersion: result.serverVersion,
+              );
+              payloadJson =
+                  jsonEncode(FocusSessionWireMapper.toPayload(current));
             }
           case DriftMemoRepository.entityType:
             final row = await (database.select(database.memos)
@@ -805,6 +843,17 @@ class TaskSyncCoordinator {
                       .insertOnConflictUpdate(
                         ImportantDateDatabaseMapper.toRow(importantDate),
                       );
+                case DriftFocusRepository.entityType:
+                  final session = FocusSessionWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                    serverModifiedAt: change.serverModifiedAt,
+                  );
+                  await database
+                      .into(database.focusSessions)
+                      .insertOnConflictUpdate(
+                        FocusSessionDatabaseMapper.toRow(session),
+                      );
                 case DriftMemoRepository.entityType:
                   final memo = MemoWireMapper.fromPayload(
                     payload,
@@ -878,6 +927,14 @@ class TaskSyncCoordinator {
                       .go();
                 case DriftImportantDateRepository.entityType:
                   await (database.delete(database.importantDates)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+                case DriftFocusRepository.entityType:
+                  await (database.delete(database.focusSessions)
                         ..where(
                           (table) =>
                               table.userId.equals(userId) &
