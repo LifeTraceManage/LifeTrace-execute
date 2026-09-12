@@ -15,6 +15,7 @@ import '../repository/calendar_event_wire_mapper.dart';
 import '../repository/daily_review_repository.dart';
 import '../repository/entity_link_repository.dart';
 import '../repository/file_metadata_repository.dart';
+import '../repository/important_date_repository.dart';
 import '../repository/memo_repository.dart';
 import '../repository/project_database_mapper.dart';
 import '../repository/project_repository.dart';
@@ -54,11 +55,12 @@ class TaskSyncCoordinator {
         _deviceIdLoader = deviceIdLoader ?? DeviceIdentityStore().getOrCreate;
 
   static const taskScopeKey =
-      'entities:execution.task,execution.project,execution.calendar_event,execution.memo,execution.reminder,review.daily,file.metadata,entity.link';
+      'entities:execution.task,execution.project,execution.calendar_event,execution.important_date,execution.memo,execution.reminder,review.daily,file.metadata,entity.link';
   static const syncEntityTypes = <String>[
     DriftTaskRepository.entityType,
     DriftProjectRepository.entityType,
     DriftCalendarEventRepository.entityType,
+    DriftImportantDateRepository.entityType,
     DriftMemoRepository.entityType,
     DriftReminderRepository.entityType,
     DriftDailyReviewRepository.entityType,
@@ -203,6 +205,17 @@ class TaskSyncCoordinator {
                   .into(database.calendarEvents)
                   .insertOnConflictUpdate(
                     CalendarEventDatabaseMapper.toRow(event),
+                  );
+            case DriftImportantDateRepository.entityType:
+              final importantDate = ImportantDateWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+                serverModifiedAt: page.serverTime,
+              );
+              await database
+                  .into(database.importantDates)
+                  .insertOnConflictUpdate(
+                    ImportantDateDatabaseMapper.toRow(importantDate),
                   );
             case DriftMemoRepository.entityType:
               final memo = MemoWireMapper.fromPayload(
@@ -425,6 +438,18 @@ class TaskSyncCoordinator {
               serverVersion: Value(result.serverVersion),
             ),
           );
+        case DriftImportantDateRepository.entityType:
+          await (database.update(database.importantDates)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.ImportantDatesCompanion(
+              serverVersion: Value(result.serverVersion),
+            ),
+          );
         case DriftMemoRepository.entityType:
           await (database.update(database.memos)
                 ..where(
@@ -537,6 +562,21 @@ class TaskSyncCoordinator {
               payloadJson = jsonEncode(
                 CalendarEventWireMapper.toPayload(current),
               );
+            }
+          case DriftImportantDateRepository.entityType:
+            final row = await (database.select(database.importantDates)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = ImportantDateDatabaseMapper.fromRow(row).copyWith(
+                serverVersion: result.serverVersion,
+              );
+              payloadJson =
+                  jsonEncode(ImportantDateWireMapper.toPayload(current));
             }
           case DriftMemoRepository.entityType:
             final row = await (database.select(database.memos)
@@ -754,6 +794,17 @@ class TaskSyncCoordinator {
                       .insertOnConflictUpdate(
                         CalendarEventDatabaseMapper.toRow(event),
                       );
+                case DriftImportantDateRepository.entityType:
+                  final importantDate = ImportantDateWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                    serverModifiedAt: change.serverModifiedAt,
+                  );
+                  await database
+                      .into(database.importantDates)
+                      .insertOnConflictUpdate(
+                        ImportantDateDatabaseMapper.toRow(importantDate),
+                      );
                 case DriftMemoRepository.entityType:
                   final memo = MemoWireMapper.fromPayload(
                     payload,
@@ -819,6 +870,14 @@ class TaskSyncCoordinator {
                       .go();
                 case DriftCalendarEventRepository.entityType:
                   await (database.delete(database.calendarEvents)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+                case DriftImportantDateRepository.entityType:
+                  await (database.delete(database.importantDates)
                         ..where(
                           (table) =>
                               table.userId.equals(userId) &
