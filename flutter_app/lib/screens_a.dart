@@ -2,89 +2,196 @@
 
 part of 'main.dart';
 
-class Today extends StatelessWidget {
+class Today extends ConsumerWidget {
   const Today({super.key});
 
   @override
-  Widget build(BuildContext c) => page([
-        _TodayHero(onProfile: () => push(c, const Profile())),
-        const SizedBox(height: 13),
-        const _Week(),
-        const SizedBox(height: 13),
-        _FocusHero(onStart: () => push(c, const Focus())),
-        h('今日概览'),
-        const _InlineStats(),
-        h('时间线'),
-        _TimeItem(
-          '19:00',
-          '健身',
-          '胸 + 三头',
-          color: C.green,
-          icon: Icons.fitness_center_rounded,
-          active: true,
-          tap: () => push(c, const TaskDetail()),
+  Widget build(BuildContext c, WidgetRef ref) {
+    final importantDateState = ref.watch(importantDateListProvider);
+    final now = DateTime.now();
+    final upcoming = importantDatesForRange(
+      importantDateState.valueOrNull ?? const <ExecutionImportantDate>[],
+      start: now,
+      end: now.add(const Duration(days: 90)),
+    ).take(3).toList(growable: false);
+
+    return page([
+      _TodayHero(onProfile: () => push(c, const Profile())),
+      const SizedBox(height: 13),
+      const _Week(),
+      const SizedBox(height: 13),
+      _FocusHero(onStart: () => push(c, const Focus())),
+      h('今日概览'),
+      const _InlineStats(),
+      h('时间线'),
+      _TimeItem(
+        '19:00',
+        '健身',
+        '胸 + 三头',
+        color: C.green,
+        icon: Icons.fitness_center_rounded,
+        active: true,
+        tap: () => push(c, const TaskDetail()),
+      ),
+      _TimeItem(
+        '21:00',
+        '修改实验代码',
+        'Academic Research',
+        color: C.purple,
+        icon: Icons.code_rounded,
+        tap: () => push(c, const TaskDetail()),
+      ),
+      _TimeItem(
+        '22:30',
+        '英语学习',
+        '个人成长',
+        color: C.orange,
+        icon: Icons.menu_book_rounded,
+        tap: () => push(c, const TaskDetail()),
+      ),
+      h(
+        '待完成',
+        tail: const Text(
+          '2项',
+          style: TextStyle(fontSize: 9, color: C.muted),
         ),
-        _TimeItem(
-          '21:00',
-          '修改实验代码',
-          'Academic Research',
-          color: C.purple,
-          icon: Icons.code_rounded,
-          tap: () => push(c, const TaskDetail()),
+      ),
+      _TaskLine(
+        '修复 MPC 仿真',
+        'Academic · 今天',
+        accent: C.purple,
+        icon: Icons.science_outlined,
+        tap: () => push(c, const TaskDetail()),
+      ),
+      _TaskLine(
+        '完成周报',
+        '工作 · 明天',
+        accent: C.sky,
+        icon: Icons.work_outline_rounded,
+        tap: () => push(c, const TaskDetail()),
+      ),
+      h(
+        '近期重要日期',
+        tail: Text(
+          importantDateState.isLoading ? '同步中' : '${upcoming.length}项',
+          style: const TextStyle(fontSize: 9, color: C.muted),
         ),
-        _TimeItem(
-          '22:30',
-          '英语学习',
-          '个人成长',
-          color: C.orange,
-          icon: Icons.menu_book_rounded,
-          tap: () => push(c, const TaskDetail()),
-        ),
-        h('待完成', tail: const Text('2项', style: TextStyle(fontSize: 9, color: C.muted))),
-        _TaskLine(
-          '修复 MPC 仿真',
-          'Academic · 今天',
-          accent: C.purple,
-          icon: Icons.science_outlined,
-          tap: () => push(c, const TaskDetail()),
-        ),
-        _TaskLine(
-          '完成周报',
-          '工作 · 明天',
-          accent: C.sky,
-          icon: Icons.work_outline_rounded,
-          tap: () => push(c, const TaskDetail()),
-        ),
-        h('每日复盘'),
+      ),
+      if (importantDateState.isLoading)
+        panel(const Center(child: CircularProgressIndicator()))
+      else if (upcoming.isEmpty)
         panel(
-          Row(children: [
-            const CircleAvatar(
-              radius: 18,
-              backgroundColor: C.pinkSoft,
-              child: Icon(Icons.auto_stories_outlined, size: 18, color: C.pink),
+          const Text(
+            '未来 90 天没有启用的重要日期。',
+            style: TextStyle(fontSize: 9.2, color: C.muted),
+          ),
+        )
+      else
+        for (final occurrence in upcoming)
+          _TodayImportantDateTile(
+            occurrence: occurrence,
+            onTap: () => _editImportantDate(
+              c,
+              ref,
+              item: occurrence.source,
             ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '记录今天，准备明天',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    '心情 · 精力 · 完成率 · 明日重点',
-                    style: TextStyle(fontSize: 8.8, color: C.muted),
-                  ),
-                ],
-              ),
+          ),
+      h('每日复盘'),
+      panel(
+        Row(children: [
+          const CircleAvatar(
+            radius: 18,
+            backgroundColor: C.pinkSoft,
+            child: Icon(Icons.auto_stories_outlined, size: 18, color: C.pink),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '记录今天，准备明天',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  '心情 · 精力 · 完成率 · 明日重点',
+                  style: TextStyle(fontSize: 8.8, color: C.muted),
+                ),
+              ],
             ),
-            const Icon(Icons.chevron_right_rounded, size: 18, color: C.muted),
-          ]),
-          onTap: () => push(c, const Review()),
+          ),
+          const Icon(Icons.chevron_right_rounded, size: 18, color: C.muted),
+        ]),
+        onTap: () => push(c, const Review()),
+      ),
+    ]);
+  }
+}
+
+class _TodayImportantDateTile extends StatelessWidget {
+  const _TodayImportantDateTile({
+    required this.occurrence,
+    required this.onTap,
+  });
+
+  final ImportantDateOccurrence occurrence;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final item = occurrence.source;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final days = occurrence.localDate.difference(today).inDays;
+    final countdown = days == 0 ? '今天' : days == 1 ? '明天' : '${days}天后';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: C.pinkSoft,
+          borderRadius: BorderRadius.circular(12),
         ),
-      ]);
+        child: Row(children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.white,
+            child: Icon(
+              _importantDateKindIcon(item.kind),
+              size: 15,
+              color: C.pink,
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  style: const TextStyle(
+                    fontSize: 10.8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${_formatImportantDate(occurrence.localDate)} · '
+                  '${_importantDateSourceText(item)}',
+                  style: const TextStyle(fontSize: 8.5, color: C.muted),
+                ),
+              ],
+            ),
+          ),
+          chip(countdown, bg: Colors.white, fg: C.pink),
+        ]),
+      ),
+    );
+  }
 }
 
 class _TodayHero extends StatelessWidget {
