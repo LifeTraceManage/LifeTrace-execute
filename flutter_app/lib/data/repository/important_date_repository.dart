@@ -440,19 +440,25 @@ void _validateItem(ExecutionImportantDate item) {
   final year = item.lunarYear;
   final month = item.lunarMonth;
   final day = item.lunarDay;
-  if (year == null || month == null || day == null) {
-    throw const FormatException('Lunar ImportantDate requires year/month/day');
+  if (month == null || day == null) {
+    throw const FormatException('Lunar ImportantDate requires month/day');
+  }
+  if (item.repeat == ImportantDateRepeat.once && year == null) {
+    throw const FormatException(
+      'One-off lunar ImportantDate requires lunarYear',
+    );
   }
   if (month < 1 || month > 12 || day < 1 || day > 30) {
     throw const FormatException('Lunar ImportantDate source fields invalid');
   }
-  if (lunarDateToSolar(
-        year,
-        month,
-        day,
-        leapMonth: item.lunarLeapMonth,
-      ) ==
-      null) {
+  if (year != null &&
+      lunarDateToSolar(
+            year,
+            month,
+            day,
+            leapMonth: item.lunarLeapMonth,
+          ) ==
+          null) {
     throw const FormatException('Lunar ImportantDate does not exist');
   }
 }
