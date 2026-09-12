@@ -8,6 +8,7 @@ import '../../core/background/background_sync.dart';
 import '../../data/repository/important_date_repository.dart';
 import '../../data/repository/reminder_repository.dart';
 import '../../data/sync/important_date_conflict_resolver.dart';
+import '../../data/sync/important_date_reminder_coordinator.dart';
 import '../../domain/important_date/execution_important_date.dart';
 import '../reminders/reminder_providers.dart';
 import '../tasks/task_providers.dart';
@@ -224,6 +225,24 @@ class ImportantDateCommands {
     await ref.read(reminderCommandsProvider).reconcile();
     await ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true);
     unawaited(BackgroundSyncScheduler.enqueueAfterLocalChange());
+  }
+
+  Future<int> reconcileRecurringReminders() async {
+    if (kIsWeb) return 0;
+    final userId = await ref.read(currentUserIdProvider.future);
+    if (userId == null) return 0;
+    final coordinator = ImportantDateReminderCoordinator(
+      importantDates: ref.read(importantDateRepositoryProvider),
+      reminders: ref.read(reminderRepositoryProvider),
+    );
+    final changed = await coordinator.reconcileYearlyFired(
+      userId: userId,
+      deviceId: await ref.read(deviceIdProvider.future),
+    );
+    if (changed > 0) {
+      unawaited(BackgroundSyncScheduler.enqueueAfterLocalChange());
+    }
+    return changed;
   }
 
   Future<String> _requireUserId() async {
