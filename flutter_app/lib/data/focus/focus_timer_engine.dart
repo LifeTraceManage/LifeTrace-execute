@@ -88,13 +88,14 @@ class FocusTimerEngine {
 
   Future<FocusTimerState> start({
     required String userId,
+    required String deviceId,
     String? linkedTaskId,
   }) async {
     var current = await ensureState(
       userId: userId,
       linkedTaskId: linkedTaskId,
     );
-    current = await reconcile(userId: userId, deviceId: 'recovery');
+    current = await reconcile(userId: userId, deviceId: deviceId);
 
     if (current.isPaused) {
       return resume(userId: userId);
