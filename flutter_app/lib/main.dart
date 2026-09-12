@@ -11,6 +11,8 @@ import 'domain/calendar/execution_calendar_event.dart';
 import 'domain/collection/entity_link.dart';
 import 'domain/collection/execution_file_metadata.dart';
 import 'domain/collection/execution_memo.dart';
+import 'domain/important_date/execution_important_date.dart';
+import 'domain/important_date/important_date_occurrence.dart';
 import 'domain/project/execution_project.dart';
 import 'domain/reminder/execution_reminder.dart';
 import 'domain/review/daily_review.dart';
@@ -19,6 +21,7 @@ import 'features/calendar/calendar_math.dart';
 import 'features/calendar/calendar_providers.dart';
 import 'features/collection/collection_providers.dart';
 import 'features/collection/media_providers.dart';
+import 'features/important_dates/important_date_providers.dart';
 import 'features/projects/project_providers.dart';
 import 'features/reminders/reminder_providers.dart';
 import 'features/review/review_providers.dart';
@@ -239,6 +242,24 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
         }
         if (task != null && mounted) {
           push(context, TaskDetail(task: task));
+        }
+      case ReminderSubjectTypes.importantDate:
+        if (mounted) setState(() => i = 3);
+        final importantDates = await ref.read(importantDateListProvider.future);
+        if (!mounted) return;
+        ExecutionImportantDate? importantDate;
+        for (final item in importantDates) {
+          if (item.id == target.subjectId) {
+            importantDate = item;
+            break;
+          }
+        }
+        if (importantDate != null && mounted) {
+          await _editImportantDate(
+            context,
+            ref,
+            item: importantDate,
+          );
         }
       case ReminderSubjectTypes.calendarEvent:
         if (mounted) setState(() => i = 3);
