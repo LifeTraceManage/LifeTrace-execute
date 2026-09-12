@@ -176,6 +176,12 @@ abstract interface class ReminderRepository {
     String? body,
   });
 
+  Future<ExecutionReminder> reschedule({
+    required ExecutionReminder reminder,
+    required String deviceId,
+    required String triggerAt,
+  });
+
   Future<ExecutionReminder> cancel({
     required ExecutionReminder reminder,
     required String deviceId,
@@ -320,6 +326,35 @@ class DriftReminderRepository implements ReminderRepository {
     );
     await writeLocalChange(reminder);
     return reminder;
+  }
+
+  @override
+  Future<ExecutionReminder> reschedule({
+    required ExecutionReminder reminder,
+    required String deviceId,
+    required String triggerAt,
+  }) async {
+    final trigger = DateTime.tryParse(triggerAt)?.toUtc();
+    if (trigger == null || !trigger.isAfter(DateTime.now().toUtc())) {
+      throw ArgumentError.value(
+        triggerAt,
+        'triggerAt',
+        '提醒时间必须晚于当前时间',
+      );
+    }
+    final now = DateTime.now().toUtc().toIso8601String();
+    final normalizedTrigger = trigger.toIso8601String();
+    final updated = reminder.copyWith(
+      triggerAt: normalizedTrigger,
+      status: ExecutionReminderStatus.scheduled,
+      fireKey: '${reminder.subjectId}@$normalizedTrigger',
+      updatedAt: now,
+      localVersion: reminder.localVersion + 1,
+      modifiedByDevice: deviceId,
+      clearSnoozedUntil: true,
+    );
+    await writeLocalChange(updated);
+    return updated;
   }
 
   @override
@@ -520,6 +555,28 @@ class PreviewReminderRepository implements ReminderRepository {
     _items.add(reminder);
     _changes.add(null);
     return reminder;
+  }
+
+  @override
+  Future<ExecutionReminder> reschedule({
+    required ExecutionReminder reminder,
+    required String deviceId,
+    required String triggerAt,
+  }) async {
+    final trigger = DateTime.parse(triggerAt).toUtc();
+    final updated = reminder.copyWith(
+      triggerAt: trigger.toIso8601String(),
+      status: ExecutionReminderStatus.scheduled,
+      fireKey: '${reminder.subjectId}@${trigger.toIso8601String()}',
+      updatedAt: DateTime.now().toUtc().toIso8601String(),
+      localVersion: reminder.localVersion + 1,
+      modifiedByDevice: deviceId,
+      clearSnoozedUntil: true,
+    );
+    _items.removeWhere((item) => item.id == reminder.id);
+    _items.add(updated);
+    _changes.add(null);
+    return updated;
   }
 
   @override
