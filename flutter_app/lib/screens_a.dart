@@ -144,7 +144,7 @@ class _TodayImportantDateTile extends StatelessWidget {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final days = occurrence.localDate.difference(today).inDays;
-    final countdown = days == 0 ? '今天' : days == 1 ? '明天' : '${days}天后';
+    final countdown = days == 0 ? '今天' : days == 1 ? '明天' : '$days天后';
 
     return InkWell(
       onTap: onTap,
