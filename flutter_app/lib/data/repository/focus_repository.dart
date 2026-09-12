@@ -245,7 +245,7 @@ class DriftFocusRepository implements FocusRepository {
             );
         await database.into(database.syncOutbox).insert(
               db.SyncOutboxCompanion.insert(
-                changeId: session.id + ':create',
+                changeId: '${session.id}:create',
                 userId: session.userId,
                 entityType: entityType,
                 entityId: session.id,
