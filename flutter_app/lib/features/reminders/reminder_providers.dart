@@ -32,17 +32,26 @@ class ReminderSubjectKey {
 
 class ReminderNotificationBridge {
   ReminderNotificationBridge() {
-    service = ReminderNotificationService(onTap: _taps.add);
+    service = ReminderNotificationService(
+      onTap: _taps.add,
+      onFocusTap: _focusTaps.add,
+    );
   }
 
   final StreamController<ReminderNotificationTarget> _taps =
       StreamController<ReminderNotificationTarget>.broadcast();
+  final StreamController<FocusNotificationTarget> _focusTaps =
+      StreamController<FocusNotificationTarget>.broadcast();
 
   late final ReminderNotificationService service;
 
   Stream<ReminderNotificationTarget> get taps => _taps.stream;
+  Stream<FocusNotificationTarget> get focusTaps => _focusTaps.stream;
 
-  void dispose() => _taps.close();
+  void dispose() {
+    _taps.close();
+    _focusTaps.close();
+  }
 }
 
 final reminderNotificationBridgeProvider =
@@ -55,6 +64,11 @@ final reminderNotificationBridgeProvider =
 final reminderNotificationTapProvider =
     StreamProvider<ReminderNotificationTarget>((ref) {
   return ref.watch(reminderNotificationBridgeProvider).taps;
+});
+
+final focusNotificationTapProvider =
+    StreamProvider<FocusNotificationTarget>((ref) {
+  return ref.watch(reminderNotificationBridgeProvider).focusTaps;
 });
 
 final reminderRepositoryProvider = Provider<ReminderRepository>((ref) {
