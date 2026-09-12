@@ -208,6 +208,45 @@ class Reminders extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class FocusSessions extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get taskId => text().nullable()();
+  TextColumn get mode => text()();
+  TextColumn get startedAt => text()();
+  TextColumn get endedAt => text()();
+  IntColumn get focusSeconds => integer()();
+  BoolColumn get completed => boolean()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+  IntColumn get localVersion => integer()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get modifiedByDevice => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class FocusTimerStates extends Table {
+  TextColumn get userId => text()();
+  TextColumn get mode => text()();
+  IntColumn get focusSeconds => integer()();
+  IntColumn get breakSeconds => integer()();
+  TextColumn get phase => text()();
+  TextColumn get status => text()();
+  TextColumn get startedAt => text().nullable()();
+  TextColumn get expectedEndAt => text().nullable()();
+  TextColumn get pausedAt => text().nullable()();
+  IntColumn get remainingSecondsWhenPaused => integer()();
+  TextColumn get linkedTaskId => text().nullable()();
+  IntColumn get round => integer().withDefault(const Constant(1))();
+  TextColumn get focusSessionId => text().nullable()();
+  TextColumn get updatedAt => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {userId};
+}
+
 class SyncOutbox extends Table {
   TextColumn get changeId => text()();
   TextColumn get userId => text()();
@@ -262,13 +301,13 @@ class SyncConflicts extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, DailyReviews, ImportantDates, Reminders, SyncOutbox, SyncState, SyncConflicts])
+@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, DailyReviews, ImportantDates, Reminders, FocusSessions, FocusTimerStates, SyncOutbox, SyncState, SyncConflicts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
   AppDatabase.production() : super(openProductionConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -310,6 +349,10 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 9) {
             await migrator.createTable(importantDates);
+          }
+          if (from < 10) {
+            await migrator.createTable(focusSessions);
+            await migrator.createTable(focusTimerStates);
           }
         },
       );
