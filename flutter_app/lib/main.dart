@@ -218,6 +218,9 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
     await ref
         .read(mediaUploadControllerProvider.notifier)
         .processPending(silent: true);
+    await ref
+        .read(importantDateCommandsProvider)
+        .reconcileRecurringReminders();
     await ref.read(reminderCommandsProvider).reconcile();
   }
 
