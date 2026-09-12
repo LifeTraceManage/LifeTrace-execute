@@ -11,6 +11,8 @@ import 'domain/calendar/execution_calendar_event.dart';
 import 'domain/collection/entity_link.dart';
 import 'domain/collection/execution_file_metadata.dart';
 import 'domain/collection/execution_memo.dart';
+import 'domain/focus/execution_focus_session.dart';
+import 'domain/focus/focus_timer_state.dart';
 import 'domain/important_date/execution_important_date.dart';
 import 'domain/important_date/important_date_occurrence.dart';
 import 'domain/project/execution_project.dart';
@@ -21,6 +23,7 @@ import 'features/calendar/calendar_math.dart';
 import 'features/calendar/calendar_providers.dart';
 import 'features/collection/collection_providers.dart';
 import 'features/collection/media_providers.dart';
+import 'features/focus/focus_providers.dart';
 import 'features/important_dates/important_date_providers.dart';
 import 'features/projects/project_providers.dart';
 import 'features/reminders/reminder_providers.dart';
@@ -214,6 +217,7 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
   }
 
   Future<void> _syncAndReconcile() async {
+    await ref.read(focusCommandsProvider).reconcile();
     await ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true);
     await ref
         .read(mediaUploadControllerProvider.notifier)
@@ -226,6 +230,11 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
 
   void _openReminderTarget(ReminderNotificationTarget target) {
     unawaited(_openReminderTargetAsync(target));
+  }
+
+  void _openFocusTarget(FocusNotificationTarget target) {
+    if (!mounted) return;
+    push(context, const Focus());
   }
 
   Future<void> _openReminderTargetAsync(
@@ -293,6 +302,11 @@ class _ShellState extends ConsumerState<Shell> with WidgetsBindingObserver {
     ref.listen<AsyncValue<ReminderNotificationTarget>>(
       reminderNotificationTapProvider,
       (_, next) => next.whenData(_openReminderTarget),
+    );
+
+    ref.listen<AsyncValue<FocusNotificationTarget>>(
+      focusNotificationTapProvider,
+      (_, next) => next.whenData(_openFocusTarget),
     );
 
     final pages = [
