@@ -163,6 +163,29 @@ class DailyReviews extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class ImportantDates extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get title => text()();
+  TextColumn get date => text()();
+  TextColumn get repeat => text()();
+  TextColumn get kind => text()();
+  TextColumn get calendar => text()();
+  IntColumn get lunarYear => integer().nullable()();
+  IntColumn get lunarMonth => integer().nullable()();
+  IntColumn get lunarDay => integer().nullable()();
+  BoolColumn get lunarLeapMonth => boolean().withDefault(const Constant(false))();
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+  IntColumn get localVersion => integer()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get modifiedByDevice => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class Reminders extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text()();
@@ -239,13 +262,13 @@ class SyncConflicts extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, DailyReviews, Reminders, SyncOutbox, SyncState, SyncConflicts])
+@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, DailyReviews, ImportantDates, Reminders, SyncOutbox, SyncState, SyncConflicts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
   AppDatabase.production() : super(openProductionConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -284,6 +307,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 8) {
             await migrator.createTable(reminders);
+          }
+          if (from < 9) {
+            await migrator.createTable(importantDates);
           }
         },
       );
