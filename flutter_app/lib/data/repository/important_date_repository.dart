@@ -410,11 +410,8 @@ class DriftImportantDateRepository implements ImportantDateRepository {
   static String _ymd(DateTime value) {
     final local = value.toLocal();
     String two(int number) => number.toString().padLeft(2, '0');
-    return local.year.toString().padLeft(4, '0') +
-        '-' +
-        two(local.month) +
-        '-' +
-        two(local.day);
+    return '${local.year.toString().padLeft(4, '0')}-'
+        '${two(local.month)}-${two(local.day)}';
   }
 }
 
@@ -422,7 +419,7 @@ void _validateItem(ExecutionImportantDate item) {
   if (item.title.trim().isEmpty) {
     throw const FormatException('ImportantDate title must not be empty');
   }
-  final date = DateTime.tryParse(item.date + 'T00:00:00');
+  final date = DateTime.tryParse('${item.date}T00:00:00');
   if (date == null) throw const FormatException('ImportantDate date is invalid');
 
   if (item.calendar == ImportantDateCalendar.solar) {
