@@ -27,6 +27,7 @@ class CloudContract {
     'execution.task',
     'execution.project',
     'execution.calendar_event',
+    'execution.important_date',
     'execution.memo',
     'execution.reminder',
     'review.daily',
