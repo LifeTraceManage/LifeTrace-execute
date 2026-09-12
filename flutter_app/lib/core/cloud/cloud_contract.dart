@@ -28,6 +28,7 @@ class CloudContract {
     'execution.project',
     'execution.calendar_event',
     'execution.important_date',
+    'execution.focus_session',
     'execution.memo',
     'execution.reminder',
     'review.daily',
