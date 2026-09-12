@@ -1910,10 +1910,10 @@ String _importantDateSourceText(ExecutionImportantDate item) {
   final day = item.lunarDay;
   return [
     '农历',
-    if (year != null) '${year}年',
+    if (year != null) '$year年',
     if (item.lunarLeapMonth) '闰',
-    if (month != null) '${month}月',
-    if (day != null) '${day}日',
+    if (month != null) '$month月',
+    if (day != null) '$day日',
   ].join();
 }
 
