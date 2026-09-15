@@ -8,6 +8,11 @@ class Today extends ConsumerWidget {
   @override
   Widget build(BuildContext c, WidgetRef ref) {
     final importantDateState = ref.watch(importantDateListProvider);
+    final focusState = ref.watch(focusTimerStateProvider).valueOrNull;
+    final focusStats = ref.watch(focusTodayStatsProvider);
+    final tasks =
+        ref.watch(taskListProvider).valueOrNull ?? const <ExecutionTask>[];
+    final focusTask = _todayFocusTask(tasks, focusState?.linkedTaskId);
     final now = DateTime.now();
     final upcoming = importantDatesForRange(
       importantDateState.valueOrNull ?? const <ExecutionImportantDate>[],
@@ -20,7 +25,12 @@ class Today extends ConsumerWidget {
       const SizedBox(height: 13),
       const _Week(),
       const SizedBox(height: 13),
-      _FocusHero(onStart: () => push(c, const Focus())),
+      _FocusHero(
+        state: focusState,
+        stats: focusStats,
+        task: focusTask,
+        onStart: () => push(c, Focus(task: focusTask)),
+      ),
       h('今日概览'),
       const _InlineStats(),
       h('时间线'),
