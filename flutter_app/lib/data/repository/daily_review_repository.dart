@@ -21,6 +21,7 @@ abstract final class DailyReviewDatabaseMapper {
         note: review.note,
         completedTaskCount: review.completedTaskCount,
         totalTaskCount: review.totalTaskCount,
+        focusSeconds: review.focusSeconds,
         createdAt: review.createdAt,
         updatedAt: review.updatedAt,
         localVersion: review.localVersion,
@@ -41,6 +42,7 @@ abstract final class DailyReviewDatabaseMapper {
         note: row.note,
         completedTaskCount: row.completedTaskCount,
         totalTaskCount: row.totalTaskCount,
+        focusSeconds: row.focusSeconds,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         localVersion: row.localVersion,
@@ -71,6 +73,7 @@ abstract final class DailyReviewWireMapper {
         'note': review.note,
         'completedTaskCount': review.completedTaskCount,
         'totalTaskCount': review.totalTaskCount,
+        'focusSeconds': review.focusSeconds,
       };
 
   static DailyReview fromPayload(
@@ -91,6 +94,7 @@ abstract final class DailyReviewWireMapper {
       note: _nullableString(payload['note']),
       completedTaskCount: _int(payload['completedTaskCount']),
       totalTaskCount: _int(payload['totalTaskCount']),
+      focusSeconds: _int(payload['focusSeconds']),
       createdAt: _requiredString(meta, 'createdAt'),
       updatedAt: _requiredString(meta, 'updatedAt'),
       localVersion: _int(meta['localVersion']) ?? 1,
@@ -152,6 +156,7 @@ abstract interface class DailyReviewRepository {
     String? note,
     int? completedTaskCount,
     int? totalTaskCount,
+    int? focusSeconds,
   });
 
   Future<void> deleteReview({
@@ -217,6 +222,7 @@ class DriftDailyReviewRepository implements DailyReviewRepository {
     String? note,
     int? completedTaskCount,
     int? totalTaskCount,
+    int? focusSeconds,
   }) async {
     _validateDate(reviewDate);
     _validateScale('energy', energy);
@@ -243,6 +249,13 @@ class DriftDailyReviewRepository implements DailyReviewRepository {
         totalTaskCount,
         'totalTaskCount',
         '任务总数不能为负数',
+      );
+    }
+    if (focusSeconds != null && focusSeconds < 0) {
+      throw ArgumentError.value(
+        focusSeconds,
+        'focusSeconds',
+        '专注秒数不能为负数',
       );
     }
     if (completedTaskCount != null &&
@@ -274,6 +287,7 @@ class DriftDailyReviewRepository implements DailyReviewRepository {
       note: _clean(note),
       completedTaskCount: completedTaskCount,
       totalTaskCount: totalTaskCount,
+      focusSeconds: focusSeconds,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       localVersion: (existing?.localVersion ?? 0) + 1,
@@ -422,6 +436,7 @@ class PreviewDailyReviewRepository implements DailyReviewRepository {
     String? note,
     int? completedTaskCount,
     int? totalTaskCount,
+    int? focusSeconds,
   }) async {
     final index = _reviews.indexWhere(
       (review) =>
@@ -444,6 +459,7 @@ class PreviewDailyReviewRepository implements DailyReviewRepository {
       note: DriftDailyReviewRepository._clean(note),
       completedTaskCount: completedTaskCount,
       totalTaskCount: totalTaskCount,
+      focusSeconds: focusSeconds,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       localVersion: (existing?.localVersion ?? 0) + 1,
