@@ -196,3 +196,114 @@ workflow            SUCCESS
 ```
 
 这部分证据继续保留，但从 Flutter 重构开始，不再代表新生产客户端的完成状态。
+
+
+---
+
+## 2026-09-15：Important Date 与 Pomodoro / FocusSession 收口
+
+### Important Date
+
+完成内容：
+
+- LifeTrace Cloud typed `execution.important_date` contract 加固；
+- `enabled` / `lunarYear`；
+- 公历与农历 Source of Truth 校验；
+- once / yearly；
+- 闰月；
+- Flutter Drift v9；
+- Local-first Repository / Outbox；
+- unified Sync v1；
+- keepLocal / keepServer；
+- Calendar marker / agenda / manager；
+- Today 近期重要日期；
+- Task/Calendar/ImportantDate Reminder 共用 Android notification infrastructure；
+- yearly Important Date 的 fired Reminder 自动续到下一次真实发生日期；
+- lunar golden vectors。
+
+Cloud contract 已合并到 `LifeTrace-cloud/main`，重要日期 Flutter 最终 Gate：
+
+```text
+run 34680178657
+Drift generation       PASS
+flutter analyze        PASS
+flutter test           PASS
+Android debug APK      PASS
+Web release preview    PASS
+```
+
+### Pomodoro / FocusSession
+
+架构采用两层模型：
+
+```text
+FocusTimerState
+  └─ device-local runtime state
+     mode / phase / expectedEndAt / pause / remaining / task link / round
+     不进入 Cloud Sync
+
+ExecutionFocusSession
+  └─ completed/interrupted historical fact
+     进入 execution.focus_session + Sync v1
+```
+
+这样避免把某台设备正在运行的瞬时倒计时错误同步成跨设备共享状态，同时保证结束后的专注历史多端一致。
+
+已实现：
+
+- Drift v10：`focus_timer_states` + `focus_sessions`；
+- 25/5、50/10；
+- mode preference；
+- task link；
+- start / pause / resume / reset / skip；
+- wall-clock `expectedEndAt` 作为计时真值；
+- 页面切换不丢；
+- pause 期间 wall-clock 不计入 Focus；
+- app restart / process death recovery；
+- Focus → Break → Idle 自动恢复；
+- foreground lifecycle recovery；
+- WorkManager recovery；
+- Focus/Break Android notification；
+- notification tap 回到 Focus；
+- stable `focusSessionId`；
+- Session + Outbox + next TimerState 同事务；
+- repeated recovery 不重复 Session；
+- `execution.focus_session` Snapshot / Push / Pull；
+- conflict keepLocal / keepServer；
+- Focus 历史；
+- Today Focus 卡片使用真实 TimerState / Session stats；
+- Task Detail 启动 Focus 自动关联任务。
+
+新增测试：
+
+- `focus_timer_engine_test.dart`；
+- `focus_repository_test.dart`；
+- `focus_session_conflict_resolver_test.dart`；
+- TaskSyncCoordinator FocusSession snapshot/push/pull；
+- process recovery / duplicate recovery / incomplete reset / 50-10 persistence；
+- transaction / mapper / conflict rebase。
+
+最终验证：
+
+```text
+run 34924805960
+head 170a9f83d7a39e18410bdfd7a597f42e7aea2c5b
+
+Drift generation       PASS
+flutter analyze        PASS
+flutter test           PASS
+Android debug APK      PASS
+Web release preview    PASS
+workflow               SUCCESS
+```
+
+### 后续
+
+F8 当前切片已经有完整 CI 证据。项目仍不能标记 1.0 完成，下一批继续处理：
+
+1. Daily Review 历史与 Weekly Review；
+2. Goal/Habit；
+3. Today 全量真实聚合；
+4. Task Advanced；
+5. Profile / Device / Settings / Data；
+6. Full Sync E2E / Release hardening。
