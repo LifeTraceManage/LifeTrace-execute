@@ -16,6 +16,7 @@ import '../repository/daily_review_repository.dart';
 import '../repository/entity_link_repository.dart';
 import '../repository/file_metadata_repository.dart';
 import '../repository/focus_repository.dart';
+import '../repository/habit_repository.dart';
 import '../repository/important_date_repository.dart';
 import '../repository/memo_repository.dart';
 import '../repository/project_database_mapper.dart';
@@ -57,7 +58,7 @@ class TaskSyncCoordinator {
         _deviceIdLoader = deviceIdLoader ?? DeviceIdentityStore().getOrCreate;
 
   static const taskScopeKey =
-      'entities:execution.task,execution.project,execution.calendar_event,execution.important_date,execution.focus_session,execution.memo,execution.reminder,execution.weekly_review,review.daily,file.metadata,entity.link';
+      'entities:execution.task,execution.project,execution.calendar_event,execution.important_date,execution.focus_session,execution.memo,execution.reminder,execution.weekly_review,review.daily,habit.activity,habit.log,file.metadata,entity.link';
   static const syncEntityTypes = <String>[
     DriftTaskRepository.entityType,
     DriftProjectRepository.entityType,
@@ -68,6 +69,8 @@ class TaskSyncCoordinator {
     DriftReminderRepository.entityType,
     DriftDailyReviewRepository.entityType,
     DriftWeeklyReviewRepository.entityType,
+    DriftHabitRepository.activityEntityType,
+    DriftHabitRepository.logEntityType,
     DriftFileMetadataRepository.entityType,
     DriftEntityLinkRepository.entityType,
   ];
@@ -266,6 +269,24 @@ class TaskSyncCoordinator {
                   .insertOnConflictUpdate(
                     WeeklyReviewDatabaseMapper.toRow(review),
                   );
+            case DriftHabitRepository.activityEntityType:
+              final activity = HabitActivityWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+              );
+              await database
+                  .into(database.habitActivities)
+                  .insertOnConflictUpdate(
+                    HabitActivityDatabaseMapper.toRow(activity),
+                  );
+            case DriftHabitRepository.logEntityType:
+              final log = HabitLogWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+              );
+              await database
+                  .into(database.habitLogs)
+                  .insertOnConflictUpdate(HabitLogDatabaseMapper.toRow(log));
             case DriftFileMetadataRepository.entityType:
               final file = FileMetadataWireMapper.fromPayload(
                 item.payload,
@@ -529,6 +550,30 @@ class TaskSyncCoordinator {
               serverVersion: Value(result.serverVersion),
             ),
           );
+        case DriftHabitRepository.activityEntityType:
+          await (database.update(database.habitActivities)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.HabitActivitiesCompanion(
+              serverVersion: Value(result.serverVersion),
+            ),
+          );
+        case DriftHabitRepository.logEntityType:
+          await (database.update(database.habitLogs)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.HabitLogsCompanion(
+              serverVersion: Value(result.serverVersion),
+            ),
+          );
         case DriftFileMetadataRepository.entityType:
           await (database.update(database.fileRecords)
                 ..where(
@@ -697,6 +742,35 @@ class TaskSyncCoordinator {
               );
               payloadJson =
                   jsonEncode(WeeklyReviewWireMapper.toPayload(current));
+            }
+          case DriftHabitRepository.activityEntityType:
+            final row = await (database.select(database.habitActivities)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = HabitActivityDatabaseMapper.fromRow(row).copyWith(
+                serverVersion: result.serverVersion,
+              );
+              payloadJson =
+                  jsonEncode(HabitActivityWireMapper.toPayload(current));
+            }
+          case DriftHabitRepository.logEntityType:
+            final row = await (database.select(database.habitLogs)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = HabitLogDatabaseMapper.fromRow(row).copyWith(
+                serverVersion: result.serverVersion,
+              );
+              payloadJson = jsonEncode(HabitLogWireMapper.toPayload(current));
             }
           case DriftFileMetadataRepository.entityType:
             final row = await (database.select(database.fileRecords)
@@ -929,6 +1003,26 @@ class TaskSyncCoordinator {
                       .insertOnConflictUpdate(
                         WeeklyReviewDatabaseMapper.toRow(review),
                       );
+                case DriftHabitRepository.activityEntityType:
+                  final activity = HabitActivityWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                  );
+                  await database
+                      .into(database.habitActivities)
+                      .insertOnConflictUpdate(
+                        HabitActivityDatabaseMapper.toRow(activity),
+                      );
+                case DriftHabitRepository.logEntityType:
+                  final log = HabitLogWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                  );
+                  await database
+                      .into(database.habitLogs)
+                      .insertOnConflictUpdate(
+                        HabitLogDatabaseMapper.toRow(log),
+                      );
                 case DriftFileMetadataRepository.entityType:
                   final file = FileMetadataWireMapper.fromPayload(
                     payload,
@@ -1016,6 +1110,22 @@ class TaskSyncCoordinator {
                       .go();
                 case DriftWeeklyReviewRepository.entityType:
                   await (database.delete(database.weeklyReviews)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+                case DriftHabitRepository.activityEntityType:
+                  await (database.delete(database.habitActivities)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+                case DriftHabitRepository.logEntityType:
+                  await (database.delete(database.habitLogs)
                         ..where(
                           (table) =>
                               table.userId.equals(userId) &
