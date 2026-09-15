@@ -25,6 +25,7 @@ import '../repository/reminder_repository.dart';
 import '../repository/task_database_mapper.dart';
 import '../repository/task_repository.dart';
 import '../repository/task_wire_mapper.dart';
+import '../repository/weekly_review_repository.dart';
 
 typedef DeviceIdLoader = Future<String> Function();
 
@@ -56,7 +57,7 @@ class TaskSyncCoordinator {
         _deviceIdLoader = deviceIdLoader ?? DeviceIdentityStore().getOrCreate;
 
   static const taskScopeKey =
-      'entities:execution.task,execution.project,execution.calendar_event,execution.important_date,execution.focus_session,execution.memo,execution.reminder,review.daily,file.metadata,entity.link';
+      'entities:execution.task,execution.project,execution.calendar_event,execution.important_date,execution.focus_session,execution.memo,execution.reminder,execution.weekly_review,review.daily,file.metadata,entity.link';
   static const syncEntityTypes = <String>[
     DriftTaskRepository.entityType,
     DriftProjectRepository.entityType,
@@ -66,6 +67,7 @@ class TaskSyncCoordinator {
     DriftMemoRepository.entityType,
     DriftReminderRepository.entityType,
     DriftDailyReviewRepository.entityType,
+    DriftWeeklyReviewRepository.entityType,
     DriftFileMetadataRepository.entityType,
     DriftEntityLinkRepository.entityType,
   ];
@@ -253,6 +255,16 @@ class TaskSyncCoordinator {
                   .into(database.dailyReviews)
                   .insertOnConflictUpdate(
                     DailyReviewDatabaseMapper.toRow(review),
+                  );
+            case DriftWeeklyReviewRepository.entityType:
+              final review = WeeklyReviewWireMapper.fromPayload(
+                item.payload,
+                serverVersion: item.serverVersion,
+              );
+              await database
+                  .into(database.weeklyReviews)
+                  .insertOnConflictUpdate(
+                    WeeklyReviewDatabaseMapper.toRow(review),
                   );
             case DriftFileMetadataRepository.entityType:
               final file = FileMetadataWireMapper.fromPayload(
@@ -505,6 +517,18 @@ class TaskSyncCoordinator {
               serverVersion: Value(result.serverVersion),
             ),
           );
+        case DriftWeeklyReviewRepository.entityType:
+          await (database.update(database.weeklyReviews)
+                ..where(
+                  (table) =>
+                      table.userId.equals(userId) &
+                      table.id.equals(result.entityId),
+                ))
+              .write(
+            db.WeeklyReviewsCompanion(
+              serverVersion: Value(result.serverVersion),
+            ),
+          );
         case DriftFileMetadataRepository.entityType:
           await (database.update(database.fileRecords)
                 ..where(
@@ -658,6 +682,21 @@ class TaskSyncCoordinator {
               );
               payloadJson =
                   jsonEncode(DailyReviewWireMapper.toPayload(current));
+            }
+          case DriftWeeklyReviewRepository.entityType:
+            final row = await (database.select(database.weeklyReviews)
+                  ..where(
+                    (table) =>
+                        table.userId.equals(userId) &
+                        table.id.equals(result.entityId),
+                  ))
+                .getSingleOrNull();
+            if (row != null) {
+              final current = WeeklyReviewDatabaseMapper.fromRow(row).copyWith(
+                serverVersion: result.serverVersion,
+              );
+              payloadJson =
+                  jsonEncode(WeeklyReviewWireMapper.toPayload(current));
             }
           case DriftFileMetadataRepository.entityType:
             final row = await (database.select(database.fileRecords)
@@ -880,6 +919,16 @@ class TaskSyncCoordinator {
                       .insertOnConflictUpdate(
                         DailyReviewDatabaseMapper.toRow(review),
                       );
+                case DriftWeeklyReviewRepository.entityType:
+                  final review = WeeklyReviewWireMapper.fromPayload(
+                    payload,
+                    serverVersion: change.serverVersion,
+                  );
+                  await database
+                      .into(database.weeklyReviews)
+                      .insertOnConflictUpdate(
+                        WeeklyReviewDatabaseMapper.toRow(review),
+                      );
                 case DriftFileMetadataRepository.entityType:
                   final file = FileMetadataWireMapper.fromPayload(
                     payload,
@@ -959,6 +1008,14 @@ class TaskSyncCoordinator {
                       .go();
                 case DriftDailyReviewRepository.entityType:
                   await (database.delete(database.dailyReviews)
+                        ..where(
+                          (table) =>
+                              table.userId.equals(userId) &
+                              table.id.equals(change.entityId),
+                        ))
+                      .go();
+                case DriftWeeklyReviewRepository.entityType:
+                  await (database.delete(database.weeklyReviews)
                         ..where(
                           (table) =>
                               table.userId.equals(userId) &
