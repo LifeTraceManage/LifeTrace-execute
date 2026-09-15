@@ -18,6 +18,7 @@ import 'package:lifetrace_execute/data/repository/memo_repository.dart';
 import 'package:lifetrace_execute/data/repository/project_repository.dart';
 import 'package:lifetrace_execute/data/repository/reminder_repository.dart';
 import 'package:lifetrace_execute/data/repository/task_repository.dart';
+import 'package:lifetrace_execute/data/repository/weekly_review_repository.dart';
 import 'package:lifetrace_execute/data/sync/task_sync_coordinator.dart';
 import 'package:lifetrace_execute/domain/collection/execution_file_metadata.dart';
 import 'package:lifetrace_execute/domain/collection/execution_memo.dart';
@@ -39,6 +40,7 @@ void main() {
   late DriftReminderRepository reminderRepository;
   late DriftImportantDateRepository importantDateRepository;
   late DriftFocusRepository focusRepository;
+  late DriftWeeklyReviewRepository weeklyReviewRepository;
 
   setUp(() {
     database = AppDatabase(NativeDatabase.memory());
@@ -51,6 +53,7 @@ void main() {
     reminderRepository = DriftReminderRepository(database);
     importantDateRepository = DriftImportantDateRepository(database);
     focusRepository = DriftFocusRepository(database);
+    weeklyReviewRepository = DriftWeeklyReviewRepository(database);
   });
 
   tearDown(() async => database.close());
@@ -436,6 +439,83 @@ void main() {
     expect(
       reviews.singleWhere((item) => item.id == 'remote-review').bestThing,
       'Pulled review',
+    );
+  });
+
+  test('weekly review snapshot, push and pull share sync pipeline', () async {
+    final local = await weeklyReviewRepository.saveReview(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      weekStart: '2026-09-07',
+      weekEnd: '2026-09-13',
+      completionScore: 0.5,
+      completedTaskCount: 2,
+      totalTaskCount: 4,
+      focusSeconds: 3600,
+      bestThing: 'Local weekly review',
+    );
+
+    final client = _FakeSyncClient(
+      snapshots: [
+        SnapshotPageResult(
+          requestId: 'weekly-snapshot',
+          snapshotId: 'weekly-snapshot-1',
+          snapshotCursor: '34',
+          items: [
+            SnapshotItem(
+              entityType: DriftWeeklyReviewRepository.entityType,
+              entityId: 'weekly-remote',
+              serverVersion: '2',
+              payload: _weeklyReviewPayload(
+                'weekly-remote',
+                'Snapshot weekly review',
+              ),
+            ),
+          ],
+          completed: true,
+          serverTime: '2026-09-13T00:00:00.000Z',
+        ),
+      ],
+      pulls: [
+        PullBatchResult(
+          requestId: 'weekly-pull',
+          serverTime: '2026-09-13T00:01:00.000Z',
+          changes: [
+            PulledChange(
+              cursor: '35',
+              entityType: DriftWeeklyReviewRepository.entityType,
+              entityId: 'weekly-remote',
+              operation: 'upsert',
+              serverVersion: '3',
+              serverModifiedAt: '2026-09-13T00:01:00.000Z',
+              payload: _weeklyReviewPayload(
+                'weekly-remote',
+                'Pulled weekly review',
+              ),
+            ),
+          ],
+          nextCursor: '35',
+          hasMore: false,
+        ),
+      ],
+      acceptAllPushes: true,
+    );
+
+    final summary = await _coordinatorFor(database, client).syncNow();
+
+    expect(summary.snapshotItems, 1);
+    expect(summary.pushed, 1);
+    expect(summary.pulled, 1);
+
+    final reviews = await database.select(database.weeklyReviews).get();
+    expect(reviews, hasLength(2));
+    expect(
+      reviews.singleWhere((item) => item.id == local.id).serverVersion,
+      '101',
+    );
+    expect(
+      reviews.singleWhere((item) => item.id == 'weekly-remote').bestThing,
+      'Pulled weekly review',
     );
   });
 
@@ -986,6 +1066,36 @@ Map<String, dynamic> _reviewPayload(String id, String bestThing) => {
       'note': null,
       'completedTaskCount': 1,
       'totalTaskCount': 2,
+      'focusSeconds': 1800,
+    };
+
+Map<String, dynamic> _weeklyReviewPayload(
+  String id,
+  String bestThing,
+) =>
+    {
+      'meta': {
+        'id': id,
+        'userId': 'user-1',
+        'createdAt': '2026-09-07T00:00:00.000Z',
+        'updatedAt': '2026-09-13T00:00:00.000Z',
+        'deletedAt': null,
+        'localVersion': 1,
+        'serverVersion': null,
+        'modifiedByDevice': 'remote-device',
+      },
+      'weekStart': '2026-09-07',
+      'weekEnd': '2026-09-13',
+      'completionScore': 0.5,
+      'completedTaskCount': 2,
+      'totalTaskCount': 4,
+      'focusSeconds': 3600,
+      'completionSummary': 'Two tasks complete',
+      'bestThing': bestThing,
+      'problem': null,
+      'improvement': null,
+      'nextWeekPriority': 'Next priority',
+      'note': null,
     };
 
 Map<String, dynamic> _focusPayload(
