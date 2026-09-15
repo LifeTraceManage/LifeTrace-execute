@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lifetrace_execute/domain/focus/execution_focus_session.dart';
+import 'package:lifetrace_execute/domain/focus/focus_timer_state.dart';
 import 'package:lifetrace_execute/domain/task/execution_task.dart';
 import 'package:lifetrace_execute/features/review/review_stats.dart';
 
@@ -36,6 +38,49 @@ void main() {
     expect(stats.total, 2);
     expect(stats.completionScore, 0.5);
     expect(stats.tomorrowSuggestion, 'Urgent tomorrow');
+  });
+
+  test('daily focus snapshot sums sessions by local ended date', () {
+    const sessions = [
+      ExecutionFocusSession(
+        id: 'focus-1',
+        userId: 'user-1',
+        mode: FocusMode.short,
+        startedAt: '2026-09-11T01:00:00.000Z',
+        endedAt: '2026-09-11T01:25:00.000Z',
+        focusSeconds: 1500,
+        completed: true,
+        createdAt: '2026-09-11T01:25:00.000Z',
+        updatedAt: '2026-09-11T01:25:00.000Z',
+        localVersion: 1,
+      ),
+      ExecutionFocusSession(
+        id: 'focus-2',
+        userId: 'user-1',
+        mode: FocusMode.long,
+        startedAt: '2026-09-11T02:00:00.000Z',
+        endedAt: '2026-09-11T02:20:00.000Z',
+        focusSeconds: 1200,
+        completed: false,
+        createdAt: '2026-09-11T02:20:00.000Z',
+        updatedAt: '2026-09-11T02:20:00.000Z',
+        localVersion: 1,
+      ),
+      ExecutionFocusSession(
+        id: 'focus-old',
+        userId: 'user-1',
+        mode: FocusMode.short,
+        startedAt: '2026-09-10T01:00:00.000Z',
+        endedAt: '2026-09-10T01:25:00.000Z',
+        focusSeconds: 1500,
+        completed: true,
+        createdAt: '2026-09-10T01:25:00.000Z',
+        updatedAt: '2026-09-10T01:25:00.000Z',
+        localVersion: 1,
+      ),
+    ];
+
+    expect(calculateDailyFocusSeconds(sessions, '2026-09-11'), 2700);
   });
 }
 
