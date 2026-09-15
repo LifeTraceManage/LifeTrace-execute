@@ -13,6 +13,7 @@ import 'package:lifetrace_execute/data/repository/calendar_event_repository.dart
 import 'package:lifetrace_execute/data/repository/daily_review_repository.dart';
 import 'package:lifetrace_execute/data/repository/file_metadata_repository.dart';
 import 'package:lifetrace_execute/data/repository/focus_repository.dart';
+import 'package:lifetrace_execute/data/repository/habit_repository.dart';
 import 'package:lifetrace_execute/data/repository/important_date_repository.dart';
 import 'package:lifetrace_execute/data/repository/memo_repository.dart';
 import 'package:lifetrace_execute/data/repository/project_repository.dart';
@@ -24,6 +25,7 @@ import 'package:lifetrace_execute/domain/collection/execution_file_metadata.dart
 import 'package:lifetrace_execute/domain/collection/execution_memo.dart';
 import 'package:lifetrace_execute/domain/focus/execution_focus_session.dart';
 import 'package:lifetrace_execute/domain/focus/focus_timer_state.dart';
+import 'package:lifetrace_execute/domain/habit/habit.dart';
 import 'package:lifetrace_execute/domain/important_date/execution_important_date.dart';
 import 'package:lifetrace_execute/domain/project/execution_project.dart';
 import 'package:lifetrace_execute/domain/reminder/execution_reminder.dart';
@@ -41,6 +43,7 @@ void main() {
   late DriftImportantDateRepository importantDateRepository;
   late DriftFocusRepository focusRepository;
   late DriftWeeklyReviewRepository weeklyReviewRepository;
+  late DriftHabitRepository habitRepository;
 
   setUp(() {
     database = AppDatabase(NativeDatabase.memory());
@@ -54,6 +57,7 @@ void main() {
     importantDateRepository = DriftImportantDateRepository(database);
     focusRepository = DriftFocusRepository(database);
     weeklyReviewRepository = DriftWeeklyReviewRepository(database);
+    habitRepository = DriftHabitRepository(database);
   });
 
   tearDown(() async => database.close());
@@ -516,6 +520,122 @@ void main() {
     expect(
       reviews.singleWhere((item) => item.id == 'weekly-remote').bestThing,
       'Pulled weekly review',
+    );
+  });
+
+  test('habit activity and log share snapshot push and pull pipeline', () async {
+    final localActivity = await habitRepository.createActivity(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      name: 'Local reading',
+      activityType: HabitWireValues.activityDuration,
+      unit: 'minutes',
+      normalTarget: 30,
+    );
+    final localLog = await habitRepository.upsertDailyLog(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      activityId: localActivity.id,
+      logDate: '2026-09-15',
+      value: 20,
+      status: HabitWireValues.logPartial,
+    );
+
+    final client = _FakeSyncClient(
+      snapshots: [
+        SnapshotPageResult(
+          requestId: 'habit-snapshot',
+          snapshotId: 'habit-snapshot-1',
+          snapshotCursor: '40',
+          items: [
+            SnapshotItem(
+              entityType: DriftHabitRepository.activityEntityType,
+              entityId: 'habit-remote',
+              serverVersion: '2',
+              payload: _habitActivityPayload('habit-remote', 'Remote habit'),
+            ),
+            SnapshotItem(
+              entityType: DriftHabitRepository.logEntityType,
+              entityId: 'habit-log-remote',
+              serverVersion: '2',
+              payload: _habitLogPayload(
+                'habit-log-remote',
+                'habit-remote',
+                15,
+                HabitWireValues.logPartial,
+              ),
+            ),
+          ],
+          completed: true,
+          serverTime: '2026-09-15T00:00:00.000Z',
+        ),
+      ],
+      pulls: [
+        PullBatchResult(
+          requestId: 'habit-pull',
+          serverTime: '2026-09-15T00:01:00.000Z',
+          changes: [
+            PulledChange(
+              cursor: '41',
+              entityType: DriftHabitRepository.activityEntityType,
+              entityId: 'habit-remote',
+              operation: 'upsert',
+              serverVersion: '3',
+              serverModifiedAt: '2026-09-15T00:01:00.000Z',
+              payload: _habitActivityPayload('habit-remote', 'Pulled habit'),
+            ),
+            PulledChange(
+              cursor: '42',
+              entityType: DriftHabitRepository.logEntityType,
+              entityId: 'habit-log-remote',
+              operation: 'upsert',
+              serverVersion: '3',
+              serverModifiedAt: '2026-09-15T00:01:01.000Z',
+              payload: _habitLogPayload(
+                'habit-log-remote',
+                'habit-remote',
+                30,
+                HabitWireValues.logCompleted,
+              ),
+            ),
+          ],
+          nextCursor: '42',
+          hasMore: false,
+        ),
+      ],
+      acceptAllPushes: true,
+    );
+
+    final summary = await _coordinatorFor(database, client).syncNow();
+
+    expect(summary.snapshotItems, 2);
+    expect(summary.pushed, 2);
+    expect(summary.pulled, 2);
+
+    final activities = await database.select(database.habitActivities).get();
+    expect(activities, hasLength(2));
+    expect(
+      activities.singleWhere((item) => item.id == localActivity.id).serverVersion,
+      isNotNull,
+    );
+    expect(
+      activities.singleWhere((item) => item.id == 'habit-remote').name,
+      'Pulled habit',
+    );
+
+    final logs = await database.select(database.habitLogs).get();
+    expect(logs, hasLength(2));
+    expect(
+      logs.singleWhere((item) => item.id == localLog.id).serverVersion,
+      isNotNull,
+    );
+    expect(
+      logs.singleWhere((item) => item.id == 'habit-log-remote').status,
+      HabitWireValues.logCompleted,
+    );
+    expect(
+      logs.singleWhere((item) => item.id == 'habit-log-remote').value,
+      30,
     );
   });
 
@@ -1096,6 +1216,63 @@ Map<String, dynamic> _weeklyReviewPayload(
       'improvement': null,
       'nextWeekPriority': 'Next priority',
       'note': null,
+    };
+
+Map<String, dynamic> _habitActivityPayload(
+  String id,
+  String name,
+) =>
+    {
+      'meta': {
+        'id': id,
+        'userId': 'user-1',
+        'createdAt': '2026-09-15T00:00:00.000Z',
+        'updatedAt': '2026-09-15T00:00:00.000Z',
+        'deletedAt': null,
+        'localVersion': 1,
+        'serverVersion': null,
+        'modifiedByDevice': 'remote-device',
+      },
+      'name': name,
+      'activityType': HabitWireValues.activityDuration,
+      'unit': 'minutes',
+      'minimumTarget': 10,
+      'normalTarget': 30,
+      'targetPeriod': 'daily',
+      'targetDays': const [1, 2, 3, 4, 5],
+      'icon': null,
+      'color': null,
+      'scheduleType': HabitWireValues.scheduleDaily,
+      'startDate': '2026-09-15',
+      'checkinMethod': HabitWireValues.checkinManual,
+      'syncSource': null,
+      'description': null,
+      'isArchived': false,
+    };
+
+Map<String, dynamic> _habitLogPayload(
+  String id,
+  String activityId,
+  double value,
+  String status,
+) =>
+    {
+      'meta': {
+        'id': id,
+        'userId': 'user-1',
+        'createdAt': '2026-09-15T00:00:00.000Z',
+        'updatedAt': '2026-09-15T00:01:00.000Z',
+        'deletedAt': null,
+        'localVersion': 1,
+        'serverVersion': null,
+        'modifiedByDevice': 'remote-device',
+      },
+      'activityId': activityId,
+      'logDate': '2026-09-15',
+      'value': value,
+      'status': status,
+      'note': null,
+      'metadata': {'source': 'sync-test'},
     };
 
 Map<String, dynamic> _focusPayload(
