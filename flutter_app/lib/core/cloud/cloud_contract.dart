@@ -29,6 +29,7 @@ class CloudContract {
     'execution.calendar_event',
     'execution.important_date',
     'execution.focus_session',
+    'execution.weekly_review',
     'execution.memo',
     'execution.reminder',
     'review.daily',
