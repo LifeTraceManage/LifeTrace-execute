@@ -68,6 +68,7 @@ class TodayHabitEntry {
 List<TodayHabitEntry> buildTodayHabitEntries({
   required List<HabitActivity> activities,
   required List<HabitLog> logs,
+  required DateTime date,
 }) {
   final byActivity = <String, HabitLog>{};
   for (final log in logs) {
@@ -81,7 +82,10 @@ List<TodayHabitEntry> buildTodayHabitEntries({
   }
 
   return activities
-      .where((activity) => !activity.isArchived)
+      .where(
+        (activity) =>
+            !activity.isArchived && _activityScheduledForDate(activity, date),
+      )
       .map(
         (activity) => TodayHabitEntry(
           activity: activity,
@@ -89,6 +93,19 @@ List<TodayHabitEntry> buildTodayHabitEntries({
         ),
       )
       .toList(growable: false);
+}
+
+bool _activityScheduledForDate(HabitActivity activity, DateTime date) {
+  final local = date.toLocal();
+  final startDate = activity.startDate;
+  if (startDate != null && startDate.compareTo(habitDateKey(local)) > 0) {
+    return false;
+  }
+  if (activity.targetDays.isNotEmpty &&
+      !activity.targetDays.contains(local.weekday)) {
+    return false;
+  }
+  return true;
 }
 
 final habitCommandsProvider = Provider<HabitCommands>(HabitCommands.new);
