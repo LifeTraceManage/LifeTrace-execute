@@ -24,6 +24,7 @@ import 'features/calendar/calendar_providers.dart';
 import 'features/collection/collection_providers.dart';
 import 'features/collection/media_providers.dart';
 import 'features/focus/focus_providers.dart';
+import 'features/focus/focus_stats.dart';
 import 'features/important_dates/important_date_providers.dart';
 import 'features/projects/project_providers.dart';
 import 'features/reminders/reminder_providers.dart';
