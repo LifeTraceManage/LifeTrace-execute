@@ -15,6 +15,7 @@ class DailyReview {
     this.note,
     this.completedTaskCount,
     this.totalTaskCount,
+    this.focusSeconds,
     this.serverVersion,
     this.modifiedByDevice,
   });
@@ -31,6 +32,7 @@ class DailyReview {
   final String? note;
   final int? completedTaskCount;
   final int? totalTaskCount;
+  final int? focusSeconds;
   final String createdAt;
   final String updatedAt;
   final int localVersion;
@@ -47,6 +49,7 @@ class DailyReview {
     String? note,
     int? completedTaskCount,
     int? totalTaskCount,
+    int? focusSeconds,
     String? updatedAt,
     int? localVersion,
     String? serverVersion,
@@ -60,6 +63,7 @@ class DailyReview {
     bool clearNote = false,
     bool clearCompletedTaskCount = false,
     bool clearTotalTaskCount = false,
+    bool clearFocusSeconds = false,
   }) =>
       DailyReview(
         id: id,
@@ -81,6 +85,8 @@ class DailyReview {
             : completedTaskCount ?? this.completedTaskCount,
         totalTaskCount:
             clearTotalTaskCount ? null : totalTaskCount ?? this.totalTaskCount,
+        focusSeconds:
+            clearFocusSeconds ? null : focusSeconds ?? this.focusSeconds,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
         localVersion: localVersion ?? this.localVersion,
