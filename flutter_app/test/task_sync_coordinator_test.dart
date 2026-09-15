@@ -12,6 +12,7 @@ import 'package:lifetrace_execute/data/local/app_database.dart';
 import 'package:lifetrace_execute/data/repository/calendar_event_repository.dart';
 import 'package:lifetrace_execute/data/repository/daily_review_repository.dart';
 import 'package:lifetrace_execute/data/repository/file_metadata_repository.dart';
+import 'package:lifetrace_execute/data/repository/focus_repository.dart';
 import 'package:lifetrace_execute/data/repository/important_date_repository.dart';
 import 'package:lifetrace_execute/data/repository/memo_repository.dart';
 import 'package:lifetrace_execute/data/repository/project_repository.dart';
@@ -20,6 +21,8 @@ import 'package:lifetrace_execute/data/repository/task_repository.dart';
 import 'package:lifetrace_execute/data/sync/task_sync_coordinator.dart';
 import 'package:lifetrace_execute/domain/collection/execution_file_metadata.dart';
 import 'package:lifetrace_execute/domain/collection/execution_memo.dart';
+import 'package:lifetrace_execute/domain/focus/execution_focus_session.dart';
+import 'package:lifetrace_execute/domain/focus/focus_timer_state.dart';
 import 'package:lifetrace_execute/domain/important_date/execution_important_date.dart';
 import 'package:lifetrace_execute/domain/project/execution_project.dart';
 import 'package:lifetrace_execute/domain/reminder/execution_reminder.dart';
@@ -35,6 +38,7 @@ void main() {
   late DriftDailyReviewRepository reviewRepository;
   late DriftReminderRepository reminderRepository;
   late DriftImportantDateRepository importantDateRepository;
+  late DriftFocusRepository focusRepository;
 
   setUp(() {
     database = AppDatabase(NativeDatabase.memory());
@@ -46,6 +50,7 @@ void main() {
     reviewRepository = DriftDailyReviewRepository(database);
     reminderRepository = DriftReminderRepository(database);
     importantDateRepository = DriftImportantDateRepository(database);
+    focusRepository = DriftFocusRepository(database);
   });
 
   tearDown(() async => database.close());
@@ -431,6 +436,95 @@ void main() {
     expect(
       reviews.singleWhere((item) => item.id == 'remote-review').bestThing,
       'Pulled review',
+    );
+  });
+
+  test('focus session snapshot, push and pull share sync pipeline', () async {
+    const local = ExecutionFocusSession(
+      id: 'focus-local',
+      userId: 'user-1',
+      taskId: 'task-local',
+      mode: FocusMode.short,
+      startedAt: '2026-09-12T01:00:00.000Z',
+      endedAt: '2026-09-12T01:25:00.000Z',
+      focusSeconds: 1500,
+      completed: true,
+      createdAt: '2026-09-12T01:25:00.000Z',
+      updatedAt: '2026-09-12T01:25:00.000Z',
+      localVersion: 1,
+      modifiedByDevice: 'device-1',
+    );
+    await focusRepository.recordSessionAndSaveState(
+      session: local,
+      nextState: FocusTimerState.idle(
+        userId: 'user-1',
+        updatedAt: '2026-09-12T01:25:00.000Z',
+      ),
+    );
+
+    final client = _FakeSyncClient(
+      snapshots: [
+        SnapshotPageResult(
+          requestId: 'focus-snapshot',
+          snapshotId: 'focus-snapshot-1',
+          snapshotCursor: '35',
+          items: [
+            SnapshotItem(
+              entityType: DriftFocusRepository.entityType,
+              entityId: 'focus-remote',
+              serverVersion: '2',
+              payload: _focusPayload(
+                'focus-remote',
+                1800,
+                true,
+              ),
+            ),
+          ],
+          completed: true,
+          serverTime: '2026-09-12T02:00:00.000Z',
+        ),
+      ],
+      pulls: [
+        PullBatchResult(
+          requestId: 'focus-pull',
+          serverTime: '2026-09-12T02:01:00.000Z',
+          changes: [
+            PulledChange(
+              cursor: '36',
+              entityType: DriftFocusRepository.entityType,
+              entityId: 'focus-remote',
+              operation: 'upsert',
+              serverVersion: '3',
+              serverModifiedAt: '2026-09-12T02:01:00.000Z',
+              payload: _focusPayload(
+                'focus-remote',
+                2100,
+                true,
+              ),
+            ),
+          ],
+          nextCursor: '36',
+          hasMore: false,
+        ),
+      ],
+      acceptAllPushes: true,
+    );
+
+    final summary = await _coordinatorFor(database, client).syncNow();
+
+    expect(summary.snapshotItems, 1);
+    expect(summary.pushed, 1);
+    expect(summary.pulled, 1);
+
+    final sessions = await database.select(database.focusSessions).get();
+    expect(sessions, hasLength(2));
+    expect(
+      sessions.singleWhere((item) => item.id == local.id).serverVersion,
+      '101',
+    );
+    expect(
+      sessions.singleWhere((item) => item.id == 'focus-remote').focusSeconds,
+      2100,
     );
   });
 
@@ -892,6 +986,22 @@ Map<String, dynamic> _reviewPayload(String id, String bestThing) => {
       'note': null,
       'completedTaskCount': 1,
       'totalTaskCount': 2,
+    };
+
+Map<String, dynamic> _focusPayload(
+  String id,
+  int focusSeconds,
+  bool completed,
+) =>
+    {
+      'id': id,
+      'userId': 'user-1',
+      'taskId': 'task-remote',
+      'mode': 'short',
+      'startedAt': '2026-09-12T01:00:00.000Z',
+      'endedAt': '2026-09-12T01:30:00.000Z',
+      'focusSeconds': focusSeconds,
+      'completed': completed,
     };
 
 Map<String, dynamic> _importantDatePayload(String id, String title) => {
