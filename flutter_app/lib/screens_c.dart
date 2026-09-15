@@ -1268,7 +1268,9 @@ String _memoUpdatedLabel(String raw) {
 }
 
 class Review extends ConsumerStatefulWidget {
-  const Review({super.key});
+  const Review({super.key, this.reviewDate});
+
+  final String? reviewDate;
 
   @override
   ConsumerState<Review> createState() => _ReviewState();
@@ -1315,7 +1317,9 @@ class _ReviewState extends ConsumerState<Review> {
 
   @override
   Widget build(BuildContext c) {
-    final reviewDate = ref.watch(todayReviewDateProvider);
+    final todayReviewDate = ref.watch(todayReviewDateProvider);
+    final reviewDate = widget.reviewDate ?? todayReviewDate;
+    final isToday = reviewDate == todayReviewDate;
     final reviewState = ref.watch(dailyReviewForDateProvider(reviewDate));
     final review = reviewState.valueOrNull;
     _hydrate(review, reviewDate);
@@ -1323,12 +1327,13 @@ class _ReviewState extends ConsumerState<Review> {
     final taskState = ref.watch(taskListProvider);
     final tasks = taskState.valueOrNull ?? const <ExecutionTask>[];
     final liveStats = calculateReviewTaskStats(tasks, reviewDate);
-    final completed = taskState.hasValue
+    final useLiveStats = isToday && taskState.hasValue;
+    final completed = useLiveStats
         ? liveStats.completed
         : review?.completedTaskCount ?? 0;
     final total =
-        taskState.hasValue ? liveStats.total : review?.totalTaskCount ?? 0;
-    final score = taskState.hasValue
+        useLiveStats ? liveStats.total : review?.totalTaskCount ?? 0;
+    final score = useLiveStats
         ? liveStats.completionScore
         : review?.completionScore;
     final conflicts = ref.watch(dailyReviewConflictsProvider).valueOrNull ??
@@ -1342,11 +1347,20 @@ class _ReviewState extends ConsumerState<Review> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                title('今日复盘'),
+                title(isToday ? '今日复盘' : '历史复盘'),
                 const SizedBox(height: 2),
-                sub(review == null ? '今天过得怎么样？' : '已保存，可继续更新今天的复盘'),
+                sub(
+                  review == null
+                      ? (isToday ? '今天过得怎么样？' : '这一天还没有保存复盘')
+                      : '已保存，可继续查看或更新这一天的复盘',
+                ),
               ],
             ),
+          ),
+          TextButton.icon(
+            onPressed: () => push(c, const DailyReviewHistory()),
+            icon: const Icon(Icons.history_rounded, size: 15),
+            label: const Text('历史'),
           ),
           if (review != null)
             chip('已保存', bg: C.greenSoft, fg: C.green),
@@ -1514,7 +1528,9 @@ class _ReviewState extends ConsumerState<Review> {
         TextField(
           controller: tomorrowPriority,
           decoration: InputDecoration(
-            hintText: liveStats.tomorrowSuggestion ?? '写下明天唯一最重要的事',
+            hintText: isToday
+                ? liveStats.tomorrowSuggestion ?? '写下明天唯一最重要的事'
+                : review?.tomorrowPriority ?? '记录下一天的重点',
             prefixIcon: const Icon(Icons.flag_outlined, size: 17),
           ),
         ),
@@ -1536,7 +1552,8 @@ class _ReviewState extends ConsumerState<Review> {
                       completed: completed,
                       total: total,
                       score: score,
-                      tomorrowSuggestion: liveStats.tomorrowSuggestion,
+                      tomorrowSuggestion:
+                          isToday ? liveStats.tomorrowSuggestion : null,
                     ),
             child: saving
                 ? const SizedBox(
@@ -1547,7 +1564,11 @@ class _ReviewState extends ConsumerState<Review> {
                       color: Colors.white,
                     ),
                   )
-                : Text(review == null ? '完成今日复盘' : '更新今日复盘'),
+                : Text(
+                    review == null
+                        ? (isToday ? '完成今日复盘' : '保存这天复盘')
+                        : '更新复盘',
+                  ),
           ),
         ),
       ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 18)),
