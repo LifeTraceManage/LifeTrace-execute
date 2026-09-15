@@ -18,6 +18,7 @@ import 'domain/important_date/important_date_occurrence.dart';
 import 'domain/project/execution_project.dart';
 import 'domain/reminder/execution_reminder.dart';
 import 'domain/review/daily_review.dart';
+import 'domain/review/weekly_review.dart';
 import 'domain/task/execution_task.dart';
 import 'features/calendar/calendar_math.dart';
 import 'features/calendar/calendar_providers.dart';
@@ -30,6 +31,7 @@ import 'features/projects/project_providers.dart';
 import 'features/reminders/reminder_providers.dart';
 import 'features/review/review_providers.dart';
 import 'features/review/review_stats.dart';
+import 'features/review/weekly_review_stats.dart';
 import 'features/tasks/task_providers.dart';
 
 part 'screens_a.dart';
