@@ -33,6 +33,8 @@ class CloudContract {
     'execution.memo',
     'execution.reminder',
     'review.daily',
+    'habit.activity',
+    'habit.log',
     'file.metadata',
     'entity.link',
   };
