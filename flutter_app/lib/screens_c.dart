@@ -1326,8 +1326,14 @@ class _ReviewState extends ConsumerState<Review> {
 
     final taskState = ref.watch(taskListProvider);
     final tasks = taskState.valueOrNull ?? const <ExecutionTask>[];
+    final focusState = ref.watch(focusSessionListProvider);
+    final focusSessions =
+        focusState.valueOrNull ?? const <ExecutionFocusSession>[];
     final liveStats = calculateReviewTaskStats(tasks, reviewDate);
+    final liveFocusSeconds =
+        calculateDailyFocusSeconds(focusSessions, reviewDate);
     final useLiveStats = isToday && taskState.hasValue;
+    final useLiveFocus = isToday && focusState.hasValue;
     final completed = useLiveStats
         ? liveStats.completed
         : review?.completedTaskCount ?? 0;
@@ -1336,6 +1342,8 @@ class _ReviewState extends ConsumerState<Review> {
     final score = useLiveStats
         ? liveStats.completionScore
         : review?.completionScore;
+    final focusSeconds =
+        useLiveFocus ? liveFocusSeconds : review?.focusSeconds ?? 0;
     final conflicts = ref.watch(dailyReviewConflictsProvider).valueOrNull ??
         const <DailyReviewConflictUi>[];
 
@@ -1356,6 +1364,11 @@ class _ReviewState extends ConsumerState<Review> {
                 ),
               ],
             ),
+          ),
+          TextButton.icon(
+            onPressed: () => push(c, const WeeklyReviewScreen()),
+            icon: const Icon(Icons.date_range_outlined, size: 15),
+            label: const Text('周复盘'),
           ),
           TextButton.icon(
             onPressed: () => push(c, const DailyReviewHistory()),
@@ -1496,6 +1509,26 @@ class _ReviewState extends ConsumerState<Review> {
             ),
         ]),
         const SizedBox(height: 6),
+        Row(children: [
+          const Icon(Icons.timer_outlined, size: 14, color: C.purple),
+          const SizedBox(width: 5),
+          Text(
+            '专注 ${_focusDuration(focusSeconds)}',
+            style: const TextStyle(
+              fontSize: 9.2,
+              color: C.purple,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (focusState.isLoading && isToday) ...[
+            const SizedBox(width: 6),
+            const Text(
+              '读取中…',
+              style: TextStyle(fontSize: 8.2, color: C.muted),
+            ),
+          ],
+        ]),
+        const SizedBox(height: 6),
         ClipRRect(
           borderRadius: const BorderRadius.all(Radius.circular(5)),
           child: LinearProgressIndicator(
@@ -1552,6 +1585,7 @@ class _ReviewState extends ConsumerState<Review> {
                       completed: completed,
                       total: total,
                       score: score,
+                      focusSeconds: focusSeconds,
                       tomorrowSuggestion:
                           isToday ? liveStats.tomorrowSuggestion : null,
                     ),
@@ -1581,6 +1615,7 @@ class _ReviewState extends ConsumerState<Review> {
     required int completed,
     required int total,
     required double? score,
+    required int focusSeconds,
     required String? tomorrowSuggestion,
   }) async {
     setState(() => saving = true);
@@ -1595,6 +1630,7 @@ class _ReviewState extends ConsumerState<Review> {
             completedTaskCount: completed,
             totalTaskCount: total,
             completionScore: score,
+            focusSeconds: focusSeconds,
             bestThing: bestThing.text,
             problem: problem.text,
             tomorrowPriority: priority,
@@ -1738,7 +1774,8 @@ class _DailyReviewHistoryTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${review.completedTaskCount ?? 0} / ${review.totalTaskCount ?? 0} Tasks'
-                  '${score == null ? '' : ' · ${(score * 100).round()}%'}',
+                  '${score == null ? '' : ' · ${(score * 100).round()}%'}'
+                  ' · 专注 ${_focusDuration(review.focusSeconds ?? 0)}',
                   style: const TextStyle(fontSize: 8.6, color: C.muted),
                 ),
               ],
@@ -1818,6 +1855,19 @@ class DailyReviewHistoryDetail extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                     ),
                   ),
+              ]),
+              const SizedBox(height: 5),
+              Row(children: [
+                const Icon(Icons.timer_outlined, size: 14, color: C.purple),
+                const SizedBox(width: 5),
+                Text(
+                  '专注 ${_focusDuration(review.focusSeconds ?? 0)}',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: C.purple,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ]),
               const SizedBox(height: 7),
               ClipRRect(
