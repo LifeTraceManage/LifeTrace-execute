@@ -49,11 +49,11 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
-        completionSummary.text = review?.completionSummary ?? '';
+        completionSummary.text = review.completionSummary ?? '';
         bestThing.text = review?.bestThing ?? '';
         problem.text = review?.problem ?? '';
         improvement.text = review?.improvement ?? '';
-        nextWeekPriority.text = review?.nextWeekPriority ?? '';
+        nextWeekPriority.text = review.nextWeekPriority ?? '';
         note.text = review?.note ?? '';
       });
     });
@@ -83,14 +83,14 @@ class _WeeklyReviewScreenState extends ConsumerState<WeeklyReviewScreen> {
         selectedWeekStart == currentWeek.startKey || review == null;
     final completed = useLiveStats
         ? liveStats.completed
-        : review?.completedTaskCount ?? 0;
+        : review.completedTaskCount ?? 0;
     final total =
-        useLiveStats ? liveStats.total : review?.totalTaskCount ?? 0;
+        useLiveStats ? liveStats.total : review.totalTaskCount ?? 0;
     final score = useLiveStats
         ? liveStats.completionScore
-        : review?.completionScore;
+        : review.completionScore;
     final focusSeconds =
-        useLiveStats ? liveStats.focusSeconds : review?.focusSeconds ?? 0;
+        useLiveStats ? liveStats.focusSeconds : review.focusSeconds ?? 0;
     final summarySuggestion = useLiveStats
         ? weeklyCompletionSummarySuggestion(liveStats)
         : review?.completionSummary;
