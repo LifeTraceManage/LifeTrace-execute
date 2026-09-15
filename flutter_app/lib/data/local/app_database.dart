@@ -273,6 +273,54 @@ class FocusTimerStates extends Table {
   Set<Column<Object>> get primaryKey => {userId};
 }
 
+
+class HabitActivities extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get name => text()();
+  TextColumn get activityType => text()();
+  TextColumn get unit => text()();
+  RealColumn get minimumTarget => real().nullable()();
+  RealColumn get normalTarget => real().nullable()();
+  TextColumn get targetPeriod => text()();
+  TextColumn get targetDaysJson => text().withDefault(const Constant('[]'))();
+  TextColumn get icon => text().nullable()();
+  TextColumn get color => text().nullable()();
+  TextColumn get scheduleType => text().nullable()();
+  TextColumn get startDate => text().nullable()();
+  TextColumn get checkinMethod => text().nullable()();
+  TextColumn get syncSource => text().nullable()();
+  TextColumn get description => text().nullable()();
+  BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+  IntColumn get localVersion => integer()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get modifiedByDevice => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+class HabitLogs extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get activityId => text().nullable()();
+  TextColumn get logDate => text()();
+  RealColumn get value => real().nullable()();
+  TextColumn get status => text().nullable()();
+  TextColumn get note => text().nullable()();
+  TextColumn get metadataJson => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+  IntColumn get localVersion => integer()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get modifiedByDevice => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class SyncOutbox extends Table {
   TextColumn get changeId => text()();
   TextColumn get userId => text()();
@@ -327,13 +375,13 @@ class SyncConflicts extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, DailyReviews, WeeklyReviews, ImportantDates, Reminders, FocusSessions, FocusTimerStates, SyncOutbox, SyncState, SyncConflicts])
+@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, DailyReviews, WeeklyReviews, ImportantDates, Reminders, FocusSessions, FocusTimerStates, HabitActivities, HabitLogs, SyncOutbox, SyncState, SyncConflicts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
   AppDatabase.production() : super(openProductionConnection());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -383,6 +431,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 11) {
             await migrator.addColumn(dailyReviews, dailyReviews.focusSeconds);
             await migrator.createTable(weeklyReviews);
+          }
+          if (from < 12) {
+            await migrator.createTable(habitActivities);
+            await migrator.createTable(habitLogs);
           }
         },
       );
