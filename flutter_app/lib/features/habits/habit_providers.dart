@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/background/background_sync.dart';
 import '../../data/repository/habit_repository.dart';
+import '../../data/sync/habit_conflict_resolver.dart';
 import '../../domain/habit/habit.dart';
 import '../tasks/task_providers.dart';
 
@@ -108,6 +110,69 @@ bool _activityScheduledForDate(HabitActivity activity, DateTime date) {
   return true;
 }
 
+final habitConflictResolverProvider =
+    Provider<HabitConflictResolver?>((ref) {
+  if (kIsWeb) return null;
+  final database = ref.watch(appDatabaseProvider);
+  return database == null ? null : HabitConflictResolver(database);
+});
+
+class HabitConflictUi {
+  const HabitConflictUi({
+    required this.conflictId,
+    required this.entityType,
+    required this.entityId,
+    required this.reason,
+    required this.serverDeleted,
+  });
+
+  final String conflictId;
+  final String entityType;
+  final String entityId;
+  final String reason;
+  final bool serverDeleted;
+}
+
+final habitConflictsProvider =
+    StreamProvider<List<HabitConflictUi>>((ref) async* {
+  if (kIsWeb) {
+    yield const <HabitConflictUi>[];
+    return;
+  }
+  final database = ref.watch(appDatabaseProvider);
+  final userId = await ref.watch(currentUserIdProvider.future);
+  if (database == null || userId == null) {
+    yield const <HabitConflictUi>[];
+    return;
+  }
+
+  final query = database.select(database.syncConflicts)
+    ..where(
+      (table) =>
+          table.userId.equals(userId) &
+          table.entityType.isIn(const [
+            DriftHabitRepository.activityEntityType,
+            DriftHabitRepository.logEntityType,
+          ]) &
+          table.resolved.equals(false),
+    )
+    ..orderBy([(table) => OrderingTerm.desc(table.createdAt)]);
+
+  yield* query.watch().map(
+        (rows) => rows
+            .map(
+              (row) => HabitConflictUi(
+                conflictId: row.id,
+                entityType: row.entityType,
+                entityId: row.entityId,
+                reason: row.reason,
+                serverDeleted: row.serverDeleted,
+              ),
+            )
+            .toList(growable: false),
+      );
+});
+
 final habitCommandsProvider = Provider<HabitCommands>(HabitCommands.new);
 
 class HabitCommands {
@@ -139,6 +204,24 @@ class HabitCommands {
     );
     _scheduleSync();
     return log;
+  }
+
+  Future<void> keepServer(String conflictId) async {
+    final resolver = ref.read(habitConflictResolverProvider);
+    if (resolver == null) return;
+    await resolver.keepServer(conflictId);
+    await ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true);
+  }
+
+  Future<void> keepLocal(String conflictId) async {
+    final resolver = ref.read(habitConflictResolverProvider);
+    if (resolver == null) return;
+    await resolver.keepLocal(
+      conflictId: conflictId,
+      deviceId: await ref.read(deviceIdProvider.future),
+    );
+    await ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true);
+    unawaited(BackgroundSyncScheduler.enqueueAfterLocalChange());
   }
 
   double _completedValue(HabitActivity activity) {

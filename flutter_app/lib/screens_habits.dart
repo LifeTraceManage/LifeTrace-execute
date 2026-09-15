@@ -6,6 +6,7 @@ class _TodayHabitsSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final activityState = ref.watch(habitActivityListProvider);
+    final conflictState = ref.watch(habitConflictsProvider);
     final logState = ref.watch(todayHabitLogListProvider);
     final entries = buildTodayHabitEntries(
       activities: activityState.valueOrNull ?? const [],
@@ -25,6 +26,12 @@ class _TodayHabitsSection extends ConsumerWidget {
             style: const TextStyle(fontSize: 9, color: C.muted),
           ),
         ),
+        if ((conflictState.valueOrNull ?? const <HabitConflictUi>[]).isNotEmpty) ...[
+          for (final conflict
+              in conflictState.valueOrNull ?? const <HabitConflictUi>[])
+            _TodayHabitConflictTile(conflict: conflict),
+          const SizedBox(height: 5),
+        ],
         if (loading)
           panel(const Center(child: CircularProgressIndicator()))
         else if (activityState.hasError || logState.hasError)
@@ -65,6 +72,95 @@ Future<void> _toggleTodayHabit(
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('习惯打卡失败：$error')),
+    );
+  }
+}
+
+class _TodayHabitConflictTile extends ConsumerWidget {
+  const _TodayHabitConflictTile({required this.conflict});
+
+  final HabitConflictUi conflict;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLog = conflict.entityType == DriftHabitRepository.logEntityType;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: C.redSoft,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: C.red.withValues(alpha: .18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isLog ? '习惯打卡存在同步冲突' : '习惯定义存在同步冲突',
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w900,
+              color: C.red,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            conflict.serverDeleted
+                ? '云端已删除 · ${conflict.reason}'
+                : conflict.reason,
+            style: const TextStyle(fontSize: 8.5, color: C.muted),
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              OutlinedButton(
+                onPressed: () => unawaited(
+                  _resolveHabitConflict(
+                    context,
+                    ref,
+                    conflict.conflictId,
+                    keepLocal: false,
+                  ),
+                ),
+                child: const Text('保留云端'),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: () => unawaited(
+                  _resolveHabitConflict(
+                    context,
+                    ref,
+                    conflict.conflictId,
+                    keepLocal: true,
+                  ),
+                ),
+                child: const Text('保留本地'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _resolveHabitConflict(
+  BuildContext context,
+  WidgetRef ref,
+  String conflictId, {
+  required bool keepLocal,
+}) async {
+  try {
+    final commands = ref.read(habitCommandsProvider);
+    if (keepLocal) {
+      await commands.keepLocal(conflictId);
+    } else {
+      await commands.keepServer(conflictId);
+    }
+  } catch (error) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('处理习惯同步冲突失败：$error')),
     );
   }
 }
