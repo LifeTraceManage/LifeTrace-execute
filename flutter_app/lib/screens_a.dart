@@ -322,36 +322,74 @@ class _HeroTag extends StatelessWidget {
 }
 
 class _FocusHero extends StatelessWidget {
-  const _FocusHero({required this.onStart});
+  const _FocusHero({
+    required this.state,
+    required this.stats,
+    required this.task,
+    required this.onStart,
+  });
+
+  final FocusTimerState? state;
+  final FocusTodayStats stats;
+  final ExecutionTask? task;
   final VoidCallback onStart;
 
   @override
-  Widget build(BuildContext c) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(17),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xff6f58e8), Color(0xff4d7df4)],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: C.purple.withValues(alpha: .16),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
+  Widget build(BuildContext context) {
+    final active = state != null && !state!.isIdle;
+    final breakTime = active && state!.isBreak;
+    final title = active
+        ? task?.title ?? (breakTime ? '休息一下' : '当前专注')
+        : task?.title ?? '开始一轮专注';
+    final status = active
+        ? breakTime
+            ? '休息进行中'
+            : state!.isPaused
+                ? '专注已暂停'
+                : '专注进行中'
+        : '今日已专注 ${_focusDuration(stats.focusSeconds)}';
+    final detail = active
+        ? state!.isPaused
+            ? '剩余 ${_focusClock(state!.remainingSeconds())}'
+            : _focusEndLabel(state!)
+        : '${(state?.mode ?? FocusMode.short) == FocusMode.short ? '25/5' : '50/10'} · ${stats.completedRounds} 轮完成';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(17),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: breakTime
+              ? const [Color(0xff3fa66a), Color(0xff54b889)]
+              : const [Color(0xff6f58e8), Color(0xff4d7df4)],
         ),
-        child: Row(children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Row(children: [
-                Icon(Icons.auto_awesome_rounded, size: 13, color: Colors.white70),
-                SizedBox(width: 5),
+        boxShadow: [
+          BoxShadow(
+            color: (breakTime ? C.green : C.purple).withValues(alpha: .16),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 13,
+                  color: Colors.white70,
+                ),
+                const SizedBox(width: 5),
                 Text(
-                  'TODAY FOCUS',
-                  style: TextStyle(
+                  active
+                      ? breakTime ? 'BREAK' : 'FOCUS ACTIVE'
+                      : 'TODAY FOCUS',
+                  style: const TextStyle(
                     fontSize: 9,
                     letterSpacing: .9,
                     fontWeight: FontWeight.w900,
@@ -360,50 +398,121 @@ class _FocusHero extends StatelessWidget {
                 ),
               ]),
               const SizedBox(height: 9),
-              const Text(
-                '完成论文实验设计',
-                style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: Colors.white),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Academic Research  ·  23:00 截止',
-                style: TextStyle(fontSize: 9, color: Colors.white70),
+              Text(
+                status,
+                style: const TextStyle(fontSize: 9, color: Colors.white70),
               ),
               const SizedBox(height: 11),
               Row(children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .16),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
-                    'P1 高优先级',
-                    style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: Colors.white),
+                  child: Text(
+                    detail,
+                    style: const TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-                const SizedBox(width: 7),
-                const Text('预计 50 min', style: TextStyle(fontSize: 8.5, color: Colors.white70)),
+                if (task != null) ...[
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(
+                      _priorityText(task!.priority),
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 8.5,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                ],
               ]),
-            ]),
+            ],
           ),
-          InkWell(
-            onTap: onStart,
-            borderRadius: BorderRadius.circular(32),
-            child: Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: .96),
-              ),
-              child: const Icon(Icons.play_arrow_rounded, color: C.purple, size: 30),
+        ),
+        InkWell(
+          onTap: onStart,
+          borderRadius: BorderRadius.circular(32),
+          child: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: .96),
+            ),
+            child: Icon(
+              active ? Icons.timer_rounded : Icons.play_arrow_rounded,
+              color: breakTime ? C.green : C.purple,
+              size: active ? 25 : 30,
             ),
           ),
-        ]),
-      );
+        ),
+      ]),
+    );
+  }
 }
 
+ExecutionTask? _todayFocusTask(
+  List<ExecutionTask> tasks,
+  String? linkedTaskId,
+) {
+  if (linkedTaskId != null) {
+    for (final task in tasks) {
+      if (task.id == linkedTaskId) return task;
+    }
+  }
+
+  final candidates = tasks.where((task) => !task.isDone).toList();
+  if (candidates.isEmpty) return null;
+  int weight(ExecutionTaskPriority priority) => switch (priority) {
+        ExecutionTaskPriority.urgent => 4,
+        ExecutionTaskPriority.high => 3,
+        ExecutionTaskPriority.normal => 2,
+        ExecutionTaskPriority.low => 1,
+      };
+  candidates.sort((a, b) {
+    final byPriority = weight(b.priority).compareTo(weight(a.priority));
+    if (byPriority != 0) return byPriority;
+    final aDue = DateTime.tryParse(a.dueAt ?? '');
+    final bDue = DateTime.tryParse(b.dueAt ?? '');
+    if (aDue == null && bDue == null) {
+      return a.createdAt.compareTo(b.createdAt);
+    }
+    if (aDue == null) return 1;
+    if (bDue == null) return -1;
+    return aDue.compareTo(bDue);
+  });
+  return candidates.first;
+}
+
+String _focusEndLabel(FocusTimerState state) {
+  final end = DateTime.tryParse(state.expectedEndAt ?? '')?.toLocal();
+  if (end == null) return '恢复计时状态中';
+  final hh = end.hour.toString().padLeft(2, '0');
+  final mm = end.minute.toString().padLeft(2, '0');
+  final mode = state.mode == FocusMode.short ? '25/5' : '50/10';
+  return '$mode · $hh:$mm 结束';
+}
 class _Week extends StatelessWidget {
   const _Week();
 
