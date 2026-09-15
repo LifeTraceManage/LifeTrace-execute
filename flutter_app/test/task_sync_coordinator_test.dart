@@ -616,7 +616,7 @@ void main() {
     expect(activities, hasLength(2));
     expect(
       activities.singleWhere((item) => item.id == localActivity.id).serverVersion,
-      isNotNull,
+      isNot(equals(null)),
     );
     expect(
       activities.singleWhere((item) => item.id == 'habit-remote').name,
@@ -627,7 +627,7 @@ void main() {
     expect(logs, hasLength(2));
     expect(
       logs.singleWhere((item) => item.id == localLog.id).serverVersion,
-      isNotNull,
+      isNot(equals(null)),
     );
     expect(
       logs.singleWhere((item) => item.id == 'habit-log-remote').status,
