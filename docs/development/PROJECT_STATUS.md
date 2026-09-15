@@ -1,150 +1,307 @@
 # LifeTrace Execute 项目进度
 
-更新时间：2026-09-10
+更新时间：2026-09-15
 
 ## 1. 当前阶段
 
-LifeTrace Execute 已进入 **生产客户端 Flutter 重构阶段**。
-
-当前载体：
-
-- `flutter_app/`：新的正式生产客户端目标；
-- `app/`：旧 Jetpack Compose Android 客户端，迁移期间保留为已经实现的 Local-first / Auth / Sync 行为参考；
-- `flutter-preview/`：已确认高保真 Flutter UI 的设计历史来源；
-- `web-preview/`：旧浏览器原型；
-- LifeTrace Cloud：继续复用统一 Rust + Axum + PostgreSQL 后端。
-
-本次重构不改变产品范围，也不重做 Cloud 协议。
-
-## 2. Flutter 重构当前事实
-
-已完成：
+LifeTrace Execute 的正式生产客户端已经切换到 Flutter，当前分支：
 
 ```text
 refactor/flutter-production
-├── flutter_app/                 # 新生产客户端目录
-│   ├── lib/main.dart            # 生产 Flutter 入口
-│   ├── lib/screens_a.dart
-│   ├── lib/screens_b.dart
-│   ├── lib/screens_c.dart
-│   ├── lib/web_preview_main.dart
-│   ├── pubspec.yaml
-│   └── test/widget_test.dart
-├── docs/development/FLUTTER_REFACTOR_PLAN.md
-└── .github/workflows/flutter-production-ci.yml
 ```
 
-当前 Flutter UI 已覆盖：Today、Tasks、Task Detail、Focus、Projects、Project Detail、Calendar、Collection、Daily Review、Profile。
+旧 Compose `app/` 仍保留为迁移参考，在全功能 Release Gate 与 Compose cutover 完成前不删除。
 
-生产 Android 入口不再绘制假的手机状态栏；模拟状态栏和设备框仅用于 Web Preview。
+当前不是“UI 壳迁移阶段”。Flutter 已经建立真实 Local-first、Cloud Sync、后台同步、文件上传、Reminder/Notification、Important Date、Daily Review 与 Pomodoro/FocusSession 等纵向业务链。
 
-Flutter Production CI 已验证：
+## 2. 已验证的生产基础设施
 
-```text
-run 34490908679
-flutter analyze             PASS
-flutter test                PASS
-flutter build apk --debug   PASS
-flutter build web           PASS
-```
+Flutter 生产链已经具备：
 
-因此 **M0 的工程/构建基线已经建立并验证通过**。
-
-## 3. 仍未迁移到 Flutter 的正式业务链
-
-当前 `flutter_app/` 第一批是 **UI + 工程壳迁移**，以下真实生产能力仍主要存在于旧 Compose `app/`，尚未完成 Flutter 纵向闭环：
-
-- Task Drift/SQLite 正式持久化；
-- Task Repository / state；
-- transactional Outbox；
-- Cloud Auth v1；
+- Drift / SQLite；
+- Repository / Riverpod；
+- business row + Outbox 同事务；
+- Auth v1；
 - secure session；
 - stable deviceId；
 - Sync v1 snapshot / push / pull；
-- conflict / tombstone / rebase；
-- background sync；
-- Project / Calendar / Collection / Review 等正式数据链。
+- accepted / duplicate / rejected / conflict；
+- keepLocal / keepServer；
+- tombstone / rebase；
+- WorkManager 后台同步；
+- Android 13+ notification permission；
+- Android local notification；
+- reboot notification recovery；
+- Cloud files API / upload queue；
+- Android Debug APK 与 Web Release 构建 Gate。
 
-因此不能把 Flutter 版本写成“功能已完成”。当前准确状态是：**Flutter UI 已迁移，Flutter 工程 Gate 已验证，生产数据层迁移开始。**
+统一 Sync scope 当前包含：
 
-## 4. 旧 Compose 已有的可迁移能力
+```text
+execution.task
+execution.project
+execution.calendar_event
+execution.important_date
+execution.focus_session
+execution.memo
+execution.reminder
+review.daily
+file.metadata
+entity.link
+```
 
-`app/` 已经具备并必须保持行为兼容的能力包括：
+## 3. 已形成真实纵向闭环的模块
 
-- `com.lifetrace.execute` applicationId；
-- `lifetrace-execute-android` Cloud AppId；
-- Auth v1 login / refresh / logout；
-- Android Keystore + AES-GCM 会话保护；
-- installation-level deviceId；
-- Room：`tasks` / `sync_outbox` / `sync_state` / `sync_conflicts`；
-- Task CRUD / status / priority / description / scheduledAt / dueAt；
-- Task 搜索 / 筛选；
-- Task + Outbox 同事务；
-- Snapshot / Push / Pull；
-- accepted / duplicate / conflict / rejected；
-- tombstone；
-- 同实体连续修改 rebase；
-- WorkManager 自动同步基础设施。
+### Task 基础纵向链
 
-Flutter 必须逐项迁移这些真实行为，不能用静态数据替代后直接下线 Compose。
+已完成：
 
-## 5. Flutter 目标架构
+- Drift Task；
+- CRUD；
+- status / priority / description；
+- scheduledAt / dueAt；
+- Project 归属；
+- Local-first Outbox；
+- Sync v1；
+- conflict / keepLocal / keepServer；
+- Reminder 接入；
+- Task Detail 真实数据链。
+
+仍未把 Task 1.0 全部高级能力标记完成，重复规则 / occurrence / waiting / dependency 等仍按长期计划继续推进。
+
+### Project
+
+已完成真实 Project CRUD、Task 归属、Drift、Outbox、Sync、conflict 与真实页面。
+
+### Calendar Event
+
+已完成：
+
+- 真实月份日期数学；
+- Event CRUD；
+- Task 时间映射；
+- Drift / Outbox / Sync / conflict；
+- Reminder；
+- Calendar agenda 与月历 marker。
+
+### Important Date
+
+已完成：
+
+- Cloud typed `execution.important_date` contract；
+- 公历 / 农历；
+- once / yearly；
+- lunarYear；
+- 闰月；
+- lunar golden vectors；
+- Drift v9；
+- Local-first CRUD；
+- Sync / conflict；
+- Calendar marker / agenda；
+- Today 近期重要日期；
+- Reminder；
+- yearly Reminder fired 后自动续下一次真实发生日期。
+
+Cloud contract 已合并至 LifeTrace Cloud main。
+
+最终 Flutter Gate：
+
+```text
+run 34680178657
+Drift code generation       PASS
+flutter analyze             PASS
+flutter test                PASS
+Android debug APK           PASS
+Web release preview         PASS
+```
+
+### Reminder / Android Notification
+
+已完成：
+
+- typed `execution.reminder`；
+- Task Reminder；
+- Calendar Reminder；
+- Important Date Reminder；
+- scheduled / fired / dismissed / cancelled；
+- Android 13+ permission；
+- notification channel；
+- reboot receiver；
+- foreground/background reconcile；
+- notification tap 路由；
+- duplicate active Reminder 收敛；
+- Sync / conflict。
+
+### Collection / Memo / File
+
+已完成：
+
+- Memo Local-first；
+- text / idea / link / image / audio / file Domain 类型；
+- Inbox / archive / important / delete；
+- Memo → Task；
+- Memo → Project；
+- EntityLink；
+- file.metadata；
+- media upload queue；
+- Cloud files prepare/upload/complete；
+- retry；
+- synced attachment metadata；
+- Memo 删除不误删共享 FileMetadata。
+
+仍需按 1.0 Gate 继续核对六种入口的真实 UI 采集行为，尤其语音采集流程。
+
+### Daily Review
+
+已完成当前 Daily Review 纵向链：
+
+- `review.daily` typed contract；
+- Drift；
+- mood / energy；
+- task completion snapshot；
+- bestThing / problem / tomorrowPriority / note；
+- save / reopen / edit；
+- Sync / conflict。
+
+验证 run：
+
+```text
+34583113910
+Drift / Analyze / Tests / Android / Web   PASS
+```
+
+仍未完成：
+
+- Daily Review 历史列表 / 详情；
+- Weekly Review。
+
+### Background Sync
+
+已完成：
+
+- app startup / foreground；
+- login initial sync；
+- local-write delayed sync；
+- 6h periodic fallback；
+- connected constraint；
+- retry classification；
+- media upload integration；
+- Reminder reconcile；
+- Focus recovery integration。
+
+### Pomodoro / FocusSession
+
+2026-09-15 已完成 F8 当前纵向链：
+
+- 本地持久化 `FocusTimerState`；
+- synced `execution.focus_session` 历史；
+- 25/5；
+- 50/10；
+- mode preference 持久化；
+- task link；
+- start / pause / resume / reset / skip；
+- 以 `expectedEndAt` 作为时间真值，不依赖每秒递减保存状态；
+- page switch 不丢状态；
+- app restart / process death recovery；
+- Focus → Break → Idle 恢复；
+- foreground 与 WorkManager recovery；
+- Focus/Break Android notification；
+- notification tap 回到 Focus；
+- 一轮稳定 sessionId，recovery 不重复生成 Session；
+- Session + Outbox + 下一阶段 TimerState 同事务；
+- FocusSession Snapshot / Push / Pull；
+- conflict / keepLocal / keepServer；
+- Focus 历史；
+- Today 真实 Focus 状态、今日专注时长、完成轮次；
+- task detail 启动 Focus 时自动关联任务。
+
+专项测试覆盖：
+
+- pause wall-clock exclusion；
+- resume expectedEndAt 重建；
+- process death 跨 Focus 边界；
+- process death 跨 Focus + Break；
+- duplicate recovery；
+- incomplete reset；
+- 50/10 persistence；
+- session/outbox/state transaction；
+- stable session id idempotency；
+- Cloud mapper；
+- Sync pipeline；
+- conflict resolution。
+
+最终 Flutter Gate：
+
+```text
+run 34924805960
+commit 170a9f83d7a39e18410bdfd7a597f42e7aea2c5b + Today Focus follow-up
+Drift code generation       PASS
+flutter analyze             PASS
+flutter test                PASS
+Android debug APK           PASS
+Web release preview         PASS
+workflow                    SUCCESS
+```
+
+> 注：run 的最终 head 包含 Focus Sync/Conflict tests 与 Today 真实 Focus 卡片；以该 run 记录为当前 F8 Gate 证据。
+
+## 4. 当前仍未完成的 1.0 主要范围
+
+不能因为上述模块已通过 CI 就把整个产品标记为 1.0 完成。剩余重点包括：
+
+- Task recurrence / occurrence / dependency / waiting 完整闭环；
+- Collection 六种采集入口最终核验与语音采集；
+- Daily Review 历史；
+- Weekly Review；
+- Goal / Habit 正式接入；
+- Today 全量真实聚合，删除剩余静态假数据；
+- Profile / Devices / Settings / Data；
+- full multi-device / offline / staging E2E；
+- release signing / release build / R8 / performance / security hardening；
+- Compose 最终 cutover。
+
+## 5. 当前技术架构
 
 ```text
 Flutter UI
     ↓
-Riverpod state / UseCase
+Riverpod / Commands / Domain Rules
     ↓
 Repository
     ↓
 Drift / SQLite
-    ├── business tables
+    ├── business entities
+    ├── local-only timer/upload state
     ├── sync_outbox
     ├── sync_state
     └── sync_conflicts
     ↓
-Generic Sync Core
-    ↓
-LifeTrace Auth v1 / Sync v1
+Generic Sync v1
     ↓
 LifeTrace Cloud
 ```
 
-Android package/applicationId 最终必须保持：
+重要架构边界：
 
-```text
-com.lifetrace.execute
-```
+- `FocusTimerState` 是设备本地运行状态，不跨设备同步；
+- `execution.focus_session` 是结束后的历史事实，跨设备同步；
+- binary 文件不进入 Sync JSON；
+- `file.metadata` / `entity.link` 进入 Sync；
+- Android notification 是本地投递结果，业务源数据仍是 Drift + Cloud entity。
 
-## 6. 信息架构保护
+## 6. 下一批
 
-继续固定：
+当前建议继续按未完成真实能力推进：
 
-- 底部：今天 / 任务 / 项目 / 日历 / 收集；
-- 我的：头像进入；
-- 今日复盘：Today 进入；
-- 专注/番茄：与任务执行工作流关联；
-- 重要日期：Calendar 域。
+1. Daily Review 历史 + Weekly Review；
+2. Goal / Habit contract 与真实 Repository；
+3. Today F9 全量真实聚合，删除剩余 Mock/静态统计；
+4. Task advanced（recurrence / occurrence / dependency / waiting）补齐；
+5. Profile / Device / Settings / Data；
+6. F11 多设备 E2E 与 Release hardening。
 
-客户端技术栈更换不能成为删除既有功能的理由。
+## 7. 当前判定
 
-## 7. 当前迁移顺序
+当前准确状态：
 
-按照 `FLUTTER_REFACTOR_PLAN.md`：
-
-```text
-M0  Flutter 正式壳 + UI 基线                         已验证
-M1  Flutter Foundation / Drift / Secure Storage / Cloud / Sync primitives
-M2  Task 完整纵向链 parity
-M3  Auth / Background Sync / real Cloud E2E parity
-M4  F2-F10 剩余业务模块迁移
-M5  Release Gate + Compose 下线
-```
-
-与原 1.0 功能顺序的关系：Flutter 完成 Foundation 后，仍继续执行原 F0→F11 的业务 Gate，不因为换技术栈重置产品计划。
-
-## 8. 当前判定
-
-当前项目不是“Flutter 已重构完成”，而是：
-
-> **已正式切换 Flutter 为生产客户端目标，M0 工程与高保真 UI 基线已通过 Android/Web CI；旧 Compose 真实业务链作为迁移参考保留。下一步优先迁移 Task 的 Local-first + Sync 纵向链。**
+> **Flutter 已经从 UI 壳进入真实生产业务迁移中后段。Task 基础、Project、Calendar、Important Date、Reminder、Collection/Files、Daily Review 当前切片、Background Sync 与 Pomodoro/FocusSession 已形成真实纵向链并有 CI 证据；但 Weekly Review、Goal/Habit、Today 全量聚合、Task Advanced、Profile/Data 与最终 Release/E2E 尚未完成，因此 LifeTrace Execute 仍不能标记 1.0 完成。**
