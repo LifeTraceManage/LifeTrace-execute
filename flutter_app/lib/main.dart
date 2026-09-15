@@ -37,6 +37,7 @@ import 'features/tasks/task_providers.dart';
 part 'screens_a.dart';
 part 'screens_b.dart';
 part 'screens_c.dart';
+part 'screens_review_weekly.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
