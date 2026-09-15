@@ -17,6 +17,7 @@ void main() {
       note: 'Keep the morning free',
       completedTaskCount: 3,
       totalTaskCount: 4,
+      focusSeconds: 2700,
       createdAt: '2026-09-11T10:00:00.000Z',
       updatedAt: '2026-09-11T11:00:00.000Z',
       localVersion: 2,
@@ -29,6 +30,7 @@ void main() {
     expect(payload['completionScore'], 0.75);
     expect(payload['completedTaskCount'], 3);
     expect(payload['totalTaskCount'], 4);
+    expect(payload['focusSeconds'], 2700);
     expect((payload['meta'] as Map)['id'], 'review-1');
     expect((payload['meta'] as Map)['serverVersion'], '7');
 
@@ -40,6 +42,7 @@ void main() {
     expect(parsed.reviewDate, review.reviewDate);
     expect(parsed.mood, 5);
     expect(parsed.energy, 4);
+    expect(parsed.focusSeconds, 2700);
     expect(parsed.bestThing, review.bestThing);
     expect(parsed.serverVersion, '8');
   });
