@@ -1618,6 +1618,254 @@ class _ReviewState extends ConsumerState<Review> {
   }
 }
 
+class DailyReviewHistory extends ConsumerWidget {
+  const DailyReviewHistory({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(dailyReviewListProvider);
+    return DetailFrame(
+      titleText: '复盘历史',
+      child: state.when(
+        loading: () => page([
+          const SizedBox(height: 90),
+          const Center(child: CircularProgressIndicator()),
+        ]),
+        error: (error, _) => page([
+          h('读取失败'),
+          panel(
+            Text(
+              '$error',
+              style: const TextStyle(fontSize: 9.5, color: C.red),
+            ),
+          ),
+        ]),
+        data: (reviews) => page([
+          Row(children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '每日复盘记录',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    '历史统计使用保存时快照，不会被后续任务修改覆盖',
+                    style: TextStyle(fontSize: 8.8, color: C.muted),
+                  ),
+                ],
+              ),
+            ),
+            chip('${reviews.length} 天', bg: C.purpleSoft, fg: C.purple),
+          ]),
+          const SizedBox(height: 12),
+          if (reviews.isEmpty)
+            panel(
+              const Column(children: [
+                Icon(Icons.history_toggle_off_rounded, color: C.muted),
+                SizedBox(height: 6),
+                Text(
+                  '还没有历史复盘',
+                  style: TextStyle(fontSize: 9.5, color: C.muted),
+                ),
+              ]),
+              padding: const EdgeInsets.all(18),
+            )
+          else
+            for (final review in reviews)
+              _DailyReviewHistoryTile(
+                review: review,
+                onTap: () => push(
+                  context,
+                  DailyReviewHistoryDetail(review: review),
+                ),
+              ),
+        ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 18)),
+      ),
+    );
+  }
+}
+
+class _DailyReviewHistoryTile extends StatelessWidget {
+  const _DailyReviewHistoryTile({
+    required this.review,
+    required this.onTap,
+  });
+
+  final DailyReview review;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = review.completionScore;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(13),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 7),
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: C.border),
+        ),
+        child: Row(children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: C.pinkSoft,
+            child: Text(
+              _reviewMoodEmoji(review.mood),
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _reviewDateLabel(review.reviewDate),
+                  style: const TextStyle(
+                    fontSize: 10.8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${review.completedTaskCount ?? 0} / ${review.totalTaskCount ?? 0} Tasks'
+                  '${score == null ? '' : ' · ${(score * 100).round()}%'}',
+                  style: const TextStyle(fontSize: 8.6, color: C.muted),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, size: 17, color: C.muted),
+        ]),
+      ),
+    );
+  }
+}
+
+class DailyReviewHistoryDetail extends StatelessWidget {
+  const DailyReviewHistoryDetail({super.key, required this.review});
+
+  final DailyReview review;
+
+  @override
+  Widget build(BuildContext context) => DetailFrame(
+        titleText: _reviewDateLabel(review.reviewDate),
+        child: page([
+          Row(children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: C.pinkSoft,
+              child: Text(
+                _reviewMoodEmoji(review.mood),
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '每日复盘',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    '精力 ${review.energy ?? '-'} / 5 · 心情 ${review.mood ?? '-'} / 5',
+                    style: const TextStyle(fontSize: 8.8, color: C.muted),
+                  ),
+                ],
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => push(
+                context,
+                Review(reviewDate: review.reviewDate),
+              ),
+              icon: const Icon(Icons.edit_outlined, size: 15),
+              label: const Text('编辑'),
+            ),
+          ]),
+          h('完成情况'),
+          panel(
+            Column(children: [
+              Row(children: [
+                Text(
+                  '${review.completedTaskCount ?? 0} / ${review.totalTaskCount ?? 0} Tasks',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const Spacer(),
+                if (review.completionScore != null)
+                  Text(
+                    '${(review.completionScore! * 100).round()}%',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: C.green,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+              ]),
+              const SizedBox(height: 7),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: LinearProgressIndicator(
+                  value: review.completionScore ?? 0,
+                  minHeight: 6,
+                  backgroundColor: C.soft,
+                  color: C.green,
+                ),
+              ),
+            ]),
+          ),
+          if ((review.bestThing ?? '').isNotEmpty) ...[
+            h('做得好的事情'),
+            panel(Text(review.bestThing!)),
+          ],
+          if ((review.problem ?? '').isNotEmpty) ...[
+            h('问题与改进'),
+            panel(Text(review.problem!)),
+          ],
+          if ((review.tomorrowPriority ?? '').isNotEmpty) ...[
+            h('下一天重点'),
+            panel(
+              Row(children: [
+                const Icon(Icons.flag_outlined, size: 16, color: C.purple),
+                const SizedBox(width: 8),
+                Expanded(child: Text(review.tomorrowPriority!)),
+              ]),
+              color: C.purpleSoft,
+            ),
+          ],
+          if ((review.note ?? '').isNotEmpty) ...[
+            h('补充记录'),
+            panel(Text(review.note!)),
+          ],
+        ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 18)),
+      );
+}
+
+String _reviewMoodEmoji(int? mood) => switch (mood) {
+      1 => '☹',
+      2 => '🙁',
+      3 => '😐',
+      4 => '🙂',
+      5 => '😊',
+      _ => '·',
+    };
 String _reviewDateLabel(String value) {
   final date = DateTime.tryParse('${value}T00:00:00');
   if (date == null) return value;
