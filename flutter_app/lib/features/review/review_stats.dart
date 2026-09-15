@@ -1,3 +1,4 @@
+import '../../domain/focus/execution_focus_session.dart';
 import '../../domain/task/execution_task.dart';
 
 class ReviewTaskStats {
@@ -79,3 +80,14 @@ int _priorityWeight(ExecutionTaskPriority value) => switch (value) {
       ExecutionTaskPriority.normal => 2,
       ExecutionTaskPriority.low => 1,
     };
+
+
+int calculateDailyFocusSeconds(
+  List<ExecutionFocusSession> sessions,
+  String reviewDate,
+) =>
+    sessions
+        .where(
+          (session) => _sameLocalDate(session.endedAt, reviewDate),
+        )
+        .fold(0, (sum, session) => sum + session.focusSeconds);
