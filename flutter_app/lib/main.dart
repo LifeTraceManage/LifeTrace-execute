@@ -13,7 +13,6 @@ import 'domain/collection/execution_file_metadata.dart';
 import 'domain/collection/execution_memo.dart';
 import 'domain/focus/execution_focus_session.dart';
 import 'domain/focus/focus_timer_state.dart';
-import 'domain/habit/habit.dart';
 import 'domain/important_date/execution_important_date.dart';
 import 'domain/important_date/important_date_occurrence.dart';
 import 'domain/project/execution_project.dart';
@@ -40,6 +39,7 @@ part 'screens_a.dart';
 part 'screens_b.dart';
 part 'screens_c.dart';
 part 'screens_review_weekly.dart';
+part 'screens_habits.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
