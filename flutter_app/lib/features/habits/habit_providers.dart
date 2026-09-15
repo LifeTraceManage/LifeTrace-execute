@@ -180,6 +180,80 @@ class HabitCommands {
 
   final Ref ref;
 
+  Future<HabitActivity> createActivity({
+    required String name,
+    required String activityType,
+    required String unit,
+    double? normalTarget,
+    List<int> targetDays = const [],
+    String? description,
+  }) async {
+    final repository = _requireRepository();
+    final activity = await repository.createActivity(
+      userId: await _requireUserId(),
+      deviceId: await ref.read(deviceIdProvider.future),
+      name: name,
+      activityType: activityType,
+      unit: unit,
+      normalTarget: normalTarget,
+      targetPeriod: 'daily',
+      targetDays: targetDays,
+      scheduleType: targetDays.isEmpty
+          ? HabitWireValues.scheduleDaily
+          : HabitWireValues.scheduleCustom,
+      checkinMethod: HabitWireValues.checkinManual,
+      description: description,
+    );
+    _scheduleSync();
+    return activity;
+  }
+
+  Future<HabitActivity> updateActivity({
+    required HabitActivity activity,
+    required String name,
+    required String activityType,
+    required String unit,
+    double? normalTarget,
+    List<int> targetDays = const [],
+    String? description,
+  }) async {
+    final repository = _requireRepository();
+    final cleanDescription = description?.trim();
+    final updated = await repository.updateActivity(
+      activity: activity,
+      deviceId: await ref.read(deviceIdProvider.future),
+      name: name,
+      activityType: activityType,
+      unit: unit,
+      normalTarget: normalTarget,
+      targetPeriod: 'daily',
+      targetDays: targetDays,
+      scheduleType: targetDays.isEmpty
+          ? HabitWireValues.scheduleDaily
+          : HabitWireValues.scheduleCustom,
+      checkinMethod: HabitWireValues.checkinManual,
+      description: cleanDescription,
+      clearNormalTarget: normalTarget == null,
+      clearDescription:
+          cleanDescription == null || cleanDescription.isEmpty,
+    );
+    _scheduleSync();
+    return updated;
+  }
+
+  Future<HabitActivity> setArchived(
+    HabitActivity activity, {
+    required bool archived,
+  }) async {
+    final updated = await _requireRepository().updateActivity(
+      activity: activity,
+      deviceId: await ref.read(deviceIdProvider.future),
+      isArchived: archived,
+    );
+    _scheduleSync();
+    return updated;
+  }
+
   Future<HabitLog?> toggleToday(TodayHabitEntry entry) async {
     final repository = ref.read(habitRepositoryProvider);
     if (repository == null) {
@@ -222,6 +296,20 @@ class HabitCommands {
     );
     await ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true);
     unawaited(BackgroundSyncScheduler.enqueueAfterLocalChange());
+  }
+
+  HabitRepository _requireRepository() {
+    final repository = ref.read(habitRepositoryProvider);
+    if (repository == null) {
+      throw StateError('Web preview does not persist habit data');
+    }
+    return repository;
+  }
+
+  Future<String> _requireUserId() async {
+    final userId = await ref.read(currentUserIdProvider.future);
+    if (userId == null) throw StateError('请先连接 LifeTrace Cloud');
+    return userId;
   }
 
   double _completedValue(HabitActivity activity) {
