@@ -8,7 +8,7 @@ import 'package:lifetrace_execute/core/cloud/cloud_session_manager.dart';
 import 'package:lifetrace_execute/core/cloud/lifetrace_sync_client.dart';
 import 'package:lifetrace_execute/core/cloud/secure_session_store.dart';
 import 'package:lifetrace_execute/core/cloud/sync_models.dart';
-import 'package:lifetrace_execute/data/local/app_database.dart';
+import 'package:lifetrace_execute/data/local/app_database.dart' hide FocusTimerState;
 import 'package:lifetrace_execute/data/repository/calendar_event_repository.dart';
 import 'package:lifetrace_execute/data/repository/daily_review_repository.dart';
 import 'package:lifetrace_execute/data/repository/file_metadata_repository.dart';
