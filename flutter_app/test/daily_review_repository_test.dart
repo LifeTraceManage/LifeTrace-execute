@@ -24,6 +24,7 @@ void main() {
       completionScore: 0.5,
       completedTaskCount: 1,
       totalTaskCount: 2,
+      focusSeconds: 1200,
       bestThing: 'Started',
     );
 
@@ -36,6 +37,7 @@ void main() {
       completionScore: 1,
       completedTaskCount: 2,
       totalTaskCount: 2,
+      focusSeconds: 2400,
       bestThing: 'Finished',
     );
 
@@ -45,6 +47,7 @@ void main() {
     expect(rows, hasLength(1));
     expect(rows.single.mood, 5);
     expect(rows.single.bestThing, 'Finished');
+    expect(rows.single.focusSeconds, 2400);
 
     final outbox = await database.select(database.syncOutbox).get();
     expect(outbox, hasLength(2));
@@ -77,6 +80,16 @@ void main() {
         reviewDate: '2026-09-11',
         completedTaskCount: 3,
         totalTaskCount: 2,
+      ),
+      throwsArgumentError,
+    );
+
+    await expectLater(
+      repository.saveReview(
+        userId: 'user-1',
+        deviceId: 'device-1',
+        reviewDate: '2026-09-11',
+        focusSeconds: -1,
       ),
       throwsArgumentError,
     );
