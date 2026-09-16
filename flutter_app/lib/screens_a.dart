@@ -11,6 +11,9 @@ class Today extends ConsumerWidget {
     final coreLoading = ref.watch(todayCoreLoadingProvider);
     final coreError = ref.watch(todayCoreErrorProvider);
     final importantDateState = ref.watch(importantDateListProvider);
+    final reviewDate = ref.watch(todayReviewDateProvider);
+    final reviewState = ref.watch(dailyReviewForDateProvider(reviewDate));
+    final todayReview = reviewState.valueOrNull;
     final focusState = ref.watch(focusTimerStateProvider).valueOrNull;
     final focusStats = ref.watch(focusTodayStatsProvider);
     final tasks =
@@ -159,7 +162,17 @@ class Today extends ConsumerWidget {
               item: occurrence.source,
             ),
           ),
-      h('每日复盘'),
+      h(
+        '每日复盘',
+        tail: reviewState.isLoading
+            ? const Text(
+                '读取中',
+                style: TextStyle(fontSize: 9, color: C.muted),
+              )
+            : todayReview == null
+                ? null
+                : chip('已保存', bg: C.greenSoft, fg: C.green),
+      ),
       panel(
         Row(children: [
           const CircleAvatar(
@@ -168,18 +181,23 @@ class Today extends ConsumerWidget {
             child: Icon(Icons.auto_stories_outlined, size: 18, color: C.pink),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '记录今天，准备明天',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                  todayReview == null ? '记录今天，准备明天' : '今天的复盘已保存',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  '心情 · 精力 · 完成率 · 明日重点',
-                  style: TextStyle(fontSize: 8.8, color: C.muted),
+                  todayReview == null
+                      ? '心情 · 精力 · 完成率 · 明日重点'
+                      : _todayReviewSummary(todayReview),
+                  style: const TextStyle(fontSize: 8.8, color: C.muted),
                 ),
               ],
             ),
