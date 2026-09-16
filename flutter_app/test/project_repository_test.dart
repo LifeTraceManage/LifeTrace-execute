@@ -51,6 +51,36 @@ void main() {
     expect(outbox.last.entityType, DriftProjectRepository.entityType);
   });
 
+  test('project goal relation persists, syncs, and can be cleared', () async {
+    final project = await projects.createProject(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      title: 'Goal project',
+      goalId: 'goal-1',
+    );
+
+    expect(
+      (await database.select(database.projects).get()).single.goalId,
+      'goal-1',
+    );
+    var outbox = await database.select(database.syncOutbox).get();
+    expect(outbox.last.payloadJson, contains('"goalId":"goal-1"'));
+
+    final cleared = await projects.updateProject(
+      project: project,
+      deviceId: 'device-2',
+      clearGoalId: true,
+    );
+
+    expect(cleared.goalId, isNull);
+    expect(
+      (await database.select(database.projects).get()).single.goalId,
+      isNull,
+    );
+    outbox = await database.select(database.syncOutbox).get();
+    expect(outbox.last.payloadJson, contains('"goalId":null'));
+  });
+
   test('deleting a project unlinks its tasks and queues task update', () async {
     final project = await projects.createProject(
       userId: 'user-1',
