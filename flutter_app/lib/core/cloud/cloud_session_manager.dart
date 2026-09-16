@@ -104,7 +104,7 @@ class CloudSessionManager implements CloudSessionAccess {
     try {
       return await block(session);
     } on CloudApiException catch (error) {
-      if (!error.isExpiredAccessToken) rethrow;
+      if (!error.isExpiredAccessToken && !error.isScopeDenied) rethrow;
       final refreshed = await requireFreshSession(forceRefresh: true);
       return block(refreshed);
     }
