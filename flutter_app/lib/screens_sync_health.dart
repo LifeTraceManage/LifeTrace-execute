@@ -271,7 +271,7 @@ class _SyncConflictCardState extends ConsumerState<_SyncConflictCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            CircleAvatar(
+            const CircleAvatar(
               radius: 17,
               backgroundColor: C.redSoft,
               child: const Icon(
