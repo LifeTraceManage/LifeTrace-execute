@@ -11,6 +11,8 @@ class CloudContract {
     'account:write',
     'devices:read',
     'devices:write',
+    'sessions:read',
+    'sessions:write',
     'sync:read',
     'sync:write',
     'execution:read',
@@ -105,6 +107,8 @@ class CloudApiException implements Exception {
 
   bool get isExpiredAccessToken =>
       code == 'LIFETRACE_AUTH_ACCESS_TOKEN_EXPIRED';
+
+  bool get isScopeDenied => code == 'LIFETRACE_AUTH_SCOPE_DENIED';
 
   @override
   String toString() => message;
