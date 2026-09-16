@@ -329,6 +329,21 @@ String _todayPendingMeta(TodayPendingTask entry) {
   return parts.join(' · ');
 }
 
+String _todayReviewSummary(DailyReview review) {
+  final parts = <String>[];
+  if (review.mood != null) parts.add('心情 ${review.mood}/5');
+  if (review.energy != null) parts.add('精力 ${review.energy}/5');
+  final score = review.completionScore;
+  if (score != null) {
+    parts.add('完成率 ${(score * 100).round()}%');
+  } else if (review.totalTaskCount != null && review.totalTaskCount! > 0) {
+    parts.add(
+      '任务 ${review.completedTaskCount ?? 0}/${review.totalTaskCount}',
+    );
+  }
+  return parts.isEmpty ? '已保存今日复盘' : parts.join(' · ');
+}
+
 Color _todayTaskColor(ExecutionTask task) => switch (task.priority) {
       ExecutionTaskPriority.urgent => C.red,
       ExecutionTaskPriority.high => C.orange,
