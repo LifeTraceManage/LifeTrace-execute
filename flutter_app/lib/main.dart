@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/background/background_sync.dart';
 import 'core/cloud/cloud_device_contract.dart';
 import 'core/notifications/reminder_notification_service.dart';
+import 'core/settings/app_preferences.dart';
 import 'data/repository/habit_repository.dart';
 import 'data/repository/reminder_repository.dart';
 import 'domain/calendar/execution_calendar_event.dart';
@@ -36,6 +37,7 @@ import 'features/habits/habit_providers.dart';
 import 'features/important_dates/important_date_providers.dart';
 import 'features/projects/project_providers.dart';
 import 'features/profile/profile_providers.dart';
+import 'features/profile/settings_providers.dart';
 import 'features/reminders/reminder_providers.dart';
 import 'features/review/review_providers.dart';
 import 'features/review/review_stats.dart';
@@ -54,6 +56,7 @@ part 'screens_today_real.dart';
 part 'screens_profile_devices.dart';
 part 'screens_profile_data.dart';
 part 'screens_profile_security.dart';
+part 'screens_profile_settings.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -132,18 +135,32 @@ ThemeData buildTheme() => ThemeData(
       ),
     );
 
-class LifeTraceExecuteApp extends StatelessWidget {
+class LifeTraceExecuteApp extends ConsumerWidget {
   const LifeTraceExecuteApp({super.key, this.simulateSystemChrome = false});
 
   final bool simulateSystemChrome;
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'LifeTrace Execute',
-        theme: buildTheme(),
-        home: Shell(simulateSystemChrome: simulateSystemChrome),
-      );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preferences =
+        ref.watch(appPreferencesProvider).valueOrNull ??
+            AppPreferencesState.defaults;
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'LifeTrace Execute',
+      theme: buildTheme(),
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        return MediaQuery(
+          data: media.copyWith(
+            textScaler: TextScaler.linear(preferences.uiScale),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      home: Shell(simulateSystemChrome: simulateSystemChrome),
+    );
+  }
 }
 
 class PhoneStatusBar extends StatelessWidget {
