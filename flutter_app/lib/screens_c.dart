@@ -2063,7 +2063,8 @@ class _CloudConnectionState extends ConsumerState<CloudConnection> {
     final syncState = ref.watch(taskSyncControllerProvider);
     final pending = ref.watch(taskPendingSyncCountProvider).valueOrNull ?? 0;
     final blocked = ref.watch(taskBlockedSyncCountProvider).valueOrNull ?? 0;
-    final conflicts = ref.watch(taskConflictsProvider).valueOrNull?.length ?? 0;
+    final conflicts =
+        ref.watch(syncUnresolvedConflictCountProvider).valueOrNull ?? 0;
     return [
       Row(children: [
         const CircleAvatar(
