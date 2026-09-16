@@ -33,7 +33,7 @@ class GoalConflictResolver {
         );
         await database
             .into(database.goals)
-            .insertOnConflictUpdate(GoalDatabaseMapper.toRow(goal));
+            .insertOnConflictUpdate(GoalDatabaseMapper.toCompanion(goal));
       }
       await _deleteConflicts(conflict.userId, conflict.entityId);
     });
@@ -107,7 +107,7 @@ class GoalConflictResolver {
           );
           await database
               .into(database.goals)
-              .insertOnConflictUpdate(GoalDatabaseMapper.toRow(local));
+              .insertOnConflictUpdate(GoalDatabaseMapper.toCompanion(local));
           await database.into(database.syncOutbox).insert(
                 db.SyncOutboxCompanion.insert(
                   changeId: _uuid.v4(),
