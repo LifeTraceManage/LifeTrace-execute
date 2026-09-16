@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/background/background_sync.dart';
+import '../../core/cloud/cloud_contract.dart';
 import '../../core/cloud/cloud_device_contract.dart';
 import '../../core/cloud/lifetrace_cloud_client.dart';
 import '../../core/cloud/privacy_export_writer.dart';
@@ -11,6 +12,20 @@ import '../tasks/task_providers.dart';
 final profileCloudClientProvider = Provider<LifeTraceCloudClient>(
   (ref) => LifeTraceCloudClient(),
 );
+
+final cloudProfileProvider = FutureProvider<CloudUser?>((ref) async {
+  final session = await ref.watch(currentSessionProvider.future);
+  if (session == null) return null;
+  final manager = ref.watch(cloudSessionManagerProvider);
+  final client = ref.watch(profileCloudClientProvider);
+  return manager.authorized(
+    (fresh) => client.me(
+      baseUrl: fresh.baseUrl,
+      accessToken: fresh.accessToken,
+    ),
+  );
+});
+
 
 final cloudDevicesProvider =
     FutureProvider<List<CloudDeviceInstallation>>((ref) async {
@@ -106,15 +121,51 @@ class ProfileDataCommands {
         accessToken: session.accessToken,
       ),
     );
-    await manager.clearLocalSession();
-    if (!kIsWeb) {
-      await BackgroundSyncScheduler.cancelForLogout();
+    await _clearInvalidatedCloudSession(ref);
+  }
+}
+
+final profileSecurityCommandsProvider =
+    Provider<ProfileSecurityCommands>(ProfileSecurityCommands.new);
+
+class ProfileSecurityCommands {
+  ProfileSecurityCommands(this.ref);
+
+  final Ref ref;
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (currentPassword.isEmpty) {
+      throw ArgumentError.value(currentPassword, 'currentPassword', '请输入当前密码');
     }
-    ref.invalidate(currentSessionProvider);
-    ref.invalidate(currentUserIdProvider);
-    ref.invalidate(cloudDevicesProvider);
-    ref.invalidate(cloudSessionsProvider);
-    ref.invalidate(privacyPolicyProvider);
+    if (newPassword.isEmpty) {
+      throw ArgumentError.value(newPassword, 'newPassword', '请输入新密码');
+    }
+    final client = ref.read(profileCloudClientProvider);
+    final manager = ref.read(cloudSessionManagerProvider);
+    await manager.authorized(
+      (session) => client.changePassword(
+        baseUrl: session.baseUrl,
+        accessToken: session.accessToken,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      ),
+    );
+    await _clearInvalidatedCloudSession(ref);
+  }
+
+  Future<void> logoutAll() async {
+    final client = ref.read(profileCloudClientProvider);
+    final manager = ref.read(cloudSessionManagerProvider);
+    await manager.authorized(
+      (session) => client.logoutAll(
+        baseUrl: session.baseUrl,
+        accessToken: session.accessToken,
+      ),
+    );
+    await _clearInvalidatedCloudSession(ref);
   }
 }
 
@@ -179,4 +230,17 @@ class CloudDeviceCommands {
     ref.invalidate(cloudDevicesProvider);
     ref.invalidate(cloudSessionsProvider);
   }
+}
+
+Future<void> _clearInvalidatedCloudSession(Ref ref) async {
+  await ref.read(cloudSessionManagerProvider).clearLocalSession();
+  if (!kIsWeb) {
+    await BackgroundSyncScheduler.cancelForLogout();
+  }
+  ref.invalidate(currentSessionProvider);
+  ref.invalidate(currentUserIdProvider);
+  ref.invalidate(cloudProfileProvider);
+  ref.invalidate(cloudDevicesProvider);
+  ref.invalidate(cloudSessionsProvider);
+  ref.invalidate(privacyPolicyProvider);
 }
