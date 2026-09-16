@@ -67,10 +67,12 @@ final taskSubtasksProvider = Provider.family<
 
   return links.when(
     loading: () => const AsyncLoading(),
-    error: AsyncError.new,
+    error: (error, stackTrace) =>
+        AsyncError<List<TaskSubtaskUi>>(error, stackTrace),
     data: (items) => tasks.when(
       loading: () => const AsyncLoading(),
-      error: AsyncError.new,
+      error: (error, stackTrace) =>
+          AsyncError<List<TaskSubtaskUi>>(error, stackTrace),
       data: (allTasks) {
         final byId = {for (final task in allTasks) task.id: task};
         return AsyncData(
