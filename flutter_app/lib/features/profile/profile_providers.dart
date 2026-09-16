@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -37,6 +38,27 @@ final cloudSessionsProvider =
       accessToken: fresh.accessToken,
     ),
   );
+});
+
+final syncUnresolvedConflictCountProvider = StreamProvider<int>((ref) async* {
+  if (kIsWeb) {
+    yield 0;
+    return;
+  }
+  final database = ref.watch(appDatabaseProvider);
+  final userId = await ref.watch(currentUserIdProvider.future);
+  if (database == null || userId == null) {
+    yield 0;
+    return;
+  }
+  final count = database.syncConflicts.id.count();
+  final query = database.selectOnly(database.syncConflicts)
+    ..addColumns([count])
+    ..where(
+      database.syncConflicts.userId.equals(userId) &
+          database.syncConflicts.resolved.equals(false),
+    );
+  yield* query.watchSingle().map((row) => row.read(count) ?? 0);
 });
 
 final cloudDeviceCommandsProvider =
