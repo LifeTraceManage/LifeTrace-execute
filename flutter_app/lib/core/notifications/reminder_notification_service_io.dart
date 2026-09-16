@@ -5,6 +5,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../settings/app_preferences.dart';
 import '../../domain/focus/focus_timer_state.dart';
 import '../../domain/reminder/execution_reminder.dart';
 
@@ -54,6 +55,7 @@ class ReminderNotificationService {
   final FocusNotificationTap? _onFocusTap;
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  final AppPreferencesStore _preferencesStore = AppPreferencesStore();
   bool _initialized = false;
 
   Future<void> initialize() async {
@@ -106,6 +108,12 @@ class ReminderNotificationService {
 
   Future<void> schedule(ExecutionReminder reminder) async {
     await initialize();
+    final preferences = await _preferencesStore.load();
+    if (!preferences.notificationsEnabled ||
+        !preferences.reminderNotificationsEnabled) {
+      await cancel(reminder.id);
+      return;
+    }
     if (!reminder.isScheduled) {
       await cancel(reminder.id);
       return;
@@ -148,6 +156,12 @@ class ReminderNotificationService {
 
   Future<void> reconcileFocus(FocusTimerState? state) async {
     await initialize();
+    final preferences = await _preferencesStore.load();
+    if (!preferences.notificationsEnabled ||
+        !preferences.focusNotificationsEnabled) {
+      if (state != null) await cancelFocus(state.userId);
+      return;
+    }
     if (state == null || !state.isRunning) {
       if (state != null) await cancelFocus(state.userId);
       return;
@@ -226,10 +240,14 @@ class ReminderNotificationService {
 
   Future<void> reconcile(List<ExecutionReminder> reminders) async {
     await initialize();
+    final preferences = await _preferencesStore.load();
+    final deliveryEnabled = preferences.notificationsEnabled &&
+        preferences.reminderNotificationsEnabled;
     final now = DateTime.now().toUtc();
     final desired = <String, ExecutionReminder>{
       for (final reminder in reminders)
-        if (reminder.isScheduled &&
+        if (deliveryEnabled &&
+            reminder.isScheduled &&
             (DateTime.tryParse(reminder.effectiveTriggerAt)?.toUtc().isAfter(now) ??
                 false))
           reminder.id: reminder,
