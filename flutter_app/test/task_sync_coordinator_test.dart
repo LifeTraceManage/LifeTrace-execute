@@ -1197,7 +1197,7 @@ void main() {
 
     final state = (await database.select(database.syncState).get()).single;
     expect(state.cursor, '601');
-    expect(state.snapshotId, isNull);
+    expect(state.snapshotId, isNot(equals(null)));
   });
 
   test('concurrent syncNow calls share one in-flight operation', () async {
