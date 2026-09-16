@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/background/background_sync.dart';
+import '../../core/notifications/notification_preferences.dart';
 import '../../core/notifications/reminder_notification_service.dart';
 import '../../data/repository/reminder_repository.dart';
 import '../../data/sync/reminder_conflict_resolver.dart';
@@ -177,9 +178,12 @@ class ReminderCommands {
     String? body,
   }) async {
     final bridge = ref.read(reminderNotificationBridgeProvider);
-    final allowed = await bridge.service.requestPermission();
-    if (!allowed) {
-      throw StateError('通知权限未开启，无法创建系统提醒');
+    final preferences = await ref.read(notificationPreferencesProvider.future);
+    if (preferences.remindersEnabled) {
+      final allowed = await bridge.service.requestPermission();
+      if (!allowed) {
+        throw StateError('通知权限未开启，无法创建系统提醒');
+      }
     }
 
     final userId = await _requireUserId();
@@ -206,7 +210,11 @@ class ReminderCommands {
       await bridge.service.cancel(other.id);
     }
 
-    await bridge.service.schedule(reminder);
+    if (preferences.remindersEnabled) {
+      await bridge.service.schedule(reminder);
+    } else {
+      await bridge.service.cancel(reminder.id);
+    }
     _scheduleSync();
     return reminder;
   }
@@ -285,14 +293,20 @@ class ReminderCommands {
 
   Future<void> reconcile() async {
     if (kIsWeb) return;
+    final service = ref.read(reminderNotificationBridgeProvider).service;
+    final preferences = await ref.read(notificationPreferencesProvider.future);
+    if (!preferences.remindersEnabled) {
+      await service.cancelAllReminders();
+      return;
+    }
     final userId = await ref.read(currentUserIdProvider.future);
-    if (userId == null) return;
+    if (userId == null) {
+      await service.cancelAllReminders();
+      return;
+    }
     final reminders =
         await ref.read(reminderRepositoryProvider).listReminders(userId);
-    await ref
-        .read(reminderNotificationBridgeProvider)
-        .service
-        .reconcile(reminders);
+    await service.reconcile(reminders);
   }
 
   Future<String> _requireUserId() async {

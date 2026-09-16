@@ -146,6 +146,16 @@ class ReminderNotificationService {
     await _plugin.cancel(id: _notificationId(reminderId));
   }
 
+  Future<void> cancelAllReminders() async {
+    await initialize();
+    final pending = await _plugin.pendingNotificationRequests();
+    for (final item in pending) {
+      if (_decodePayload(item.payload) != null) {
+        await _plugin.cancel(id: item.id);
+      }
+    }
+  }
+
   Future<void> reconcileFocus(FocusTimerState? state) async {
     await initialize();
     if (state == null || !state.isRunning) {

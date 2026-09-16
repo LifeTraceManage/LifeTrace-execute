@@ -37,6 +37,7 @@ class ReminderNotificationService {
   Future<bool> requestPermission() async => true;
   Future<void> schedule(ExecutionReminder reminder) async {}
   Future<void> cancel(String reminderId) async {}
+  Future<void> cancelAllReminders() async {}
   Future<void> reconcileFocus(FocusTimerState? state) async {}
   Future<void> cancelFocus(String userId) async {}
   Future<void> reconcile(List<ExecutionReminder> reminders) async {}
