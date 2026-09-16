@@ -168,6 +168,33 @@ void main() {
     expect(transport.lastPath, '/api/v1/privacy/account');
   });
 
+  test('Cloud client uses account security endpoints', () async {
+    final transport = _FakeTransport();
+    final client = LifeTraceCloudClient(transport: transport);
+
+    transport.next = const {'accepted': true};
+    await client.changePassword(
+      baseUrl: 'https://cloud.example.com',
+      accessToken: 'token',
+      currentPassword: 'old-secret',
+      newPassword: 'new-secret',
+    );
+    expect(transport.lastMethod, 'POST');
+    expect(transport.lastPath, '/api/v1/auth/password/change');
+    expect(transport.lastBody, {
+      'currentPassword': 'old-secret',
+      'newPassword': 'new-secret',
+    });
+
+    transport.next = const {'accepted': true};
+    await client.logoutAll(
+      baseUrl: 'https://cloud.example.com',
+      accessToken: 'token',
+    );
+    expect(transport.lastMethod, 'POST');
+    expect(transport.lastPath, '/api/v1/auth/logout-all');
+  });
+
   test('rename rejects blank device name before transport', () async {
     final transport = _FakeTransport();
     final client = LifeTraceCloudClient(transport: transport);
