@@ -245,7 +245,7 @@ class DriftProjectRepository implements ProjectRepository {
     await database.transaction(() async {
       await database
           .into(database.projects)
-          .insertOnConflictUpdate(ProjectDatabaseMapper.toRow(project));
+          .insertOnConflictUpdate(ProjectDatabaseMapper.toCompanion(project));
       await database.into(database.syncOutbox).insert(
             db.SyncOutboxCompanion.insert(
               changeId: _uuid.v4(),
