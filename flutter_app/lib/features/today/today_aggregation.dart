@@ -167,7 +167,7 @@ TodaySnapshot buildTodaySnapshot({
   final completedActions = completedTasks + completedHabitCount;
   final completionRate = totalActions == 0
       ? 0.0
-      : (completedActions / totalActions).clamp(0.0, 1.0);
+      : (completedActions / totalActions).clamp(0.0, 1.0).toDouble();
 
   return TodaySnapshot(
     now: localNow,
