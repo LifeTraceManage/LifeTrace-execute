@@ -1068,6 +1068,9 @@ Future<void> _editProject(
       TextEditingController(text: project?.description ?? '');
   var status = project?.status ?? ExecutionProjectStatus.active;
   var goalId = project?.goalId ?? '';
+  if (goalId.isNotEmpty && !goals.any((goal) => goal.id == goalId)) {
+    goalId = '';
+  }
   DateTime? startAt = DateTime.tryParse(project?.startAt ?? '')?.toLocal();
   DateTime? dueAt = DateTime.tryParse(project?.dueAt ?? '')?.toLocal();
 
