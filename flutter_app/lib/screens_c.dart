@@ -1976,12 +1976,16 @@ class Profile extends ConsumerWidget {
         ),
         h('账户'),
         panel(
-          const Column(children: [
-            _Setting(Icons.person_outline_rounded, '个人资料'),
-            Divider(height: 1),
-            _Setting(Icons.lock_outline_rounded, '账户与安全'),
-            Divider(height: 1),
-            _Setting(Icons.devices_outlined, '设备管理'),
+          Column(children: [
+            const _Setting(Icons.person_outline_rounded, '个人资料'),
+            const Divider(height: 1),
+            const _Setting(Icons.lock_outline_rounded, '账户与安全'),
+            const Divider(height: 1),
+            _Setting(
+              Icons.devices_outlined,
+              '设备管理',
+              onTap: () => push(c, const DeviceManagement()),
+            ),
           ]),
         ),
         h('LifeTrace'),
@@ -2059,7 +2063,8 @@ class _CloudConnectionState extends ConsumerState<CloudConnection> {
     final syncState = ref.watch(taskSyncControllerProvider);
     final pending = ref.watch(taskPendingSyncCountProvider).valueOrNull ?? 0;
     final blocked = ref.watch(taskBlockedSyncCountProvider).valueOrNull ?? 0;
-    final conflicts = ref.watch(taskConflictsProvider).valueOrNull?.length ?? 0;
+    final conflicts =
+        ref.watch(syncUnresolvedConflictCountProvider).valueOrNull ?? 0;
     return [
       Row(children: [
         const CircleAvatar(
@@ -2278,7 +2283,17 @@ class _Setting extends StatelessWidget {
               style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
             ),
             const Spacer(),
-            const Icon(Icons.chevron_right_rounded, size: 16, color: C.muted),
+            if (onTap != null)
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: C.muted,
+              )
+            else
+              const Text(
+                '待接入',
+                style: TextStyle(fontSize: 8.2, color: C.muted),
+              ),
           ]),
         ),
       );

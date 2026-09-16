@@ -1,4 +1,5 @@
 import 'cloud_contract.dart';
+import 'cloud_device_contract.dart';
 import 'cloud_http_transport.dart';
 
 class CloudAuthCapabilities {
@@ -123,5 +124,77 @@ class LifeTraceCloudClient {
       accessToken: accessToken,
     );
     return CloudUser.fromJson(json);
+  }
+
+  Future<List<CloudDeviceInstallation>> listDevices({
+    required String baseUrl,
+    required String accessToken,
+  }) async {
+    final json = await _transport.requestJson(
+      method: 'GET',
+      baseUrl: baseUrl,
+      path: '/api/v1/auth/devices',
+      accessToken: accessToken,
+    );
+    return parseCloudDeviceList(json);
+  }
+
+  Future<CloudDeviceInstallation> updateDevice({
+    required String baseUrl,
+    required String accessToken,
+    required String deviceId,
+    required String deviceName,
+  }) async {
+    final cleanName = deviceName.trim();
+    if (cleanName.isEmpty) {
+      throw ArgumentError.value(deviceName, 'deviceName', '设备名称不能为空');
+    }
+    final json = await _transport.requestJson(
+      method: 'PATCH',
+      baseUrl: baseUrl,
+      path: '/api/v1/auth/devices/$deviceId',
+      accessToken: accessToken,
+      body: {'deviceName': cleanName},
+    );
+    return CloudDeviceInstallation.fromJson(json);
+  }
+
+  Future<void> revokeDevice({
+    required String baseUrl,
+    required String accessToken,
+    required String deviceId,
+  }) async {
+    await _transport.requestJson(
+      method: 'POST',
+      baseUrl: baseUrl,
+      path: '/api/v1/auth/devices/$deviceId/revoke',
+      accessToken: accessToken,
+    );
+  }
+
+  Future<List<CloudAuthSessionInfo>> listSessions({
+    required String baseUrl,
+    required String accessToken,
+  }) async {
+    final json = await _transport.requestJson(
+      method: 'GET',
+      baseUrl: baseUrl,
+      path: '/api/v1/auth/sessions',
+      accessToken: accessToken,
+    );
+    return parseCloudSessionList(json);
+  }
+
+  Future<void> revokeSession({
+    required String baseUrl,
+    required String accessToken,
+    required String sessionId,
+  }) async {
+    await _transport.requestJson(
+      method: 'DELETE',
+      baseUrl: baseUrl,
+      path: '/api/v1/auth/sessions/$sessionId',
+      accessToken: accessToken,
+    );
   }
 }
