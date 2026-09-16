@@ -2,8 +2,10 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/background/background_sync.dart';
 import '../../core/cloud/cloud_device_contract.dart';
 import '../../core/cloud/lifetrace_cloud_client.dart';
+import '../../core/cloud/privacy_export_writer.dart';
 import '../tasks/task_providers.dart';
 
 final profileCloudClientProvider = Provider<LifeTraceCloudClient>(
@@ -60,6 +62,61 @@ final syncUnresolvedConflictCountProvider = StreamProvider<int>((ref) async* {
     );
   yield* query.watchSingle().map((row) => row.read(count) ?? 0);
 });
+
+final privacyPolicyProvider =
+    FutureProvider<Map<String, dynamic>?>((ref) async {
+  final session = await ref.watch(currentSessionProvider.future);
+  if (session == null) return null;
+  final manager = ref.watch(cloudSessionManagerProvider);
+  final client = ref.watch(profileCloudClientProvider);
+  return manager.authorized(
+    (fresh) => client.privacyPolicy(
+      baseUrl: fresh.baseUrl,
+      accessToken: fresh.accessToken,
+    ),
+  );
+});
+
+final profileDataCommandsProvider =
+    Provider<ProfileDataCommands>(ProfileDataCommands.new);
+
+class ProfileDataCommands {
+  ProfileDataCommands(this.ref);
+
+  final Ref ref;
+
+  Future<String> exportPrivacyData() async {
+    final client = ref.read(profileCloudClientProvider);
+    final manager = ref.read(cloudSessionManagerProvider);
+    final payload = await manager.authorized(
+      (session) => client.privacyExport(
+        baseUrl: session.baseUrl,
+        accessToken: session.accessToken,
+      ),
+    );
+    return writePrivacyExport(payload);
+  }
+
+  Future<void> deleteCloudAccount() async {
+    final client = ref.read(profileCloudClientProvider);
+    final manager = ref.read(cloudSessionManagerProvider);
+    await manager.authorized(
+      (session) => client.deleteAccount(
+        baseUrl: session.baseUrl,
+        accessToken: session.accessToken,
+      ),
+    );
+    await manager.clearLocalSession();
+    if (!kIsWeb) {
+      await BackgroundSyncScheduler.cancelForLogout();
+    }
+    ref.invalidate(currentSessionProvider);
+    ref.invalidate(currentUserIdProvider);
+    ref.invalidate(cloudDevicesProvider);
+    ref.invalidate(cloudSessionsProvider);
+    ref.invalidate(privacyPolicyProvider);
+  }
+}
 
 final cloudDeviceCommandsProvider =
     Provider<CloudDeviceCommands>(CloudDeviceCommands.new);

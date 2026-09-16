@@ -110,6 +110,8 @@ class CloudSessionManager implements CloudSessionAccess {
     }
   }
 
+  Future<void> clearLocalSession() => _sessionStore.clear();
+
   Future<void> logout() async {
     final session = await _sessionStore.load();
     if (session != null) {

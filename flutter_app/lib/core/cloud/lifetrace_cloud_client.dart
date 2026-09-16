@@ -197,4 +197,40 @@ class LifeTraceCloudClient {
       accessToken: accessToken,
     );
   }
+
+  Future<Map<String, dynamic>> privacyExport({
+    required String baseUrl,
+    required String accessToken,
+  }) {
+    return _transport.requestJson(
+      method: 'GET',
+      baseUrl: baseUrl,
+      path: '/api/v1/privacy/export',
+      accessToken: accessToken,
+    );
+  }
+
+  Future<Map<String, dynamic>> privacyPolicy({
+    required String baseUrl,
+    required String accessToken,
+  }) {
+    return _transport.requestJson(
+      method: 'GET',
+      baseUrl: baseUrl,
+      path: '/api/v1/privacy/policy',
+      accessToken: accessToken,
+    );
+  }
+
+  Future<void> deleteAccount({
+    required String baseUrl,
+    required String accessToken,
+  }) async {
+    await _transport.requestJson(
+      method: 'DELETE',
+      baseUrl: baseUrl,
+      path: '/api/v1/privacy/account',
+      accessToken: accessToken,
+    );
+  }
 }

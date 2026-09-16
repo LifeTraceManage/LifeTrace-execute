@@ -131,6 +131,43 @@ void main() {
     expect(transport.lastPath, '/api/v1/auth/sessions/session-2');
   });
 
+  test('Cloud client uses privacy export policy and delete endpoints', () async {
+    final transport = _FakeTransport();
+    final client = LifeTraceCloudClient(transport: transport);
+
+    transport.next = {
+      'format': 'lifetrace-privacy-export-v1',
+      'sections': <String, dynamic>{},
+    };
+    final exported = await client.privacyExport(
+      baseUrl: 'https://cloud.example.com',
+      accessToken: 'token',
+    );
+    expect(exported['format'], 'lifetrace-privacy-export-v1');
+    expect(transport.lastMethod, 'GET');
+    expect(transport.lastPath, '/api/v1/privacy/export');
+
+    transport.next = {
+      'policyVersion': 1,
+      'environment': 'production',
+    };
+    final policy = await client.privacyPolicy(
+      baseUrl: 'https://cloud.example.com',
+      accessToken: 'token',
+    );
+    expect(policy['policyVersion'], 1);
+    expect(transport.lastMethod, 'GET');
+    expect(transport.lastPath, '/api/v1/privacy/policy');
+
+    transport.next = const {};
+    await client.deleteAccount(
+      baseUrl: 'https://cloud.example.com',
+      accessToken: 'token',
+    );
+    expect(transport.lastMethod, 'DELETE');
+    expect(transport.lastPath, '/api/v1/privacy/account');
+  });
+
   test('rename rejects blank device name before transport', () async {
     final transport = _FakeTransport();
     final client = LifeTraceCloudClient(transport: transport);

@@ -1993,8 +1993,14 @@ class Profile extends ConsumerWidget {
           Column(children: [
             _Setting(
               Icons.cloud_sync_outlined,
-              '同步与数据',
+              '同步状态',
               onTap: () => push(c, const CloudConnection()),
+            ),
+            const Divider(height: 1),
+            _Setting(
+              Icons.privacy_tip_outlined,
+              '数据与隐私',
+              onTap: () => push(c, const DataManagement()),
             ),
             const Divider(height: 1),
             const _Setting(Icons.notifications_none_rounded, '通知'),
