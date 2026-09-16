@@ -14,6 +14,7 @@ abstract final class ProjectWireMapper {
         },
         'title': project.title,
         'description': project.description,
+        'goalId': project.goalId,
         'status': project.status.wireValue,
         'startAt': project.startAt,
         'dueAt': project.dueAt,
@@ -29,6 +30,7 @@ abstract final class ProjectWireMapper {
       userId: _requiredString(meta, 'userId'),
       title: _requiredString(payload, 'title'),
       description: _nullableString(payload['description']),
+      goalId: _nullableString(payload['goalId']),
       status: ExecutionProjectStatus.fromWire(
         _nullableString(payload['status']) ?? 'active',
       ),
