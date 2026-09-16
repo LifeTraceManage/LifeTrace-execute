@@ -1,9 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lifetrace_execute/core/cloud/cloud_contract.dart';
 import 'package:lifetrace_execute/core/cloud/cloud_device_contract.dart';
 import 'package:lifetrace_execute/core/cloud/cloud_http_transport.dart';
 import 'package:lifetrace_execute/core/cloud/lifetrace_cloud_client.dart';
 
 void main() {
+  test('Execute requests device and session management scopes', () {
+    expect(
+      CloudContract.requestedScopes,
+      containsAll([
+        'devices:read',
+        'devices:write',
+        'sessions:read',
+        'sessions:write',
+      ]),
+    );
+  });
+
   test('parses typed Cloud device and session lists', () {
     final devices = parseCloudDeviceList({
       'devices': [
