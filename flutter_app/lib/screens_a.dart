@@ -2011,6 +2011,7 @@ class _SubtaskTile extends StatelessWidget {
             ),
         ]),
       );
+}
 
 class _ReminderConflictBanner extends ConsumerWidget {
   const _ReminderConflictBanner({required this.conflict});
