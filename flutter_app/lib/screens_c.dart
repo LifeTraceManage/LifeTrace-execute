@@ -2145,6 +2145,15 @@ class _CloudConnectionState extends ConsumerState<CloudConnection> {
       const SizedBox(height: 8),
       SizedBox(
         width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: () => push(c, const SyncHealthCenter()),
+          icon: const Icon(Icons.health_and_safety_outlined, size: 17),
+          label: Text(conflicts > 0 ? '同步健康 · $conflicts 个冲突' : '同步健康与冲突中心'),
+        ),
+      ),
+      const SizedBox(height: 8),
+      SizedBox(
+        width: double.infinity,
         child: OutlinedButton(
           onPressed: busy ? null : _logout,
           child: const Text('断开连接'),
