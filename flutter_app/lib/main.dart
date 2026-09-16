@@ -35,6 +35,7 @@ import 'features/goals/goal_providers.dart';
 import 'features/habits/habit_providers.dart';
 import 'features/important_dates/important_date_providers.dart';
 import 'features/projects/project_providers.dart';
+import 'features/profile/conflict_center_providers.dart';
 import 'features/profile/profile_providers.dart';
 import 'features/reminders/reminder_providers.dart';
 import 'features/review/review_providers.dart';
@@ -54,6 +55,7 @@ part 'screens_today_real.dart';
 part 'screens_profile_devices.dart';
 part 'screens_profile_data.dart';
 part 'screens_profile_security.dart';
+part 'screens_profile_conflicts.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
