@@ -12,6 +12,16 @@ void main() {
     expect(february.whereType<DateTime>(), hasLength(29));
   });
 
+  test('month grid supports Sunday as first day of week', () {
+    final september = calendarMonthGrid(
+      DateTime(2026, 9),
+      weekStartsMonday: false,
+    );
+    expect(september.length, 35);
+    expect(september.take(2).every((value) => value == null), isTrue);
+    expect(september[2], DateTime(2026, 9, 1));
+  });
+
   test('month navigation crosses year boundaries', () {
     expect(previousCalendarMonth(DateTime(2026, 1)), DateTime(2025, 12));
     expect(nextCalendarMonth(DateTime(2026, 12)), DateTime(2027, 1));

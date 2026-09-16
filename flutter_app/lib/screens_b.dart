@@ -1377,7 +1377,16 @@ class _CalendarState extends ConsumerState<Calendar> {
     final importantDateConflicts =
         ref.watch(importantDateConflictsProvider).valueOrNull ??
             const <ImportantDateConflictUi>[];
-    final grid = calendarMonthGrid(visibleMonth);
+    final appPreferences =
+        ref.watch(appPreferencesProvider).valueOrNull ??
+            AppPreferencesState.defaults;
+    final grid = calendarMonthGrid(
+      visibleMonth,
+      weekStartsMonday: appPreferences.weekStartsMonday,
+    );
+    final weekdayLabels = appPreferences.weekStartsMonday
+        ? const ['一', '二', '三', '四', '五', '六', '日']
+        : const ['日', '一', '二', '三', '四', '五', '六'];
     final agenda =
         _calendarAgendaFor(selectedDate, events, tasks, importantDates);
 
@@ -1487,7 +1496,7 @@ class _CalendarState extends ConsumerState<Calendar> {
           ),
         ]),
         Row(
-          children: const ['一', '二', '三', '四', '五', '六', '日']
+          children: weekdayLabels
               .map(
                 (label) => Expanded(
                   child: Center(
