@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/background/background_sync.dart';
+import 'core/cloud/cloud_contract.dart';
 import 'core/cloud/cloud_device_contract.dart';
 import 'core/notifications/reminder_notification_service.dart';
 import 'data/repository/habit_repository.dart';
