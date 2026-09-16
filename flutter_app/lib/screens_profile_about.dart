@@ -55,9 +55,9 @@ class AboutScreen extends ConsumerWidget {
         h('Cloud / Sync'),
         panel(
           Column(children: [
-            _InfoRow('AppId', CloudContract.appId),
+            const _InfoRow('AppId', CloudContract.appId),
             const Divider(height: 1),
-            _InfoRow(
+            const _InfoRow(
               '协议',
               'Sync v${CloudContract.protocolVersion} · '
               'Schema ${CloudContract.schemaVersion}',
