@@ -23,6 +23,7 @@ class ExecutionProject {
     required this.updatedAt,
     required this.localVersion,
     this.description,
+    this.goalId,
     this.status = ExecutionProjectStatus.active,
     this.startAt,
     this.dueAt,
@@ -34,6 +35,7 @@ class ExecutionProject {
   final String userId;
   final String title;
   final String? description;
+  final String? goalId;
   final ExecutionProjectStatus status;
   final String? startAt;
   final String? dueAt;
@@ -49,6 +51,7 @@ class ExecutionProject {
   ExecutionProject copyWith({
     String? title,
     String? description,
+    String? goalId,
     ExecutionProjectStatus? status,
     String? startAt,
     String? dueAt,
@@ -57,6 +60,7 @@ class ExecutionProject {
     String? serverVersion,
     String? modifiedByDevice,
     bool clearDescription = false,
+    bool clearGoalId = false,
     bool clearStartAt = false,
     bool clearDueAt = false,
   }) {
@@ -65,6 +69,7 @@ class ExecutionProject {
       userId: userId,
       title: title ?? this.title,
       description: clearDescription ? null : description ?? this.description,
+      goalId: clearGoalId ? null : goalId ?? this.goalId,
       status: status ?? this.status,
       startAt: clearStartAt ? null : startAt ?? this.startAt,
       dueAt: clearDueAt ? null : dueAt ?? this.dueAt,
