@@ -2018,10 +2018,14 @@ class Profile extends ConsumerWidget {
         ),
         h('应用'),
         panel(
-          const Column(children: [
-            _Setting(Icons.settings_outlined, '通用'),
-            Divider(height: 1),
-            _Setting(Icons.info_outline_rounded, '关于'),
+          Column(children: [
+            const _Setting(Icons.settings_outlined, '通用'),
+            const Divider(height: 1),
+            _Setting(
+              Icons.info_outline_rounded,
+              '关于',
+              onTap: () => push(c, const AboutScreen()),
+            ),
           ]),
         ),
       ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 18)),
