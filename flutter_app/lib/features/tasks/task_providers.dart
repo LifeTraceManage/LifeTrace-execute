@@ -298,6 +298,15 @@ class TaskSyncController extends AsyncNotifier<TaskSyncSummary?> {
     return next.valueOrNull;
   }
 
+  Future<TaskSyncSummary?> rebuildSnapshotBaseline() async {
+    final coordinator = ref.read(taskSyncCoordinatorProvider);
+    if (coordinator == null) return null;
+    state = const AsyncLoading();
+    final next = await AsyncValue.guard(coordinator.rebuildSnapshotBaseline);
+    state = next;
+    return next.valueOrNull;
+  }
+
   Future<void> keepServer(String conflictId) async {
     final resolver = ref.read(taskConflictResolverProvider);
     if (resolver == null) return;
