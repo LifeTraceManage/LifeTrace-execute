@@ -553,6 +553,11 @@ class _ProjectsState extends ConsumerState<Projects> {
             children: [title('项目'), sub('真实任务进度 · Local-first')],
           ),
         ),
+        TextButton.icon(
+          onPressed: () => push(context, const GoalsScreen()),
+          icon: const Icon(Icons.track_changes_rounded, size: 16),
+          label: const Text('目标'),
+        ),
         IconButton(
           tooltip: '新建项目',
           onPressed: () => _editProject(context, ref),
@@ -725,6 +730,7 @@ class ProjectDetail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final projects = ref.watch(projectListProvider);
     final tasksState = ref.watch(taskListProvider);
+    final goals = ref.watch(goalListProvider).valueOrNull ?? const <ExecutionGoal>[];
     final project = _findProject(projects.valueOrNull, projectId);
 
     if (project == null) {
@@ -744,6 +750,7 @@ class ProjectDetail extends ConsumerWidget {
       );
     }
 
+    final goal = _findGoal(goals, project.goalId);
     final tasks = (tasksState.valueOrNull ?? const <ExecutionTask>[])
         .where((task) => task.projectId == project.id)
         .toList(growable: false);
@@ -805,6 +812,12 @@ class ProjectDetail extends ConsumerWidget {
                       bg: Colors.white,
                       fg: color,
                     ),
+                    if (goal != null)
+                      chip(
+                        '目标 ${goal.name}',
+                        bg: Colors.white,
+                        fg: C.p,
+                      ),
                     chip(
                       '截止 ${_projectDate(project.dueAt)}',
                       bg: Colors.white,
@@ -932,6 +945,8 @@ class ProjectDetail extends ConsumerWidget {
           Column(children: [
             _ProjectInfo('状态', _projectStatusText(project.status)),
             const Divider(height: 1),
+            _ProjectInfo('目标', goal?.name ?? '未归属目标'),
+            const Divider(height: 1),
             _ProjectInfo('开始', _projectDate(project.startAt)),
             const Divider(height: 1),
             _ProjectInfo('截止', _projectDate(project.dueAt)),
@@ -1042,10 +1057,21 @@ Future<void> _editProject(
   WidgetRef ref, {
   ExecutionProject? project,
 }) async {
+  var goals = const <ExecutionGoal>[];
+  try {
+    goals = await ref.read(goalListProvider.future);
+  } catch (_) {
+    goals = ref.read(goalListProvider).valueOrNull ?? const <ExecutionGoal>[];
+  }
+  if (!context.mounted) return;
   final titleController = TextEditingController(text: project?.title ?? '');
   final descriptionController =
       TextEditingController(text: project?.description ?? '');
   var status = project?.status ?? ExecutionProjectStatus.active;
+  var goalId = project?.goalId ?? '';
+  if (goalId.isNotEmpty && !goals.any((goal) => goal.id == goalId)) {
+    goalId = '';
+  }
   DateTime? startAt = DateTime.tryParse(project?.startAt ?? '')?.toLocal();
   DateTime? dueAt = DateTime.tryParse(project?.dueAt ?? '')?.toLocal();
 
@@ -1091,6 +1117,26 @@ Future<void> _editProject(
               },
             ),
             const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              initialValue: goalId,
+              decoration: const InputDecoration(labelText: '所属目标'),
+              items: [
+                const DropdownMenuItem(
+                  value: '',
+                  child: Text('不归属目标'),
+                ),
+                ...goals.map(
+                  (goal) => DropdownMenuItem(
+                    value: goal.id,
+                    child: Text(goal.name),
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                setSheetState(() => goalId = value ?? '');
+              },
+            ),
+            const SizedBox(height: 10),
             _DateField(
               label: '开始时间',
               value: startAt,
@@ -1125,6 +1171,7 @@ Future<void> _editProject(
                       await commands.create(
                         title: titleController.text,
                         description: descriptionController.text,
+                        goalId: goalId.isEmpty ? null : goalId,
                         status: status,
                         startAt: startAt?.toUtc().toIso8601String(),
                         dueAt: dueAt?.toUtc().toIso8601String(),
@@ -1134,11 +1181,14 @@ Future<void> _editProject(
                         project: project,
                         title: titleController.text,
                         description: descriptionController.text,
+                        goalId: goalId.isEmpty ? null : goalId,
                         status: status,
                         startAt: startAt?.toUtc().toIso8601String(),
                         dueAt: dueAt?.toUtc().toIso8601String(),
                         clearDescription:
                             descriptionController.text.trim().isEmpty,
+                        clearGoalId:
+                            goalId.isEmpty && project.goalId != null,
                         clearStartAt:
                             startAt == null && project.startAt != null,
                         clearDueAt: dueAt == null && project.dueAt != null,

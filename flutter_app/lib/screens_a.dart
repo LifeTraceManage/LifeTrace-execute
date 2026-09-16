@@ -80,6 +80,7 @@ class Today extends ConsumerWidget {
         icon: Icons.work_outline_rounded,
         tap: () => push(c, const TaskDetail()),
       ),
+      const _TodayGoalsSection(),
       const _TodayHabitsSection(),
       h(
         '近期重要日期',
