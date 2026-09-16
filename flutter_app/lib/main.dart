@@ -54,6 +54,7 @@ part 'screens_today_real.dart';
 part 'screens_profile_devices.dart';
 part 'screens_profile_data.dart';
 part 'screens_profile_security.dart';
+part 'screens_profile_general.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
