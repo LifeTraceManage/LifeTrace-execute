@@ -44,7 +44,7 @@ class GoalsScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => panel(
             Text(
-              '目标加载失败：' + error.toString(),
+              '目标加载失败：$error',
               style: const TextStyle(fontSize: 9.5, color: C.red),
             ),
             padding: const EdgeInsets.all(12),
@@ -203,13 +203,13 @@ class _GoalCard extends StatelessWidget {
             chip(
               goal.targetAt == null
                   ? '未设置目标日期'
-                  : '目标 ' + _projectDate(goal.targetAt),
+                  : '目标 ${_projectDate(goal.targetAt)}',
               bg: C.soft,
               fg: C.muted,
             ),
             const Spacer(),
             Text(
-              progress.rate.toString() + '%',
+              '${progress.rate}%',
               style: TextStyle(
                 fontSize: 11,
                 color: color,
@@ -229,14 +229,8 @@ class _GoalCard extends StatelessWidget {
           ),
           const SizedBox(height: 7),
           Text(
-            progress.completedProjects.toString() +
-                '/' +
-                progress.projects.toString() +
-                ' 项目完成 · ' +
-                progress.completedTasks.toString() +
-                '/' +
-                progress.tasks.toString() +
-                ' 任务完成',
+            '${progress.completedProjects}/${progress.projects} 项目完成 · '
+                '${progress.completedTasks}/${progress.tasks} 任务完成',
             style: const TextStyle(fontSize: 8.6, color: C.muted),
           ),
           if (conflictValue != null) ...[
@@ -262,11 +256,8 @@ class _GoalCard extends StatelessWidget {
                   Text(
                     conflictValue.serverDeleted
                         ? '云端版本已删除'
-                        : '本地「' +
-                            (conflictValue.localName ?? goal.name) +
-                            '」与云端「' +
-                            (conflictValue.serverName ?? '目标') +
-                            '」发生冲突',
+                        : '本地「${conflictValue.localName ?? goal.name}」与云端'
+                            '「${conflictValue.serverName ?? '目标'}」发生冲突',
                     style: const TextStyle(fontSize: 8.5, color: C.muted),
                   ),
                   const SizedBox(height: 7),
@@ -334,7 +325,7 @@ class _TodayGoalsSection extends ConsumerWidget {
         else if (goalsState.hasError)
           panel(
             Text(
-              '目标读取失败：' + goalsState.error.toString(),
+              '目标读取失败：${goalsState.error}',
               style: const TextStyle(fontSize: 9, color: C.red),
             ),
           )
@@ -428,12 +419,8 @@ class _TodayGoalTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  progress.projects.toString() +
-                      ' 项目 · ' +
-                      progress.completedTasks.toString() +
-                      '/' +
-                      progress.tasks.toString() +
-                      ' 任务',
+                  '${progress.projects} 项目 · '
+                      '${progress.completedTasks}/${progress.tasks} 任务',
                   style: const TextStyle(fontSize: 8.2, color: C.muted),
                 ),
               ],
@@ -441,7 +428,7 @@ class _TodayGoalTile extends StatelessWidget {
           ),
           const SizedBox(width: 9),
           Text(
-            progress.rate.toString() + '%',
+            '${progress.rate}%',
             style: TextStyle(
               fontSize: 10.5,
               fontWeight: FontWeight.w900,
