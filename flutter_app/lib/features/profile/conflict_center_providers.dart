@@ -15,6 +15,23 @@ import '../reminders/reminder_providers.dart';
 import '../review/review_providers.dart';
 import '../tasks/task_providers.dart';
 
+const conflictCenterSupportedEntityTypes = <String>{
+  'execution.task',
+  'execution.project',
+  'execution.goal',
+  'execution.calendar_event',
+  'execution.important_date',
+  'execution.focus_session',
+  'execution.weekly_review',
+  'execution.memo',
+  'execution.reminder',
+  'review.daily',
+  'habit.activity',
+  'habit.log',
+  'file.metadata',
+  'entity.link',
+};
+
 class ProfileConflictItem {
   const ProfileConflictItem({
     required this.id,
