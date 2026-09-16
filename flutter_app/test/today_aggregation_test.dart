@@ -72,7 +72,7 @@ void main() {
         task(
           'overdue',
           priority: ExecutionTaskPriority.urgent,
-          dueAt: DateTime(2026, 9, 15, 18),
+          dueAt: DateTime(2026, 9, 16, 9),
         ),
         task(
           'done-today',
