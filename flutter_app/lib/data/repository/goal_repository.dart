@@ -275,9 +275,20 @@ class DriftGoalRepository implements GoalRepository {
           localVersion: project.localVersion + 1,
           modifiedByDevice: deviceId,
         );
-        await database
-            .into(database.projects)
-            .insertOnConflictUpdate(ProjectDatabaseMapper.toRow(unlinked));
+        await (database.update(database.projects)
+              ..where(
+                (table) =>
+                    table.userId.equals(project.userId) &
+                    table.id.equals(project.id),
+              ))
+            .write(
+          db.ProjectsCompanion(
+            goalId: const Value(null),
+            updatedAt: Value(unlinked.updatedAt),
+            localVersion: Value(unlinked.localVersion),
+            modifiedByDevice: Value(unlinked.modifiedByDevice),
+          ),
+        );
         await database.into(database.syncOutbox).insert(
               db.SyncOutboxCompanion.insert(
                 changeId: _uuid.v4(),
