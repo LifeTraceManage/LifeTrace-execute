@@ -26,6 +26,7 @@ class CloudContract {
   static const requiredSyncEntityTypes = <String>{
     'execution.task',
     'execution.project',
+    'execution.goal',
     'execution.calendar_event',
     'execution.important_date',
     'execution.focus_session',

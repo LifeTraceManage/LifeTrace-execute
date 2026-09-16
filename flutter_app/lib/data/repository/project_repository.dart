@@ -20,6 +20,7 @@ abstract interface class ProjectRepository {
     required String deviceId,
     required String title,
     String? description,
+    String? goalId,
     ExecutionProjectStatus status = ExecutionProjectStatus.active,
     String? startAt,
     String? dueAt,
@@ -30,10 +31,12 @@ abstract interface class ProjectRepository {
     required String deviceId,
     String? title,
     String? description,
+    String? goalId,
     ExecutionProjectStatus? status,
     String? startAt,
     String? dueAt,
     bool clearDescription = false,
+    bool clearGoalId = false,
     bool clearStartAt = false,
     bool clearDueAt = false,
   });
@@ -70,6 +73,7 @@ class DriftProjectRepository implements ProjectRepository {
     required String deviceId,
     required String title,
     String? description,
+    String? goalId,
     ExecutionProjectStatus status = ExecutionProjectStatus.active,
     String? startAt,
     String? dueAt,
@@ -84,6 +88,7 @@ class DriftProjectRepository implements ProjectRepository {
       userId: userId,
       title: cleanTitle,
       description: _clean(description),
+      goalId: _clean(goalId),
       status: status,
       startAt: _clean(startAt),
       dueAt: _clean(dueAt),
@@ -102,10 +107,12 @@ class DriftProjectRepository implements ProjectRepository {
     required String deviceId,
     String? title,
     String? description,
+    String? goalId,
     ExecutionProjectStatus? status,
     String? startAt,
     String? dueAt,
     bool clearDescription = false,
+    bool clearGoalId = false,
     bool clearStartAt = false,
     bool clearDueAt = false,
   }) async {
@@ -123,6 +130,11 @@ class DriftProjectRepository implements ProjectRepository {
           : description == null
               ? project.description
               : _clean(description),
+      goalId: clearGoalId
+          ? null
+          : goalId == null
+              ? project.goalId
+              : _clean(goalId),
       status: status ?? project.status,
       startAt: clearStartAt
           ? null
@@ -233,7 +245,7 @@ class DriftProjectRepository implements ProjectRepository {
     await database.transaction(() async {
       await database
           .into(database.projects)
-          .insertOnConflictUpdate(ProjectDatabaseMapper.toRow(project));
+          .insertOnConflictUpdate(ProjectDatabaseMapper.toCompanion(project));
       await database.into(database.syncOutbox).insert(
             db.SyncOutboxCompanion.insert(
               changeId: _uuid.v4(),
@@ -297,6 +309,7 @@ class PreviewProjectRepository implements ProjectRepository {
       userId: 'preview-user',
       title: title,
       description: description,
+      goalId: null,
       dueAt: dueAt,
       createdAt: now,
       updatedAt: now,
@@ -322,6 +335,7 @@ class PreviewProjectRepository implements ProjectRepository {
     required String deviceId,
     required String title,
     String? description,
+    String? goalId,
     ExecutionProjectStatus status = ExecutionProjectStatus.active,
     String? startAt,
     String? dueAt,
@@ -334,6 +348,7 @@ class PreviewProjectRepository implements ProjectRepository {
       userId: userId,
       title: cleanTitle,
       description: _clean(description),
+      goalId: _clean(goalId),
       status: status,
       startAt: _clean(startAt),
       dueAt: _clean(dueAt),
@@ -353,10 +368,12 @@ class PreviewProjectRepository implements ProjectRepository {
     required String deviceId,
     String? title,
     String? description,
+    String? goalId,
     ExecutionProjectStatus? status,
     String? startAt,
     String? dueAt,
     bool clearDescription = false,
+    bool clearGoalId = false,
     bool clearStartAt = false,
     bool clearDueAt = false,
   }) async {
@@ -364,6 +381,7 @@ class PreviewProjectRepository implements ProjectRepository {
     final updated = project.copyWith(
       title: title?.trim(),
       description: description == null ? null : _clean(description),
+      goalId: goalId == null ? null : _clean(goalId),
       status: status,
       startAt: startAt == null ? null : _clean(startAt),
       dueAt: dueAt == null ? null : _clean(dueAt),
@@ -371,6 +389,7 @@ class PreviewProjectRepository implements ProjectRepository {
       localVersion: project.localVersion + 1,
       modifiedByDevice: deviceId,
       clearDescription: clearDescription,
+      clearGoalId: clearGoalId,
       clearStartAt: clearStartAt,
       clearDueAt: clearDueAt,
     );

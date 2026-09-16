@@ -25,11 +25,33 @@ class Tasks extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+class Goals extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get status => text()();
+  TextColumn get targetAt => text().nullable()();
+  TextColumn get color => text().nullable()();
+  TextColumn get icon => text().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  TextColumn get completedAt => text().nullable()();
+  TextColumn get createdAt => text()();
+  TextColumn get updatedAt => text()();
+  IntColumn get localVersion => integer()();
+  TextColumn get serverVersion => text().nullable()();
+  TextColumn get modifiedByDevice => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 class Projects extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text()();
   TextColumn get title => text()();
   TextColumn get description => text().nullable()();
+  TextColumn get goalId => text().nullable()();
   TextColumn get status => text()();
   TextColumn get startAt => text().nullable()();
   TextColumn get dueAt => text().nullable()();
@@ -375,13 +397,13 @@ class SyncConflicts extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Tasks, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, DailyReviews, WeeklyReviews, ImportantDates, Reminders, FocusSessions, FocusTimerStates, HabitActivities, HabitLogs, SyncOutbox, SyncState, SyncConflicts])
+@DriftDatabase(tables: [Tasks, Goals, Projects, CalendarEvents, Memos, EntityLinks, FileRecords, MediaUploads, DailyReviews, WeeklyReviews, ImportantDates, Reminders, FocusSessions, FocusTimerStates, HabitActivities, HabitLogs, SyncOutbox, SyncState, SyncConflicts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
   AppDatabase.production() : super(openProductionConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -435,6 +457,12 @@ class AppDatabase extends _$AppDatabase {
           if (from < 12) {
             await migrator.createTable(habitActivities);
             await migrator.createTable(habitLogs);
+          }
+          if (from < 13) {
+            await migrator.createTable(goals);
+            if (from >= 3) {
+              await migrator.addColumn(projects, projects.goalId);
+            }
           }
         },
       );

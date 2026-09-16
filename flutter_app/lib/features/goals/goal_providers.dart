@@ -6,58 +6,58 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/background/background_sync.dart';
-import '../../data/repository/project_repository.dart';
-import '../../data/sync/project_conflict_resolver.dart';
-import '../../domain/project/execution_project.dart';
+import '../../data/repository/goal_repository.dart';
+import '../../data/sync/goal_conflict_resolver.dart';
+import '../../domain/goal/execution_goal.dart';
 import '../tasks/task_providers.dart';
 
-final projectRepositoryProvider = Provider<ProjectRepository>((ref) {
-  if (kIsWeb) return PreviewProjectRepository();
+final goalRepositoryProvider = Provider<GoalRepository>((ref) {
+  if (kIsWeb) return PreviewGoalRepository();
   final database = ref.watch(appDatabaseProvider);
   if (database == null) {
     throw StateError('Android production database is unavailable');
   }
-  return DriftProjectRepository(database);
+  return DriftGoalRepository(database);
 });
 
-final projectListProvider = StreamProvider<List<ExecutionProject>>((ref) async* {
-  final repository = ref.watch(projectRepositoryProvider);
+final goalListProvider = StreamProvider<List<ExecutionGoal>>((ref) async* {
+  final repository = ref.watch(goalRepositoryProvider);
   final userId = await ref.watch(currentUserIdProvider.future);
   if (userId == null) {
-    yield const <ExecutionProject>[];
+    yield const <ExecutionGoal>[];
     return;
   }
-  yield* repository.watchProjects(userId);
+  yield* repository.watchGoals(userId);
 });
 
-class ProjectConflictUi {
-  const ProjectConflictUi({
+class GoalConflictUi {
+  const GoalConflictUi({
     required this.conflictId,
-    required this.projectId,
-    required this.localTitle,
-    required this.serverTitle,
+    required this.goalId,
+    required this.localName,
+    required this.serverName,
     required this.serverDeleted,
     required this.reason,
   });
 
   final String conflictId;
-  final String projectId;
-  final String? localTitle;
-  final String? serverTitle;
+  final String goalId;
+  final String? localName;
+  final String? serverName;
   final bool serverDeleted;
   final String reason;
 }
 
-final projectConflictsProvider =
-    StreamProvider<List<ProjectConflictUi>>((ref) async* {
+final goalConflictsProvider =
+    StreamProvider<List<GoalConflictUi>>((ref) async* {
   if (kIsWeb) {
-    yield const <ProjectConflictUi>[];
+    yield const <GoalConflictUi>[];
     return;
   }
   final database = ref.watch(appDatabaseProvider);
   final userId = await ref.watch(currentUserIdProvider.future);
   if (database == null || userId == null) {
-    yield const <ProjectConflictUi>[];
+    yield const <GoalConflictUi>[];
     return;
   }
 
@@ -65,19 +65,20 @@ final projectConflictsProvider =
     ..where(
       (table) =>
           table.userId.equals(userId) &
-          table.entityType.equals(DriftProjectRepository.entityType) &
+          table.entityType.equals(DriftGoalRepository.entityType) &
           table.resolved.equals(false),
     )
     ..orderBy([(table) => OrderingTerm.desc(table.createdAt)]);
+
   yield* query.watch().map(
         (rows) => rows
             .map(
-              (row) => ProjectConflictUi(
+              (row) => GoalConflictUi(
                 conflictId: row.id,
-                projectId: row.entityId,
-                localTitle: _payloadTitle(row.localPayloadJson),
-                serverTitle:
-                    row.serverDeleted ? null : _payloadTitle(row.serverPayloadJson),
+                goalId: row.entityId,
+                localName: _payloadName(row.localPayloadJson),
+                serverName:
+                    row.serverDeleted ? null : _payloadName(row.serverPayloadJson),
                 serverDeleted: row.serverDeleted,
                 reason: row.reason,
               ),
@@ -86,90 +87,91 @@ final projectConflictsProvider =
       );
 });
 
-final projectConflictResolverProvider =
-    Provider<ProjectConflictResolver?>((ref) {
+final goalConflictResolverProvider = Provider<GoalConflictResolver?>((ref) {
   if (kIsWeb) return null;
   final database = ref.watch(appDatabaseProvider);
-  return database == null ? null : ProjectConflictResolver(database);
+  return database == null ? null : GoalConflictResolver(database);
 });
 
-final projectCommandsProvider = Provider<ProjectCommands>(ProjectCommands.new);
+final goalCommandsProvider = Provider<GoalCommands>(GoalCommands.new);
 
-class ProjectCommands {
-  ProjectCommands(this.ref);
+class GoalCommands {
+  GoalCommands(this.ref);
 
   final Ref ref;
 
-  Future<ExecutionProject> create({
-    required String title,
+  Future<ExecutionGoal> create({
+    required String name,
     String? description,
-    String? goalId,
-    ExecutionProjectStatus status = ExecutionProjectStatus.active,
-    String? startAt,
-    String? dueAt,
+    String? targetAt,
+    String? color,
+    String? icon,
+    int sortOrder = 0,
   }) async {
-    final project = await ref.read(projectRepositoryProvider).createProject(
+    final goal = await ref.read(goalRepositoryProvider).createGoal(
           userId: await _requireUserId(),
           deviceId: await ref.read(deviceIdProvider.future),
-          title: title,
+          name: name,
           description: description,
-          goalId: goalId,
-          status: status,
-          startAt: startAt,
-          dueAt: dueAt,
+          targetAt: targetAt,
+          color: color,
+          icon: icon,
+          sortOrder: sortOrder,
         );
     _scheduleSync();
-    return project;
+    return goal;
   }
 
-  Future<ExecutionProject> update({
-    required ExecutionProject project,
-    String? title,
+  Future<ExecutionGoal> update({
+    required ExecutionGoal goal,
+    String? name,
     String? description,
-    String? goalId,
-    ExecutionProjectStatus? status,
-    String? startAt,
-    String? dueAt,
+    ExecutionGoalStatus? status,
+    String? targetAt,
+    String? color,
+    String? icon,
+    int? sortOrder,
     bool clearDescription = false,
-    bool clearGoalId = false,
-    bool clearStartAt = false,
-    bool clearDueAt = false,
+    bool clearTargetAt = false,
+    bool clearColor = false,
+    bool clearIcon = false,
   }) async {
-    final updated = await ref.read(projectRepositoryProvider).updateProject(
-          project: project,
+    final updated = await ref.read(goalRepositoryProvider).updateGoal(
+          goal: goal,
           deviceId: await ref.read(deviceIdProvider.future),
-          title: title,
+          name: name,
           description: description,
-          goalId: goalId,
           status: status,
-          startAt: startAt,
-          dueAt: dueAt,
+          targetAt: targetAt,
+          color: color,
+          icon: icon,
+          sortOrder: sortOrder,
           clearDescription: clearDescription,
-          clearGoalId: clearGoalId,
-          clearStartAt: clearStartAt,
-          clearDueAt: clearDueAt,
+          clearTargetAt: clearTargetAt,
+          clearColor: clearColor,
+          clearIcon: clearIcon,
         );
     _scheduleSync();
     return updated;
   }
 
-  Future<void> delete(ExecutionProject project) async {
-    await ref.read(projectRepositoryProvider).deleteProject(
-          project: project,
+  Future<void> delete(ExecutionGoal goal) async {
+    await ref.read(goalRepositoryProvider).deleteGoal(
+          goal: goal,
           deviceId: await ref.read(deviceIdProvider.future),
         );
     _scheduleSync();
   }
 
   Future<void> keepServer(String conflictId) async {
-    final resolver = ref.read(projectConflictResolverProvider);
+    final resolver = ref.read(goalConflictResolverProvider);
     if (resolver == null) return;
     await resolver.keepServer(conflictId);
     await ref.read(taskSyncControllerProvider.notifier).syncNow(silent: true);
   }
 
   Future<void> keepLocal(String conflictId) async {
-    final resolver = ref.read(projectConflictResolverProvider);
+    final resolver = ref.read(goalConflictResolverProvider);
     if (resolver == null) return;
     await resolver.keepLocal(
       conflictId: conflictId,
@@ -193,13 +195,13 @@ class ProjectCommands {
   }
 }
 
-String? _payloadTitle(String? raw) {
+String? _payloadName(String? raw) {
   if (raw == null || raw.isEmpty) return null;
   try {
     final value = jsonDecode(raw);
     if (value is! Map) return null;
-    final title = value['title']?.toString().trim();
-    return title == null || title.isEmpty ? null : title;
+    final name = value['name']?.toString().trim();
+    return name == null || name.isEmpty ? null : name;
   } catch (_) {
     return null;
   }

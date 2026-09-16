@@ -13,6 +13,7 @@ import 'package:lifetrace_execute/data/repository/calendar_event_repository.dart
 import 'package:lifetrace_execute/data/repository/daily_review_repository.dart';
 import 'package:lifetrace_execute/data/repository/file_metadata_repository.dart';
 import 'package:lifetrace_execute/data/repository/focus_repository.dart';
+import 'package:lifetrace_execute/data/repository/goal_repository.dart';
 import 'package:lifetrace_execute/data/repository/habit_repository.dart';
 import 'package:lifetrace_execute/data/repository/important_date_repository.dart';
 import 'package:lifetrace_execute/data/repository/memo_repository.dart';
@@ -42,6 +43,7 @@ void main() {
   late DriftReminderRepository reminderRepository;
   late DriftImportantDateRepository importantDateRepository;
   late DriftFocusRepository focusRepository;
+  late DriftGoalRepository goalRepository;
   late DriftWeeklyReviewRepository weeklyReviewRepository;
   late DriftHabitRepository habitRepository;
 
@@ -56,6 +58,7 @@ void main() {
     reminderRepository = DriftReminderRepository(database);
     importantDateRepository = DriftImportantDateRepository(database);
     focusRepository = DriftFocusRepository(database);
+    goalRepository = DriftGoalRepository(database);
     weeklyReviewRepository = DriftWeeklyReviewRepository(database);
     habitRepository = DriftHabitRepository(database);
   });
@@ -520,6 +523,71 @@ void main() {
     expect(
       reviews.singleWhere((item) => item.id == 'weekly-remote').bestThing,
       'Pulled weekly review',
+    );
+  });
+
+  test('goal snapshot, push and pull share sync pipeline', () async {
+    final local = await goalRepository.createGoal(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      name: 'Local goal',
+    );
+
+    final client = _FakeSyncClient(
+      snapshots: [
+        SnapshotPageResult(
+          requestId: 'goal-snapshot',
+          snapshotId: 'goal-snapshot-1',
+          snapshotCursor: '43',
+          items: [
+            SnapshotItem(
+              entityType: DriftGoalRepository.entityType,
+              entityId: 'goal-remote',
+              serverVersion: '2',
+              payload: _goalPayload('goal-remote', 'Remote goal'),
+            ),
+          ],
+          completed: true,
+          serverTime: '2026-09-16T00:00:00.000Z',
+        ),
+      ],
+      pulls: [
+        PullBatchResult(
+          requestId: 'goal-pull',
+          serverTime: '2026-09-16T00:01:00.000Z',
+          changes: [
+            PulledChange(
+              cursor: '44',
+              entityType: DriftGoalRepository.entityType,
+              entityId: 'goal-remote',
+              operation: 'upsert',
+              serverVersion: '3',
+              serverModifiedAt: '2026-09-16T00:01:00.000Z',
+              payload: _goalPayload('goal-remote', 'Pulled goal'),
+            ),
+          ],
+          nextCursor: '44',
+          hasMore: false,
+        ),
+      ],
+      acceptAllPushes: true,
+    );
+
+    final summary = await _coordinatorFor(database, client).syncNow();
+
+    expect(summary.snapshotItems, 1);
+    expect(summary.pushed, 1);
+    expect(summary.pulled, 1);
+
+    final goals = await database.select(database.goals).get();
+    expect(goals, hasLength(2));
+    expect(
+      goals.singleWhere((item) => item.id == local.id).serverVersion,
+      isNot(equals(null)),
+    );
+    expect(
+      goals.singleWhere((item) => item.id == 'goal-remote').name,
+      'Pulled goal',
     );
   });
 
@@ -1218,6 +1286,27 @@ Map<String, dynamic> _weeklyReviewPayload(
       'note': null,
     };
 
+Map<String, dynamic> _goalPayload(String id, String name) => {
+      'meta': {
+        'id': id,
+        'userId': 'user-1',
+        'createdAt': '2026-09-16T00:00:00.000Z',
+        'updatedAt': '2026-09-16T00:00:00.000Z',
+        'deletedAt': null,
+        'localVersion': 1,
+        'serverVersion': null,
+        'modifiedByDevice': 'remote-device',
+      },
+      'name': name,
+      'description': null,
+      'status': 'active',
+      'targetAt': null,
+      'color': '#49715d',
+      'icon': 'target',
+      'sortOrder': 0,
+      'completedAt': null,
+    };
+
 Map<String, dynamic> _habitActivityPayload(
   String id,
   String name,
@@ -1362,6 +1451,7 @@ Map<String, dynamic> _projectPayload(String id, String title) => {
       },
       'title': title,
       'description': null,
+      'goalId': null,
       'status': ExecutionProjectStatus.active.wireValue,
       'startAt': null,
       'dueAt': null,

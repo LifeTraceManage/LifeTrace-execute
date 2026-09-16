@@ -14,6 +14,7 @@ import 'domain/collection/execution_file_metadata.dart';
 import 'domain/collection/execution_memo.dart';
 import 'domain/focus/execution_focus_session.dart';
 import 'domain/focus/focus_timer_state.dart';
+import 'domain/goal/execution_goal.dart';
 import 'domain/habit/habit.dart';
 import 'domain/important_date/execution_important_date.dart';
 import 'domain/important_date/important_date_occurrence.dart';
@@ -28,6 +29,8 @@ import 'features/collection/collection_providers.dart';
 import 'features/collection/media_providers.dart';
 import 'features/focus/focus_providers.dart';
 import 'features/focus/focus_stats.dart';
+import 'features/goals/goal_progress.dart';
+import 'features/goals/goal_providers.dart';
 import 'features/habits/habit_providers.dart';
 import 'features/important_dates/important_date_providers.dart';
 import 'features/projects/project_providers.dart';
@@ -42,6 +45,7 @@ part 'screens_b.dart';
 part 'screens_c.dart';
 part 'screens_review_weekly.dart';
 part 'screens_habits.dart';
+part 'screens_goals.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
