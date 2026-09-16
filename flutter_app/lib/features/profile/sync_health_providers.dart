@@ -17,6 +17,7 @@ import '../../data/repository/project_repository.dart';
 import '../../data/repository/reminder_repository.dart';
 import '../../data/repository/task_repository.dart';
 import '../../data/repository/weekly_review_repository.dart';
+import '../../data/sync/task_sync_coordinator.dart';
 import '../calendar/calendar_providers.dart';
 import '../collection/collection_providers.dart';
 import '../focus/focus_providers.dart';
