@@ -2011,7 +2011,11 @@ class Profile extends ConsumerWidget {
               onTap: () => push(c, const DataManagement()),
             ),
             const Divider(height: 1),
-            const _Setting(Icons.notifications_none_rounded, '通知'),
+            _Setting(
+              Icons.notifications_none_rounded,
+              '通知',
+              onTap: () => push(c, const NotificationSettingsScreen()),
+            ),
             const Divider(height: 1),
             const _Setting(Icons.palette_outlined, '外观'),
           ]),
