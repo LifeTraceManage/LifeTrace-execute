@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/background/background_sync.dart';
 import 'core/cloud/cloud_device_contract.dart';
+import 'core/notifications/notification_preferences.dart';
 import 'core/notifications/reminder_notification_service.dart';
 import 'data/repository/habit_repository.dart';
 import 'data/repository/reminder_repository.dart';
@@ -36,6 +37,7 @@ import 'features/habits/habit_providers.dart';
 import 'features/important_dates/important_date_providers.dart';
 import 'features/projects/project_providers.dart';
 import 'features/profile/profile_providers.dart';
+import 'features/profile/notification_settings_providers.dart';
 import 'features/reminders/reminder_providers.dart';
 import 'features/review/review_providers.dart';
 import 'features/review/review_stats.dart';
@@ -54,6 +56,7 @@ part 'screens_today_real.dart';
 part 'screens_profile_devices.dart';
 part 'screens_profile_data.dart';
 part 'screens_profile_security.dart';
+part 'screens_profile_notifications.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
