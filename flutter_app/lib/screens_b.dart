@@ -1057,10 +1057,17 @@ Future<void> _editProject(
   WidgetRef ref, {
   ExecutionProject? project,
 }) async {
+  var goals = const <ExecutionGoal>[];
+  try {
+    goals = await ref.read(goalListProvider.future);
+  } catch (_) {
+    goals = ref.read(goalListProvider).valueOrNull ?? const <ExecutionGoal>[];
+  }
   final titleController = TextEditingController(text: project?.title ?? '');
   final descriptionController =
       TextEditingController(text: project?.description ?? '');
   var status = project?.status ?? ExecutionProjectStatus.active;
+  var goalId = project?.goalId ?? '';
   DateTime? startAt = DateTime.tryParse(project?.startAt ?? '')?.toLocal();
   DateTime? dueAt = DateTime.tryParse(project?.dueAt ?? '')?.toLocal();
 
@@ -1106,6 +1113,26 @@ Future<void> _editProject(
               },
             ),
             const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              initialValue: goalId,
+              decoration: const InputDecoration(labelText: '所属目标'),
+              items: [
+                const DropdownMenuItem(
+                  value: '',
+                  child: Text('不归属目标'),
+                ),
+                ...goals.map(
+                  (goal) => DropdownMenuItem(
+                    value: goal.id,
+                    child: Text(goal.name),
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                setSheetState(() => goalId = value ?? '');
+              },
+            ),
+            const SizedBox(height: 10),
             _DateField(
               label: '开始时间',
               value: startAt,
@@ -1140,6 +1167,7 @@ Future<void> _editProject(
                       await commands.create(
                         title: titleController.text,
                         description: descriptionController.text,
+                        goalId: goalId.isEmpty ? null : goalId,
                         status: status,
                         startAt: startAt?.toUtc().toIso8601String(),
                         dueAt: dueAt?.toUtc().toIso8601String(),
@@ -1149,11 +1177,14 @@ Future<void> _editProject(
                         project: project,
                         title: titleController.text,
                         description: descriptionController.text,
+                        goalId: goalId.isEmpty ? null : goalId,
                         status: status,
                         startAt: startAt?.toUtc().toIso8601String(),
                         dueAt: dueAt?.toUtc().toIso8601String(),
                         clearDescription:
                             descriptionController.text.trim().isEmpty,
+                        clearGoalId:
+                            goalId.isEmpty && project.goalId != null,
                         clearStartAt:
                             startAt == null && project.startAt != null,
                         clearDueAt: dueAt == null && project.dueAt != null,
