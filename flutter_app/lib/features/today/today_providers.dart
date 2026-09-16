@@ -1,21 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/time/local_clock.dart';
 import '../calendar/calendar_providers.dart';
 import '../habits/habit_providers.dart';
 import '../projects/project_providers.dart';
 import '../tasks/task_providers.dart';
 import 'today_aggregation.dart';
 
-final todayClockProvider = StreamProvider<DateTime>((ref) async* {
-  yield DateTime.now();
-  yield* Stream<DateTime>.periodic(
-    const Duration(minutes: 1),
-    (_) => DateTime.now(),
-  );
-});
-
 final todaySnapshotProvider = Provider<TodaySnapshot>((ref) {
-  final now = ref.watch(todayClockProvider).valueOrNull ?? DateTime.now();
+  final now = ref.watch(localMinuteClockProvider).valueOrNull ?? DateTime.now();
   final activities =
       ref.watch(habitActivityListProvider).valueOrNull ?? const [];
   final logs =
