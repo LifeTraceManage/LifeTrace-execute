@@ -52,6 +52,7 @@ part 'screens_habits.dart';
 part 'screens_goals.dart';
 part 'screens_today_real.dart';
 part 'screens_profile_devices.dart';
+part 'screens_profile_data.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
