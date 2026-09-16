@@ -1977,9 +1977,17 @@ class Profile extends ConsumerWidget {
         h('账户'),
         panel(
           Column(children: [
-            const _Setting(Icons.person_outline_rounded, '个人资料'),
+            _Setting(
+              Icons.person_outline_rounded,
+              '个人资料',
+              onTap: () => push(c, const ProfileDetails()),
+            ),
             const Divider(height: 1),
-            const _Setting(Icons.lock_outline_rounded, '账户与安全'),
+            _Setting(
+              Icons.lock_outline_rounded,
+              '账户与安全',
+              onTap: () => push(c, const AccountSecurity()),
+            ),
             const Divider(height: 1),
             _Setting(
               Icons.devices_outlined,
