@@ -29,6 +29,25 @@ abstract final class GoalDatabaseMapper {
         modifiedByDevice: goal.modifiedByDevice,
       );
 
+  static db.GoalsCompanion toCompanion(ExecutionGoal goal) =>
+      db.GoalsCompanion(
+        id: Value(goal.id),
+        userId: Value(goal.userId),
+        name: Value(goal.name),
+        description: Value(goal.description),
+        status: Value(goal.status.wireValue),
+        targetAt: Value(goal.targetAt),
+        color: Value(goal.color),
+        icon: Value(goal.icon),
+        sortOrder: Value(goal.sortOrder),
+        completedAt: Value(goal.completedAt),
+        createdAt: Value(goal.createdAt),
+        updatedAt: Value(goal.updatedAt),
+        localVersion: Value(goal.localVersion),
+        serverVersion: Value(goal.serverVersion),
+        modifiedByDevice: Value(goal.modifiedByDevice),
+      );
+
   static ExecutionGoal fromRow(db.Goal row) => ExecutionGoal(
         id: row.id,
         userId: row.userId,
@@ -330,7 +349,7 @@ class DriftGoalRepository implements GoalRepository {
     await database.transaction(() async {
       await database
           .into(database.goals)
-          .insertOnConflictUpdate(GoalDatabaseMapper.toRow(goal));
+          .insertOnConflictUpdate(GoalDatabaseMapper.toCompanion(goal));
       await database.into(database.syncOutbox).insert(
             db.SyncOutboxCompanion.insert(
               changeId: _uuid.v4(),
