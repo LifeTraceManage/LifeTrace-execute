@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/background/background_sync.dart';
 import 'core/notifications/reminder_notification_service.dart';
+import 'data/repository/habit_repository.dart';
 import 'data/repository/reminder_repository.dart';
 import 'domain/calendar/execution_calendar_event.dart';
 import 'domain/collection/entity_link.dart';
@@ -13,6 +14,7 @@ import 'domain/collection/execution_file_metadata.dart';
 import 'domain/collection/execution_memo.dart';
 import 'domain/focus/execution_focus_session.dart';
 import 'domain/focus/focus_timer_state.dart';
+import 'domain/habit/habit.dart';
 import 'domain/important_date/execution_important_date.dart';
 import 'domain/important_date/important_date_occurrence.dart';
 import 'domain/project/execution_project.dart';
