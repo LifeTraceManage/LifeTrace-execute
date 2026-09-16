@@ -129,32 +129,45 @@ class AppearanceSettings extends ConsumerWidget {
           h('界面密度'),
           panel(
             Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RadioListTile<UiDensityPreference>(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('紧凑'),
-                  subtitle: const Text('提高信息密度，适合小屏和高频操作'),
-                  value: UiDensityPreference.compact,
-                  groupValue: value.uiDensity,
-                  onChanged: (next) => _setDensity(ref, next),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<UiDensityPreference>(
+                    segments: const [
+                      ButtonSegment(
+                        value: UiDensityPreference.compact,
+                        label: Text('紧凑'),
+                      ),
+                      ButtonSegment(
+                        value: UiDensityPreference.standard,
+                        label: Text('标准'),
+                      ),
+                      ButtonSegment(
+                        value: UiDensityPreference.comfortable,
+                        label: Text('舒适'),
+                      ),
+                    ],
+                    selected: {value.uiDensity},
+                    onSelectionChanged: (selected) =>
+                        _setDensity(ref, selected.first),
+                  ),
                 ),
-                const Divider(height: 1),
-                RadioListTile<UiDensityPreference>(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('标准'),
-                  subtitle: const Text('当前默认显示比例'),
-                  value: UiDensityPreference.standard,
-                  groupValue: value.uiDensity,
-                  onChanged: (next) => _setDensity(ref, next),
-                ),
-                const Divider(height: 1),
-                RadioListTile<UiDensityPreference>(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('舒适'),
-                  subtitle: const Text('适当放大文字和控件内容'),
-                  value: UiDensityPreference.comfortable,
-                  groupValue: value.uiDensity,
-                  onChanged: (next) => _setDensity(ref, next),
+                const SizedBox(height: 10),
+                Text(
+                  switch (value.uiDensity) {
+                    UiDensityPreference.compact =>
+                      '提高信息密度，适合小屏和高频操作。',
+                    UiDensityPreference.standard =>
+                      '使用当前默认显示比例。',
+                    UiDensityPreference.comfortable =>
+                      '适当放大文字和控件内容。',
+                  },
+                  style: const TextStyle(
+                    fontSize: 8.8,
+                    color: C.muted,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
