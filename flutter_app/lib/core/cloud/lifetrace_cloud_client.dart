@@ -233,4 +233,34 @@ class LifeTraceCloudClient {
       accessToken: accessToken,
     );
   }
+
+  Future<void> changePassword({
+    required String baseUrl,
+    required String accessToken,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _transport.requestJson(
+      method: 'POST',
+      baseUrl: baseUrl,
+      path: '/api/v1/auth/password/change',
+      accessToken: accessToken,
+      body: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      },
+    );
+  }
+
+  Future<void> logoutAll({
+    required String baseUrl,
+    required String accessToken,
+  }) async {
+    await _transport.requestJson(
+      method: 'POST',
+      baseUrl: baseUrl,
+      path: '/api/v1/auth/logout-all',
+      accessToken: accessToken,
+    );
+  }
 }
