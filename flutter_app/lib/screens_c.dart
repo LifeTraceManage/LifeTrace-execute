@@ -2006,6 +2006,12 @@ class Profile extends ConsumerWidget {
             ),
             const Divider(height: 1),
             _Setting(
+              Icons.call_split_rounded,
+              '冲突中心',
+              onTap: () => push(c, const ConflictCenter()),
+            ),
+            const Divider(height: 1),
+            _Setting(
               Icons.privacy_tip_outlined,
               '数据与隐私',
               onTap: () => push(c, const DataManagement()),
