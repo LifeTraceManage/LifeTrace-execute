@@ -13,9 +13,25 @@ int calendarDaysInMonth(DateTime month) =>
 int calendarMondayOffset(DateTime month) =>
     DateTime(month.year, month.month, 1).weekday - DateTime.monday;
 
-List<DateTime?> calendarMonthGrid(DateTime month) {
+int calendarWeekOffset(
+  DateTime month, {
+  bool weekStartsMonday = true,
+}) {
+  final weekday = DateTime(month.year, month.month, 1).weekday;
+  return weekStartsMonday
+      ? weekday - DateTime.monday
+      : weekday % DateTime.sunday;
+}
+
+List<DateTime?> calendarMonthGrid(
+  DateTime month, {
+  bool weekStartsMonday = true,
+}) {
   final first = calendarMonthStart(month);
-  final offset = calendarMondayOffset(first);
+  final offset = calendarWeekOffset(
+    first,
+    weekStartsMonday: weekStartsMonday,
+  );
   final days = calendarDaysInMonth(first);
   final cellCount = offset + days <= 35 ? 35 : 42;
   return List<DateTime?>.generate(cellCount, (index) {
