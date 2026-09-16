@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/background/background_sync.dart';
 import 'core/cloud/cloud_device_contract.dart';
 import 'core/notifications/reminder_notification_service.dart';
+import 'core/preferences/app_preferences.dart';
 import 'data/repository/habit_repository.dart';
 import 'data/repository/reminder_repository.dart';
 import 'domain/calendar/execution_calendar_event.dart';
@@ -92,8 +93,12 @@ abstract final class C {
       skySoft = Color(0xffe9f6ff);
 }
 
-ThemeData buildTheme() => ThemeData(
+ThemeData buildTheme([AppPreferences preferences = const AppPreferences()]) =>
+    ThemeData(
       useMaterial3: true,
+      visualDensity: preferences.density == DensityPreference.compact
+          ? VisualDensity.compact
+          : VisualDensity.standard,
       scaffoldBackgroundColor: C.bg,
       colorScheme: const ColorScheme.light(
         primary: C.p,
@@ -132,18 +137,32 @@ ThemeData buildTheme() => ThemeData(
       ),
     );
 
-class LifeTraceExecuteApp extends StatelessWidget {
+class LifeTraceExecuteApp extends ConsumerWidget {
   const LifeTraceExecuteApp({super.key, this.simulateSystemChrome = false});
 
   final bool simulateSystemChrome;
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'LifeTrace Execute',
-        theme: buildTheme(),
-        home: Shell(simulateSystemChrome: simulateSystemChrome),
-      );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preferences =
+        ref.watch(appPreferencesProvider).valueOrNull ?? const AppPreferences();
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'LifeTrace Execute',
+      theme: buildTheme(preferences),
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        return MediaQuery(
+          data: media.copyWith(
+            textScaler: TextScaler.linear(preferences.fontScale.scale),
+            disableAnimations: preferences.reduceMotion,
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      home: Shell(simulateSystemChrome: simulateSystemChrome),
+    );
+  }
 }
 
 class PhoneStatusBar extends StatelessWidget {
