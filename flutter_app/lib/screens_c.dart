@@ -2011,17 +2011,33 @@ class Profile extends ConsumerWidget {
               onTap: () => push(c, const DataManagement()),
             ),
             const Divider(height: 1),
-            const _Setting(Icons.notifications_none_rounded, '通知'),
+            _Setting(
+              Icons.notifications_none_rounded,
+              '通知',
+              onTap: () => push(c, const NotificationSettings()),
+            ),
             const Divider(height: 1),
-            const _Setting(Icons.palette_outlined, '外观'),
+            _Setting(
+              Icons.palette_outlined,
+              '外观',
+              onTap: () => push(c, const AppearanceSettings()),
+            ),
           ]),
         ),
         h('应用'),
         panel(
-          const Column(children: [
-            _Setting(Icons.settings_outlined, '通用'),
-            Divider(height: 1),
-            _Setting(Icons.info_outline_rounded, '关于'),
+          Column(children: [
+            _Setting(
+              Icons.settings_outlined,
+              '通用',
+              onTap: () => push(c, const GeneralSettings()),
+            ),
+            const Divider(height: 1),
+            _Setting(
+              Icons.info_outline_rounded,
+              '关于',
+              onTap: () => push(c, const AboutLifeTrace()),
+            ),
           ]),
         ),
       ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 18)),
