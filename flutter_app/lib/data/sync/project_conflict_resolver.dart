@@ -40,7 +40,7 @@ class ProjectConflictResolver {
         );
         await database
             .into(database.projects)
-            .insertOnConflictUpdate(ProjectDatabaseMapper.toRow(project));
+            .insertOnConflictUpdate(ProjectDatabaseMapper.toCompanion(project));
       }
       await _deleteConflicts(conflict.userId, conflict.entityId);
     });
@@ -105,7 +105,7 @@ class ProjectConflictResolver {
           );
           await database
               .into(database.projects)
-              .insertOnConflictUpdate(ProjectDatabaseMapper.toRow(rebased));
+              .insertOnConflictUpdate(ProjectDatabaseMapper.toCompanion(rebased));
           await database.into(database.syncOutbox).insert(
                 db.SyncOutboxCompanion.insert(
                   changeId: _uuid.v4(),
