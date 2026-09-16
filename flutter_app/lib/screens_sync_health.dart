@@ -274,7 +274,7 @@ class _SyncConflictCardState extends ConsumerState<_SyncConflictCard> {
             const CircleAvatar(
               radius: 17,
               backgroundColor: C.redSoft,
-              child: const Icon(
+              child: Icon(
                 Icons.compare_arrows_rounded,
                 size: 16,
                 color: C.red,
