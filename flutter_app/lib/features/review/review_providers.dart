@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/background/background_sync.dart';
+import '../../core/time/local_clock.dart';
 import '../../data/repository/daily_review_repository.dart';
 import '../../data/repository/weekly_review_repository.dart';
 import '../../data/sync/daily_review_conflict_resolver.dart';
@@ -40,8 +41,10 @@ String reviewDateKey(DateTime value) {
       '${local.day.toString().padLeft(2, '0')}';
 }
 
-final todayReviewDateProvider =
-    Provider<String>((ref) => reviewDateKey(DateTime.now()));
+final todayReviewDateProvider = Provider<String>((ref) {
+  final now = ref.watch(localMinuteClockProvider).valueOrNull ?? DateTime.now();
+  return reviewDateKey(now);
+});
 
 final dailyReviewListProvider =
     StreamProvider<List<DailyReview>>((ref) async* {
@@ -68,8 +71,10 @@ final dailyReviewForDateProvider =
   );
 });
 
-final currentReviewWeekProvider =
-    Provider<ReviewWeekRange>((ref) => reviewWeekFor(DateTime.now()));
+final currentReviewWeekProvider = Provider<ReviewWeekRange>((ref) {
+  final now = ref.watch(localMinuteClockProvider).valueOrNull ?? DateTime.now();
+  return reviewWeekFor(now);
+});
 
 final weeklyReviewListProvider =
     StreamProvider<List<WeeklyReview>>((ref) async* {
