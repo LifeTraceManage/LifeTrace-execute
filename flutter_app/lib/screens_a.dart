@@ -7,13 +7,24 @@ class Today extends ConsumerWidget {
 
   @override
   Widget build(BuildContext c, WidgetRef ref) {
+    final snapshot = ref.watch(todaySnapshotProvider);
+    final coreLoading = ref.watch(todayCoreLoadingProvider);
+    final coreError = ref.watch(todayCoreErrorProvider);
     final importantDateState = ref.watch(importantDateListProvider);
     final focusState = ref.watch(focusTimerStateProvider).valueOrNull;
     final focusStats = ref.watch(focusTodayStatsProvider);
     final tasks =
         ref.watch(taskListProvider).valueOrNull ?? const <ExecutionTask>[];
     final focusTask = _todayFocusTask(tasks, focusState?.linkedTaskId);
-    final now = DateTime.now();
+    final session = ref.watch(currentSessionProvider).valueOrNull;
+    final displayName = session?.displayName?.trim();
+    final emailName = session?.email.split('@').first.trim();
+    final userName = displayName != null && displayName.isNotEmpty
+        ? displayName
+        : emailName != null && emailName.isNotEmpty
+            ? emailName
+            : null;
+    final now = snapshot.now;
     final upcoming = importantDatesForRange(
       importantDateState.valueOrNull ?? const <ExecutionImportantDate>[],
       start: now,
@@ -21,9 +32,15 @@ class Today extends ConsumerWidget {
     ).take(3).toList(growable: false);
 
     return page([
-      _TodayHero(onProfile: () => push(c, const Profile())),
+      _TodayRealHero(
+        now: now,
+        userName: userName,
+        snapshot: snapshot,
+        focusStats: focusStats,
+        onProfile: () => push(c, const Profile()),
+      ),
       const SizedBox(height: 13),
-      const _Week(),
+      _TodayRealWeek(now: now),
       const SizedBox(height: 13),
       _FocusHero(
         state: focusState,
@@ -32,54 +49,88 @@ class Today extends ConsumerWidget {
         onStart: () => push(c, Focus(task: focusTask)),
       ),
       h('今日概览'),
-      const _InlineStats(),
-      h('时间线'),
-      _TimeItem(
-        '19:00',
-        '健身',
-        '胸 + 三头',
-        color: C.green,
-        icon: Icons.fitness_center_rounded,
-        active: true,
-        tap: () => push(c, const TaskDetail()),
-      ),
-      _TimeItem(
-        '21:00',
-        '修改实验代码',
-        'Academic Research',
-        color: C.purple,
-        icon: Icons.code_rounded,
-        tap: () => push(c, const TaskDetail()),
-      ),
-      _TimeItem(
-        '22:30',
-        '英语学习',
-        '个人成长',
-        color: C.orange,
-        icon: Icons.menu_book_rounded,
-        tap: () => push(c, const TaskDetail()),
-      ),
+      _TodayRealInlineStats(snapshot: snapshot),
+      if (coreError != null) ...[
+        const SizedBox(height: 8),
+        panel(
+          Text(
+            '今日数据读取失败：$coreError',
+            style: const TextStyle(fontSize: 9, color: C.red),
+          ),
+          padding: const EdgeInsets.all(10),
+        ),
+      ],
       h(
-        '待完成',
-        tail: const Text(
-          '2项',
-          style: TextStyle(fontSize: 9, color: C.muted),
+        '时间线',
+        tail: Text(
+          coreLoading ? '同步中' : '${snapshot.timeline.length}项',
+          style: const TextStyle(fontSize: 9, color: C.muted),
         ),
       ),
-      _TaskLine(
-        '修复 MPC 仿真',
-        'Academic · 今天',
-        accent: C.purple,
-        icon: Icons.science_outlined,
-        tap: () => push(c, const TaskDetail()),
+      if (coreLoading && snapshot.timeline.isEmpty)
+        panel(const Center(child: CircularProgressIndicator()))
+      else if (snapshot.timeline.isEmpty)
+        panel(
+          const Text(
+            '今天没有已安排的任务或日程。',
+            style: TextStyle(fontSize: 9.2, color: C.muted),
+          ),
+          padding: const EdgeInsets.all(12),
+        )
+      else
+        for (final entry in snapshot.timeline)
+          _TimeItem(
+            _todayTimelineTime(entry, now),
+            entry.title,
+            _todayTimelineMeta(entry),
+            color: _todayTimelineColor(entry),
+            icon: _todayTimelineIcon(entry),
+            active: _todayTimelineActive(entry, now),
+            tap: () => unawaited(_openTodayTimelineEntry(c, ref, entry)),
+          ),
+      h(
+        '待完成',
+        tail: Text(
+          coreLoading
+              ? '同步中'
+              : snapshot.overdueTaskCount > 0
+                  ? '${snapshot.pendingTasks.length}项 · ${snapshot.overdueTaskCount}逾期'
+                  : '${snapshot.pendingTasks.length}项',
+          style: const TextStyle(fontSize: 9, color: C.muted),
+        ),
       ),
-      _TaskLine(
-        '完成周报',
-        '工作 · 明天',
-        accent: C.sky,
-        icon: Icons.work_outline_rounded,
-        tap: () => push(c, const TaskDetail()),
-      ),
+      if (coreLoading && snapshot.pendingTasks.isEmpty)
+        panel(const Center(child: CircularProgressIndicator()))
+      else if (snapshot.pendingTasks.isEmpty)
+        panel(
+          const Text(
+            '今天没有待完成或逾期任务。',
+            style: TextStyle(fontSize: 9.2, color: C.muted),
+          ),
+          padding: const EdgeInsets.all(12),
+        )
+      else ...[
+        for (final entry in snapshot.pendingTasks.take(6))
+          _TaskLine(
+            entry.task.title,
+            _todayPendingMeta(entry),
+            accent: _todayTaskColor(entry.task),
+            icon: entry.overdue
+                ? Icons.warning_amber_rounded
+                : entry.task.status == ExecutionTaskStatus.inProgress
+                    ? Icons.play_circle_outline_rounded
+                    : Icons.radio_button_unchecked_rounded,
+            tap: () => push(c, TaskDetail(task: entry.task)),
+          ),
+        if (snapshot.pendingTasks.length > 6)
+          panel(
+            Text(
+              '还有 ${snapshot.pendingTasks.length - 6} 项，请在任务页继续处理。',
+              style: const TextStyle(fontSize: 8.8, color: C.muted),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          ),
+      ],
       const _TodayGoalsSection(),
       const _TodayHabitsSection(),
       h(
