@@ -95,7 +95,7 @@ TodaySnapshot buildTodaySnapshot({
     final scheduledToday = _inDay(scheduled, dayStart, dayEnd);
     final dueToday = _inDay(due, dayStart, dayEnd);
     final completedToday = _inDay(completed, dayStart, dayEnd);
-    final overdue = !task.isDone && due != null && due.isBefore(dayStart);
+    final overdue = !task.isDone && due != null && due.isBefore(localNow);
     final relevant = scheduledToday ||
         dueToday ||
         completedToday ||
