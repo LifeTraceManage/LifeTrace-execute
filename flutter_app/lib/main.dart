@@ -48,6 +48,7 @@ part 'screens_c.dart';
 part 'screens_review_weekly.dart';
 part 'screens_habits.dart';
 part 'screens_goals.dart';
+part 'screens_today_real.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
