@@ -814,7 +814,7 @@ class ProjectDetail extends ConsumerWidget {
                     ),
                     if (goal != null)
                       chip(
-                        '目标 ' + goal.name,
+                        '目标 ${goal.name}',
                         bg: Colors.white,
                         fg: C.p,
                       ),
@@ -1063,6 +1063,7 @@ Future<void> _editProject(
   } catch (_) {
     goals = ref.read(goalListProvider).valueOrNull ?? const <ExecutionGoal>[];
   }
+  if (!context.mounted) return;
   final titleController = TextEditingController(text: project?.title ?? '');
   final descriptionController =
       TextEditingController(text: project?.description ?? '');
