@@ -39,6 +39,8 @@ import 'features/review/review_providers.dart';
 import 'features/review/review_stats.dart';
 import 'features/review/weekly_review_stats.dart';
 import 'features/tasks/task_providers.dart';
+import 'features/today/today_aggregation.dart';
+import 'features/today/today_providers.dart';
 
 part 'screens_a.dart';
 part 'screens_b.dart';
@@ -46,6 +48,7 @@ part 'screens_c.dart';
 part 'screens_review_weekly.dart';
 part 'screens_habits.dart';
 part 'screens_goals.dart';
+part 'screens_today_real.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

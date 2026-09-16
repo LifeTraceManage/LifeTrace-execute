@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/background/background_sync.dart';
+import '../../core/time/local_clock.dart';
 import '../../data/repository/habit_repository.dart';
 import '../../data/sync/habit_conflict_resolver.dart';
 import '../../domain/habit/habit.dart';
@@ -26,8 +27,10 @@ String habitDateKey(DateTime value) {
       '${local.day.toString().padLeft(2, '0')}';
 }
 
-final todayHabitDateProvider =
-    Provider<String>((ref) => habitDateKey(DateTime.now()));
+final todayHabitDateProvider = Provider<String>((ref) {
+  final now = ref.watch(localMinuteClockProvider).valueOrNull ?? DateTime.now();
+  return habitDateKey(now);
+});
 
 final habitActivityListProvider =
     StreamProvider<List<HabitActivity>>((ref) async* {

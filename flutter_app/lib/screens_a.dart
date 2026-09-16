@@ -7,13 +7,27 @@ class Today extends ConsumerWidget {
 
   @override
   Widget build(BuildContext c, WidgetRef ref) {
+    final snapshot = ref.watch(todaySnapshotProvider);
+    final coreLoading = ref.watch(todayCoreLoadingProvider);
+    final coreError = ref.watch(todayCoreErrorProvider);
     final importantDateState = ref.watch(importantDateListProvider);
+    final reviewDate = ref.watch(todayReviewDateProvider);
+    final reviewState = ref.watch(dailyReviewForDateProvider(reviewDate));
+    final todayReview = reviewState.valueOrNull;
     final focusState = ref.watch(focusTimerStateProvider).valueOrNull;
     final focusStats = ref.watch(focusTodayStatsProvider);
     final tasks =
         ref.watch(taskListProvider).valueOrNull ?? const <ExecutionTask>[];
     final focusTask = _todayFocusTask(tasks, focusState?.linkedTaskId);
-    final now = DateTime.now();
+    final session = ref.watch(currentSessionProvider).valueOrNull;
+    final displayName = session?.displayName?.trim();
+    final emailName = session?.email.split('@').first.trim();
+    final userName = displayName != null && displayName.isNotEmpty
+        ? displayName
+        : emailName != null && emailName.isNotEmpty
+            ? emailName
+            : null;
+    final now = snapshot.now;
     final upcoming = importantDatesForRange(
       importantDateState.valueOrNull ?? const <ExecutionImportantDate>[],
       start: now,
@@ -21,9 +35,15 @@ class Today extends ConsumerWidget {
     ).take(3).toList(growable: false);
 
     return page([
-      _TodayHero(onProfile: () => push(c, const Profile())),
+      _TodayRealHero(
+        now: now,
+        userName: userName,
+        snapshot: snapshot,
+        focusStats: focusStats,
+        onProfile: () => push(c, const Profile()),
+      ),
       const SizedBox(height: 13),
-      const _Week(),
+      _TodayRealWeek(now: now),
       const SizedBox(height: 13),
       _FocusHero(
         state: focusState,
@@ -32,54 +52,88 @@ class Today extends ConsumerWidget {
         onStart: () => push(c, Focus(task: focusTask)),
       ),
       h('今日概览'),
-      const _InlineStats(),
-      h('时间线'),
-      _TimeItem(
-        '19:00',
-        '健身',
-        '胸 + 三头',
-        color: C.green,
-        icon: Icons.fitness_center_rounded,
-        active: true,
-        tap: () => push(c, const TaskDetail()),
-      ),
-      _TimeItem(
-        '21:00',
-        '修改实验代码',
-        'Academic Research',
-        color: C.purple,
-        icon: Icons.code_rounded,
-        tap: () => push(c, const TaskDetail()),
-      ),
-      _TimeItem(
-        '22:30',
-        '英语学习',
-        '个人成长',
-        color: C.orange,
-        icon: Icons.menu_book_rounded,
-        tap: () => push(c, const TaskDetail()),
-      ),
+      _TodayRealInlineStats(snapshot: snapshot),
+      if (coreError != null) ...[
+        const SizedBox(height: 8),
+        panel(
+          Text(
+            '今日数据读取失败：$coreError',
+            style: const TextStyle(fontSize: 9, color: C.red),
+          ),
+          padding: const EdgeInsets.all(10),
+        ),
+      ],
       h(
-        '待完成',
-        tail: const Text(
-          '2项',
-          style: TextStyle(fontSize: 9, color: C.muted),
+        '时间线',
+        tail: Text(
+          coreLoading ? '同步中' : '${snapshot.timeline.length}项',
+          style: const TextStyle(fontSize: 9, color: C.muted),
         ),
       ),
-      _TaskLine(
-        '修复 MPC 仿真',
-        'Academic · 今天',
-        accent: C.purple,
-        icon: Icons.science_outlined,
-        tap: () => push(c, const TaskDetail()),
+      if (coreLoading && snapshot.timeline.isEmpty)
+        panel(const Center(child: CircularProgressIndicator()))
+      else if (snapshot.timeline.isEmpty)
+        panel(
+          const Text(
+            '今天没有已安排的任务或日程。',
+            style: TextStyle(fontSize: 9.2, color: C.muted),
+          ),
+          padding: const EdgeInsets.all(12),
+        )
+      else
+        for (final entry in snapshot.timeline)
+          _TimeItem(
+            _todayTimelineTime(entry, now),
+            entry.title,
+            _todayTimelineMeta(entry),
+            color: _todayTimelineColor(entry),
+            icon: _todayTimelineIcon(entry),
+            active: _todayTimelineActive(entry, now),
+            tap: () => unawaited(_openTodayTimelineEntry(c, ref, entry)),
+          ),
+      h(
+        '待完成',
+        tail: Text(
+          coreLoading
+              ? '同步中'
+              : snapshot.overdueTaskCount > 0
+                  ? '${snapshot.pendingTasks.length}项 · ${snapshot.overdueTaskCount}逾期'
+                  : '${snapshot.pendingTasks.length}项',
+          style: const TextStyle(fontSize: 9, color: C.muted),
+        ),
       ),
-      _TaskLine(
-        '完成周报',
-        '工作 · 明天',
-        accent: C.sky,
-        icon: Icons.work_outline_rounded,
-        tap: () => push(c, const TaskDetail()),
-      ),
+      if (coreLoading && snapshot.pendingTasks.isEmpty)
+        panel(const Center(child: CircularProgressIndicator()))
+      else if (snapshot.pendingTasks.isEmpty)
+        panel(
+          const Text(
+            '今天没有待完成或逾期任务。',
+            style: TextStyle(fontSize: 9.2, color: C.muted),
+          ),
+          padding: const EdgeInsets.all(12),
+        )
+      else ...[
+        for (final entry in snapshot.pendingTasks.take(6))
+          _TaskLine(
+            entry.task.title,
+            _todayPendingMeta(entry),
+            accent: _todayTaskColor(entry.task),
+            icon: entry.overdue
+                ? Icons.warning_amber_rounded
+                : entry.task.status == ExecutionTaskStatus.inProgress
+                    ? Icons.play_circle_outline_rounded
+                    : Icons.radio_button_unchecked_rounded,
+            tap: () => push(c, TaskDetail(task: entry.task)),
+          ),
+        if (snapshot.pendingTasks.length > 6)
+          panel(
+            Text(
+              '还有 ${snapshot.pendingTasks.length - 6} 项，请在任务页继续处理。',
+              style: const TextStyle(fontSize: 8.8, color: C.muted),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          ),
+      ],
       const _TodayGoalsSection(),
       const _TodayHabitsSection(),
       h(
@@ -108,7 +162,17 @@ class Today extends ConsumerWidget {
               item: occurrence.source,
             ),
           ),
-      h('每日复盘'),
+      h(
+        '每日复盘',
+        tail: reviewState.isLoading
+            ? const Text(
+                '读取中',
+                style: TextStyle(fontSize: 9, color: C.muted),
+              )
+            : todayReview == null
+                ? null
+                : chip('已保存', bg: C.greenSoft, fg: C.green),
+      ),
       panel(
         Row(children: [
           const CircleAvatar(
@@ -117,18 +181,23 @@ class Today extends ConsumerWidget {
             child: Icon(Icons.auto_stories_outlined, size: 18, color: C.pink),
           ),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '记录今天，准备明天',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                  todayReview == null ? '记录今天，准备明天' : '今天的复盘已保存',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  '心情 · 精力 · 完成率 · 明日重点',
-                  style: TextStyle(fontSize: 8.8, color: C.muted),
+                  todayReview == null
+                      ? '心情 · 精力 · 完成率 · 明日重点'
+                      : _todayReviewSummary(todayReview),
+                  style: const TextStyle(fontSize: 8.8, color: C.muted),
                 ),
               ],
             ),
@@ -204,102 +273,6 @@ class _TodayImportantDateTile extends StatelessWidget {
       ),
     );
   }
-}
-
-class _TodayHero extends StatelessWidget {
-  const _TodayHero({required this.onProfile});
-
-  final VoidCallback onProfile;
-
-  @override
-  Widget build(BuildContext c) => Container(
-        height: 116,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xffedf4ff), Color(0xfff6efff)],
-          ),
-        ),
-        child: Stack(children: [
-          Positioned(
-            right: -22,
-            top: -28,
-            child: Container(
-              width: 104,
-              height: 104,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: C.purple.withValues(alpha: .08),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 34,
-            bottom: -40,
-            child: Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: C.p.withValues(alpha: .07),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(15, 14, 13, 12),
-            child: Row(children: [
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text(
-                    '9月9日 · 星期三',
-                    style: TextStyle(fontSize: 9.5, color: C.muted, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    '晚上好，Alex',
-                    style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: -.4),
-                  ),
-                  const Spacer(),
-                  Row(children: [
-                    _HeroTag(Icons.bolt_rounded, '连续 7 天', C.orange),
-                    const SizedBox(width: 6),
-                    _HeroTag(Icons.check_rounded, '8 已完成', C.green),
-                  ]),
-                ]),
-              ),
-              InkWell(
-                onTap: onProfile,
-                borderRadius: BorderRadius.circular(40),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  SizedBox(
-                    width: 66,
-                    height: 66,
-                    child: Stack(fit: StackFit.expand, children: [
-                      const CircularProgressIndicator(
-                        value: .73,
-                        strokeWidth: 5,
-                        color: C.purple,
-                        backgroundColor: Colors.white,
-                      ),
-                      const Center(
-                        child: CircleAvatar(
-                          radius: 25,
-                          backgroundColor: Colors.white,
-                          child: Icon(Icons.person_rounded, color: C.purple, size: 25),
-                        ),
-                      ),
-                    ]),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text('今日 73%', style: TextStyle(fontSize: 8.5, color: C.muted)),
-                ]),
-              ),
-            ]),
-          ),
-        ]),
-      );
 }
 
 class _HeroTag extends StatelessWidget {
@@ -515,101 +488,6 @@ String _focusEndLabel(FocusTimerState state) {
   final mode = state.mode == FocusMode.short ? '25/5' : '50/10';
   return '$mode · $hh:$mm 结束';
 }
-class _Week extends StatelessWidget {
-  const _Week();
-
-  @override
-  Widget build(BuildContext c) {
-    const ds = ['7', '8', '9', '10', '11', '12', '13'];
-    const ws = ['一', '二', '三', '四', '五', '六', '日'];
-    const dots = [C.sky, C.teal, C.purple, C.orange, C.red, C.green, C.pink];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: C.border),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: List.generate(7, (i) {
-          final selected = i == 2;
-          return SizedBox(
-            width: 39,
-            child: Column(children: [
-              Text(ws[i], style: const TextStyle(fontSize: 8, color: C.muted)),
-              const SizedBox(height: 4),
-              Container(
-                width: 29,
-                height: 29,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: selected ? C.p : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  ds[i],
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    color: selected ? Colors.white : C.ink,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                width: selected ? 12 : 5,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: dots[i],
-                  borderRadius: BorderRadius.circular(3),
-                ),
-              ),
-            ]),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _InlineStats extends StatelessWidget {
-  const _InlineStats();
-
-  @override
-  Widget build(BuildContext c) => const Row(children: [
-        Expanded(
-          child: _MiniMetric(
-            Icons.check_circle_outline_rounded,
-            '5',
-            '待完成',
-            C.p,
-            C.ps,
-          ),
-        ),
-        SizedBox(width: 7),
-        Expanded(
-          child: _MiniMetric(
-            Icons.calendar_month_rounded,
-            '2',
-            '日程',
-            C.orange,
-            C.orangeSoft,
-          ),
-        ),
-        SizedBox(width: 7),
-        Expanded(
-          child: _MiniMetric(
-            Icons.local_fire_department_outlined,
-            '1',
-            '习惯',
-            C.green,
-            C.greenSoft,
-          ),
-        ),
-      ]);
-}
-
 class _MiniMetric extends StatelessWidget {
   const _MiniMetric(this.icon, this.value, this.label, this.color, this.background);
   final IconData icon;

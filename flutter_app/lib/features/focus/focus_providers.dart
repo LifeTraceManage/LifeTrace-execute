@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/background/background_sync.dart';
+import '../../core/time/local_clock.dart';
 import '../../data/focus/focus_timer_engine.dart';
 import '../../data/repository/focus_repository.dart';
 import '../../data/sync/focus_session_conflict_resolver.dart';
@@ -47,7 +48,8 @@ final focusTodayStatsProvider = Provider<FocusTodayStats>((ref) {
   final sessions =
       ref.watch(focusSessionListProvider).valueOrNull ??
           const <ExecutionFocusSession>[];
-  return calculateFocusTodayStats(sessions);
+  final now = ref.watch(localMinuteClockProvider).valueOrNull ?? DateTime.now();
+  return calculateFocusTodayStats(sessions, now: now);
 });
 
 final focusConflictResolverProvider =
