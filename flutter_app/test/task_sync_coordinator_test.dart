@@ -1132,6 +1132,74 @@ void main() {
     expect(task.serverVersion, null);
   });
 
+  test(
+      'snapshot baseline rebuild preserves pending local entity and restores remote data',
+      () async {
+    final local = await repository.createTask(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      title: 'Local pending',
+    );
+    await database.into(database.syncState).insertOnConflictUpdate(
+          SyncStateCompanion.insert(
+            scope: TaskSyncCoordinator.taskScopeKey,
+            userId: 'user-1',
+            cursor: const Value('500'),
+            updatedAt: '2026-09-16T00:00:00.000Z',
+          ),
+        );
+
+    final client = _FakeSyncClient(
+      snapshots: [
+        SnapshotPageResult(
+          requestId: 'rebuild-snapshot',
+          snapshotId: 'rebuild-snapshot-1',
+          snapshotCursor: '600',
+          items: [
+            SnapshotItem(
+              entityType: DriftTaskRepository.entityType,
+              entityId: local.id,
+              serverVersion: '41',
+              payload: _payload(local.id, 'Cloud overwrite'),
+            ),
+            SnapshotItem(
+              entityType: DriftTaskRepository.entityType,
+              entityId: 'remote-restored',
+              serverVersion: '42',
+              payload: _payload('remote-restored', 'Remote restored'),
+            ),
+          ],
+          completed: true,
+          serverTime: '2026-09-16T00:01:00.000Z',
+        ),
+      ],
+      pulls: [emptyPull('601')],
+      acceptAllPushes: true,
+    );
+
+    final summary =
+        await _coordinatorFor(database, client).rebuildSnapshotBaseline();
+
+    expect(client.snapshotCalls, 1);
+    expect(summary.snapshotItems, 2);
+    expect(summary.pushed, 1);
+
+    final tasks = await database.select(database.tasks).get();
+    expect(
+      tasks.singleWhere((item) => item.id == local.id).title,
+      'Local pending',
+    );
+    expect(
+      tasks.singleWhere((item) => item.id == 'remote-restored').title,
+      'Remote restored',
+    );
+    expect(await database.select(database.syncOutbox).get(), isEmpty);
+
+    final state = (await database.select(database.syncState).get()).single;
+    expect(state.cursor, '601');
+    expect(state.snapshotId, equals(null));
+  });
+
   test('concurrent syncNow calls share one in-flight operation', () async {
     final gate = Completer<void>();
     final client = _FakeSyncClient(

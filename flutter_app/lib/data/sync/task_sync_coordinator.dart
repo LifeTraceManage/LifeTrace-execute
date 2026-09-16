@@ -101,6 +101,29 @@ class TaskSyncCoordinator {
     return tracked;
   }
 
+  /// Rebuild the local Sync v1 baseline from a fresh snapshot without deleting
+  /// business entities, pending Outbox mutations or unresolved conflicts.
+  ///
+  /// Snapshot application already skips entities that have a local Outbox
+  /// head, so unsent local work remains authoritative until it is pushed.
+  Future<TaskSyncSummary> rebuildSnapshotBaseline() async {
+    final active = _activeSync;
+    if (active != null) {
+      await active;
+    }
+    final userId = await _sessionManager.authorized(
+      (session) async => session.userId,
+    );
+    await (database.delete(database.syncState)
+          ..where(
+            (table) =>
+                table.userId.equals(userId) &
+                table.scope.equals(taskScopeKey),
+          ))
+        .go();
+    return syncNow();
+  }
+
   Future<TaskSyncSummary> _syncInternal() {
     return _sessionManager.authorized((session) async {
       final client = SyncClientContext(
