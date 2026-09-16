@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/background/background_sync.dart';
 import '../../data/repository/entity_link_repository.dart';
+import '../../data/repository/task_repository.dart';
 import '../../domain/collection/entity_link.dart';
 import '../../domain/task/execution_task.dart';
 import 'task_providers.dart';
