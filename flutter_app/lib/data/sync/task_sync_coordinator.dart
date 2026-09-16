@@ -204,7 +204,7 @@ class TaskSyncCoordinator {
               );
               await database
                   .into(database.projects)
-                  .insertOnConflictUpdate(ProjectDatabaseMapper.toRow(project));
+                  .insertOnConflictUpdate(ProjectDatabaseMapper.toCompanion(project));
             case DriftGoalRepository.entityType:
               final goal = GoalWireMapper.fromPayload(
                 item.payload,
@@ -212,7 +212,7 @@ class TaskSyncCoordinator {
               );
               await database
                   .into(database.goals)
-                  .insertOnConflictUpdate(GoalDatabaseMapper.toRow(goal));
+                  .insertOnConflictUpdate(GoalDatabaseMapper.toCompanion(goal));
             case DriftCalendarEventRepository.entityType:
               final event = CalendarEventWireMapper.fromPayload(
                 item.payload,
@@ -967,7 +967,7 @@ class TaskSyncCoordinator {
                     serverVersion: change.serverVersion,
                   );
                   await database.into(database.projects).insertOnConflictUpdate(
-                        ProjectDatabaseMapper.toRow(project),
+                        ProjectDatabaseMapper.toCompanion(project),
                       );
                 case DriftGoalRepository.entityType:
                   final goal = GoalWireMapper.fromPayload(
@@ -975,7 +975,7 @@ class TaskSyncCoordinator {
                     serverVersion: change.serverVersion,
                   );
                   await database.into(database.goals).insertOnConflictUpdate(
-                        GoalDatabaseMapper.toRow(goal),
+                        GoalDatabaseMapper.toCompanion(goal),
                       );
                 case DriftCalendarEventRepository.entityType:
                   final event = CalendarEventWireMapper.fromPayload(
