@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/background/background_sync.dart';
+import '../../core/notifications/notification_preferences.dart';
 import '../../core/time/local_clock.dart';
 import '../../data/focus/focus_timer_engine.dart';
 import '../../data/repository/focus_repository.dart';
@@ -158,10 +159,14 @@ class FocusCommands {
 
   Future<FocusTimerState> start({String? linkedTaskId}) async {
     if (!kIsWeb) {
-      await ref
-          .read(reminderNotificationBridgeProvider)
-          .service
-          .requestPermission();
+      final preferences =
+          await ref.read(notificationPreferencesProvider.future);
+      if (preferences.focusEnabled) {
+        await ref
+            .read(reminderNotificationBridgeProvider)
+            .service
+            .requestPermission();
+      }
     }
     final state = await _engine.start(
       userId: await _requireUserId(),
@@ -241,10 +246,13 @@ class FocusCommands {
 
   Future<void> _reconcileNotification(FocusTimerState state) async {
     if (kIsWeb) return;
-    await ref
-        .read(reminderNotificationBridgeProvider)
-        .service
-        .reconcileFocus(state);
+    final service = ref.read(reminderNotificationBridgeProvider).service;
+    final preferences = await ref.read(notificationPreferencesProvider.future);
+    if (!preferences.focusEnabled) {
+      await service.cancelFocus(state.userId);
+      return;
+    }
+    await service.reconcileFocus(state);
   }
 
   Future<String> _requireUserId() async {
