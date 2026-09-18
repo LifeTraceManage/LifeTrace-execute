@@ -1,8 +1,29 @@
 # LifeTrace Execute 工程实施记录
 
-更新时间：2026-09-10
+更新时间：2026-09-18
 
 > 本文档只记录已经提交到代码仓的实现事实、验证证据和剩余阻塞。设计意图看 `REQUIREMENTS.md`，客户端迁移看 `FLUTTER_REFACTOR_PLAN.md`。
+
+
+## 2026-09-18：Flutter 正式客户端回归 main
+
+### 分支收口
+
+- `main` 重新作为唯一正式生产分支；
+- `refactor/flutter-production` 的 Flutter 正式客户端、Local-first、Cloud Sync 与已完成业务能力整体回归 `main`；
+- 保留 `app/` 旧 Compose 代码仅作为迁移/行为参考，不再作为默认生产客户端；
+- 新功能从 `main` 创建 feature 分支，通过 Flutter Production CI 后合回 `main`；
+- Flutter Production CI 与 GitHub Pages 均切换为跟踪 `main`；
+- 旧 Compose Android CI 与旧 `flutter-preview` CI 改为手动 legacy 校验，不再阻塞正式 Flutter 开发。
+
+### 本轮同步完成
+
+- F10 本地设置：通知总开关、Reminder/Focus 通知偏好、界面密度、日历周起始日、真实 About/version；
+- Task Detail 固定假子任务替换为真实 Task + `entity.link(subtask)`；
+- 子任务支持真实创建、完成/恢复、打开详情、解除关系；
+- Task 删除会为关联 `entity.link` 写同步 tombstone，避免悬空关系；
+- 对应 Flutter Analyze、Tests、Android Debug APK、Web Release Gate 已建立。
+
 
 ## 2026-09-10：生产客户端切换到 Flutter
 
