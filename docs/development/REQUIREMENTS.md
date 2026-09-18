@@ -90,7 +90,7 @@ Android 不允许把网络请求作为主要业务写入的前置条件。
 
 ### REQ-CAL-001 重要日期
 
-状态：**前端已设计 / Android 待实现**
+状态：**Flutter 真实纵向链已实现并通过 CI；1.0 Release Gate 仍未完成**
 
 #### 目标
 
@@ -239,7 +239,7 @@ Cloud entity：`execution.important_date`。该类型已经进入 LifeTrace Sync
 
 后续数据层应允许保存用户默认专注/休息配置。
 
-Cloud history entity：`execution.focus_session`。该类型已经进入 LifeTrace Sync v1 Registry；正式 Android 实现前仍需补强类型 DTO / Schema。
+Cloud history entity：`execution.focus_session`。该类型已使用 LifeTrace Cloud typed contract，并已接入 Flutter Sync v1。运行中的倒计时状态使用设备本地持久化 `FocusTimerState`，不跨设备同步；结束后的 FocusSession 作为历史事实跨设备同步。
 
 #### 计时行为
 
@@ -267,9 +267,44 @@ Cloud history entity：`execution.focus_session`。该类型已经进入 LifeTra
 | REQ-BASE-002 功能保护 | 已确认 |
 | REQ-CLOUD-001 Cloud 统一账号与同步 | 开发中，Task 自动同步已接入 |
 | REQ-CLOUD-002 Local-first | 开发中，Task 已落地 |
-| REQ-CAL-001 重要日期 | 前端已设计 / Android 待实现；Cloud entity 已注册 |
+| REQ-CAL-001 重要日期 | Flutter 纵向链已实现：公历/农历/闰月/Reminder/Sync/冲突已通过 CI |
 | REQ-TASK-CORE-001 任务管理 | 开发中，基础 CRUD/编辑/时间/后台同步已实现 |
-| REQ-TASK-001 番茄时钟 | 前端已设计 / Android 待实现；Cloud entity 已注册 |
+| REQ-TASK-001 番茄时钟 | Flutter F8 纵向链已实现：持久化计时、恢复、通知、历史、Sync/冲突已通过 CI |
+
+## 5.1 2026-09-15 实现事实补充
+
+### Important Date
+
+已实现并验证：
+
+- typed `execution.important_date`；
+- 公历 / 农历 / once / yearly / leap month；
+- Drift / Repository / Outbox；
+- Sync / conflict；
+- Calendar / Today；
+- Reminder 与 yearly reminder renewal；
+- lunar golden vectors。
+
+Flutter CI：`34680178657` 全绿。
+
+### Pomodoro / FocusSession
+
+已实现并验证：
+
+- 25/5、50/10；
+- task link；
+- start / pause / resume / reset / skip；
+- local-only persisted TimerState；
+- `expectedEndAt` wall-clock recovery；
+- page switch / background / process restart recovery；
+- Focus/Break notifications；
+- stable FocusSession idempotency；
+- FocusSession history；
+- Sync v1 snapshot / push / pull；
+- conflict keepLocal / keepServer；
+- Today Focus status / today duration / completed rounds。
+
+Flutter CI：`34924805960` 全绿。
 
 ## 6. 变更记录
 

@@ -1,14 +1,10 @@
-name: Android CI
+name: Legacy Compose Android CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
-concurrency:
-  group: android-ci-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -30,11 +26,11 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Build debug APK
+      - name: Build legacy Compose debug APK
         run: gradle :app:assembleDebug --stacktrace
 
-      - name: Run unit tests
+      - name: Run legacy Compose unit tests
         run: gradle :app:testDebugUnitTest --stacktrace
 
-      - name: Run Android lint
+      - name: Run legacy Compose lint
         run: gradle :app:lintDebug --stacktrace

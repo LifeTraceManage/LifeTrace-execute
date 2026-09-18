@@ -1,0 +1,2284 @@
+// ignore_for_file: prefer_const_constructors, prefer_const_literals_to_create_immutables
+
+part of 'main.dart';
+
+class Today extends ConsumerWidget {
+  const Today({super.key});
+
+  @override
+  Widget build(BuildContext c, WidgetRef ref) {
+    final snapshot = ref.watch(todaySnapshotProvider);
+    final coreLoading = ref.watch(todayCoreLoadingProvider);
+    final coreError = ref.watch(todayCoreErrorProvider);
+    final importantDateState = ref.watch(importantDateListProvider);
+    final reviewDate = ref.watch(todayReviewDateProvider);
+    final reviewState = ref.watch(dailyReviewForDateProvider(reviewDate));
+    final todayReview = reviewState.valueOrNull;
+    final focusState = ref.watch(focusTimerStateProvider).valueOrNull;
+    final focusStats = ref.watch(focusTodayStatsProvider);
+    final tasks =
+        ref.watch(taskListProvider).valueOrNull ?? const <ExecutionTask>[];
+    final focusTask = _todayFocusTask(tasks, focusState?.linkedTaskId);
+    final session = ref.watch(currentSessionProvider).valueOrNull;
+    final displayName = session?.displayName?.trim();
+    final emailName = session?.email.split('@').first.trim();
+    final userName = displayName != null && displayName.isNotEmpty
+        ? displayName
+        : emailName != null && emailName.isNotEmpty
+            ? emailName
+            : null;
+    final now = snapshot.now;
+    final upcoming = importantDatesForRange(
+      importantDateState.valueOrNull ?? const <ExecutionImportantDate>[],
+      start: now,
+      end: now.add(const Duration(days: 90)),
+    ).take(3).toList(growable: false);
+
+    return page([
+      _TodayRealHero(
+        now: now,
+        userName: userName,
+        snapshot: snapshot,
+        focusStats: focusStats,
+        onProfile: () => push(c, const Profile()),
+      ),
+      const SizedBox(height: 13),
+      _TodayRealWeek(now: now),
+      const SizedBox(height: 13),
+      _FocusHero(
+        state: focusState,
+        stats: focusStats,
+        task: focusTask,
+        onStart: () => push(c, Focus(task: focusTask)),
+      ),
+      h('今日概览'),
+      _TodayRealInlineStats(snapshot: snapshot),
+      if (coreError != null) ...[
+        const SizedBox(height: 8),
+        panel(
+          Text(
+            '今日数据读取失败：$coreError',
+            style: const TextStyle(fontSize: 9, color: C.red),
+          ),
+          padding: const EdgeInsets.all(10),
+        ),
+      ],
+      h(
+        '时间线',
+        tail: Text(
+          coreLoading ? '同步中' : '${snapshot.timeline.length}项',
+          style: const TextStyle(fontSize: 9, color: C.muted),
+        ),
+      ),
+      if (coreLoading && snapshot.timeline.isEmpty)
+        panel(const Center(child: CircularProgressIndicator()))
+      else if (snapshot.timeline.isEmpty)
+        panel(
+          const Text(
+            '今天没有已安排的任务或日程。',
+            style: TextStyle(fontSize: 9.2, color: C.muted),
+          ),
+          padding: const EdgeInsets.all(12),
+        )
+      else
+        for (final entry in snapshot.timeline)
+          _TimeItem(
+            _todayTimelineTime(entry, now),
+            entry.title,
+            _todayTimelineMeta(entry),
+            color: _todayTimelineColor(entry),
+            icon: _todayTimelineIcon(entry),
+            active: _todayTimelineActive(entry, now),
+            tap: () => unawaited(_openTodayTimelineEntry(c, ref, entry)),
+          ),
+      h(
+        '待完成',
+        tail: Text(
+          coreLoading
+              ? '同步中'
+              : snapshot.overdueTaskCount > 0
+                  ? '${snapshot.pendingTasks.length}项 · ${snapshot.overdueTaskCount}逾期'
+                  : '${snapshot.pendingTasks.length}项',
+          style: const TextStyle(fontSize: 9, color: C.muted),
+        ),
+      ),
+      if (coreLoading && snapshot.pendingTasks.isEmpty)
+        panel(const Center(child: CircularProgressIndicator()))
+      else if (snapshot.pendingTasks.isEmpty)
+        panel(
+          const Text(
+            '今天没有待完成或逾期任务。',
+            style: TextStyle(fontSize: 9.2, color: C.muted),
+          ),
+          padding: const EdgeInsets.all(12),
+        )
+      else ...[
+        for (final entry in snapshot.pendingTasks.take(6))
+          _TaskLine(
+            entry.task.title,
+            _todayPendingMeta(entry),
+            accent: _todayTaskColor(entry.task),
+            icon: entry.overdue
+                ? Icons.warning_amber_rounded
+                : entry.task.status == ExecutionTaskStatus.inProgress
+                    ? Icons.play_circle_outline_rounded
+                    : Icons.radio_button_unchecked_rounded,
+            tap: () => push(c, TaskDetail(task: entry.task)),
+          ),
+        if (snapshot.pendingTasks.length > 6)
+          panel(
+            Text(
+              '还有 ${snapshot.pendingTasks.length - 6} 项，请在任务页继续处理。',
+              style: const TextStyle(fontSize: 8.8, color: C.muted),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          ),
+      ],
+      const _TodayGoalsSection(),
+      const _TodayHabitsSection(),
+      h(
+        '近期重要日期',
+        tail: Text(
+          importantDateState.isLoading ? '同步中' : '${upcoming.length}项',
+          style: const TextStyle(fontSize: 9, color: C.muted),
+        ),
+      ),
+      if (importantDateState.isLoading)
+        panel(const Center(child: CircularProgressIndicator()))
+      else if (upcoming.isEmpty)
+        panel(
+          const Text(
+            '未来 90 天没有启用的重要日期。',
+            style: TextStyle(fontSize: 9.2, color: C.muted),
+          ),
+        )
+      else
+        for (final occurrence in upcoming)
+          _TodayImportantDateTile(
+            occurrence: occurrence,
+            onTap: () => _editImportantDate(
+              c,
+              ref,
+              item: occurrence.source,
+            ),
+          ),
+      h(
+        '每日复盘',
+        tail: reviewState.isLoading
+            ? const Text(
+                '读取中',
+                style: TextStyle(fontSize: 9, color: C.muted),
+              )
+            : todayReview == null
+                ? null
+                : chip('已保存', bg: C.greenSoft, fg: C.green),
+      ),
+      panel(
+        Row(children: [
+          const CircleAvatar(
+            radius: 18,
+            backgroundColor: C.pinkSoft,
+            child: Icon(Icons.auto_stories_outlined, size: 18, color: C.pink),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  todayReview == null ? '记录今天，准备明天' : '今天的复盘已保存',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  todayReview == null
+                      ? '心情 · 精力 · 完成率 · 明日重点'
+                      : _todayReviewSummary(todayReview),
+                  style: const TextStyle(fontSize: 8.8, color: C.muted),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, size: 18, color: C.muted),
+        ]),
+        onTap: () => push(c, const Review()),
+      ),
+    ]);
+  }
+}
+
+class _TodayImportantDateTile extends StatelessWidget {
+  const _TodayImportantDateTile({
+    required this.occurrence,
+    required this.onTap,
+  });
+
+  final ImportantDateOccurrence occurrence;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final item = occurrence.source;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final days = occurrence.localDate.difference(today).inDays;
+    final countdown = days == 0 ? '今天' : days == 1 ? '明天' : '$days天后';
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: C.pinkSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.white,
+            child: Icon(
+              _importantDateKindIcon(item.kind),
+              size: 15,
+              color: C.pink,
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  style: const TextStyle(
+                    fontSize: 10.8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${_formatImportantDate(occurrence.localDate)} · '
+                  '${_importantDateSourceText(item)}',
+                  style: const TextStyle(fontSize: 8.5, color: C.muted),
+                ),
+              ],
+            ),
+          ),
+          chip(countdown, bg: Colors.white, fg: C.pink),
+        ]),
+      ),
+    );
+  }
+}
+
+class _HeroTag extends StatelessWidget {
+  const _HeroTag(this.icon, this.label, this.color);
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: .86),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800)),
+        ]),
+      );
+}
+
+class _FocusHero extends StatelessWidget {
+  const _FocusHero({
+    required this.state,
+    required this.stats,
+    required this.task,
+    required this.onStart,
+  });
+
+  final FocusTimerState? state;
+  final FocusTodayStats stats;
+  final ExecutionTask? task;
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = state != null && !state!.isIdle;
+    final breakTime = active && state!.isBreak;
+    final title = active
+        ? task?.title ?? (breakTime ? '休息一下' : '当前专注')
+        : task?.title ?? '开始一轮专注';
+    final status = active
+        ? breakTime
+            ? '休息进行中'
+            : state!.isPaused
+                ? '专注已暂停'
+                : '专注进行中'
+        : '今日已专注 ${_focusDuration(stats.focusSeconds)}';
+    final detail = active
+        ? state!.isPaused
+            ? '剩余 ${_focusClock(state!.remainingSeconds())}'
+            : _focusEndLabel(state!)
+        : '${(state?.mode ?? FocusMode.short) == FocusMode.short ? '25/5' : '50/10'} · ${stats.completedRounds} 轮完成';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(17),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: breakTime
+              ? const [Color(0xff3fa66a), Color(0xff54b889)]
+              : const [Color(0xff6f58e8), Color(0xff4d7df4)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: (breakTime ? C.green : C.purple).withValues(alpha: .16),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 13,
+                  color: Colors.white70,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  active
+                      ? breakTime ? 'BREAK' : 'FOCUS ACTIVE'
+                      : 'TODAY FOCUS',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    letterSpacing: .9,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white70,
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 9),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                status,
+                style: const TextStyle(fontSize: 9, color: Colors.white70),
+              ),
+              const SizedBox(height: 11),
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .16),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    detail,
+                    style: const TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                if (task != null) ...[
+                  const SizedBox(width: 7),
+                  Flexible(
+                    child: Text(
+                      _priorityText(task!.priority),
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 8.5,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                ],
+              ]),
+            ],
+          ),
+        ),
+        InkWell(
+          onTap: onStart,
+          borderRadius: BorderRadius.circular(32),
+          child: Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: .96),
+            ),
+            child: Icon(
+              active ? Icons.timer_rounded : Icons.play_arrow_rounded,
+              color: breakTime ? C.green : C.purple,
+              size: active ? 25 : 30,
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+ExecutionTask? _todayFocusTask(
+  List<ExecutionTask> tasks,
+  String? linkedTaskId,
+) {
+  if (linkedTaskId != null) {
+    for (final task in tasks) {
+      if (task.id == linkedTaskId) return task;
+    }
+  }
+
+  final candidates = tasks.where((task) => !task.isDone).toList();
+  if (candidates.isEmpty) return null;
+  int weight(ExecutionTaskPriority priority) => switch (priority) {
+        ExecutionTaskPriority.urgent => 4,
+        ExecutionTaskPriority.high => 3,
+        ExecutionTaskPriority.normal => 2,
+        ExecutionTaskPriority.low => 1,
+      };
+  candidates.sort((a, b) {
+    final byPriority = weight(b.priority).compareTo(weight(a.priority));
+    if (byPriority != 0) return byPriority;
+    final aDue = DateTime.tryParse(a.dueAt ?? '');
+    final bDue = DateTime.tryParse(b.dueAt ?? '');
+    if (aDue == null && bDue == null) {
+      return a.createdAt.compareTo(b.createdAt);
+    }
+    if (aDue == null) return 1;
+    if (bDue == null) return -1;
+    return aDue.compareTo(bDue);
+  });
+  return candidates.first;
+}
+
+String _focusEndLabel(FocusTimerState state) {
+  final end = DateTime.tryParse(state.expectedEndAt ?? '')?.toLocal();
+  if (end == null) return '恢复计时状态中';
+  final hh = end.hour.toString().padLeft(2, '0');
+  final mm = end.minute.toString().padLeft(2, '0');
+  final mode = state.mode == FocusMode.short ? '25/5' : '50/10';
+  return '$mode · $hh:$mm 结束';
+}
+class _MiniMetric extends StatelessWidget {
+  const _MiniMetric(this.icon, this.value, this.label, this.color, this.background);
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(13),
+        ),
+        child: Row(children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9)),
+            child: Icon(icon, size: 15, color: color),
+          ),
+          const SizedBox(width: 7),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(
+              value,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: color),
+            ),
+            Text(label, style: const TextStyle(fontSize: 8.5, color: C.muted)),
+          ]),
+        ]),
+      );
+}
+
+class _TimeItem extends StatelessWidget {
+  const _TimeItem(
+    this.time,
+    this.name,
+    this.meta, {
+    this.color = C.p,
+    this.icon = Icons.circle,
+    this.active = false,
+    this.tap,
+  });
+
+  final String time;
+  final String name;
+  final String meta;
+  final Color color;
+  final IconData icon;
+  final bool active;
+  final VoidCallback? tap;
+
+  @override
+  Widget build(BuildContext c) => InkWell(
+        onTap: tap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Row(children: [
+            SizedBox(
+              width: 42,
+              child: Text(
+                time,
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: active ? FontWeight.w900 : FontWeight.w600,
+                  color: active ? color : C.muted,
+                ),
+              ),
+            ),
+            Container(
+              width: 31,
+              height: 31,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .11),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 15, color: color),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(name, style: const TextStyle(fontSize: 11.3, fontWeight: FontWeight.w800)),
+                if (meta.isNotEmpty)
+                  Text(meta, style: const TextStyle(fontSize: 8.8, color: C.muted)),
+              ]),
+            ),
+            if (active) chip('进行中', bg: C.greenSoft, fg: C.green),
+          ]),
+        ),
+      );
+}
+
+class _TaskLine extends StatelessWidget {
+  const _TaskLine(
+    this.name,
+    this.meta, {
+    this.accent = C.p,
+    this.icon = Icons.check_rounded,
+    this.tap,
+  });
+
+  final String name;
+  final String meta;
+  final Color accent;
+  final IconData icon;
+  final VoidCallback? tap;
+
+  @override
+  Widget build(BuildContext c) => InkWell(
+        onTap: tap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: C.border),
+          ),
+          child: Row(children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Icon(icon, size: 15, color: accent),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(name, style: const TextStyle(fontSize: 11.2, fontWeight: FontWeight.w800)),
+                Text(meta, style: const TextStyle(fontSize: 8.8, color: C.muted)),
+              ]),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 16, color: accent.withValues(alpha: .75)),
+          ]),
+        ),
+      );
+}
+
+class Tasks extends ConsumerStatefulWidget {
+  const Tasks({super.key});
+
+  @override
+  ConsumerState<Tasks> createState() => _TasksState();
+}
+
+class _TasksState extends ConsumerState<Tasks> {
+  int filter = 0;
+  String query = '';
+
+  @override
+  Widget build(BuildContext c) {
+    final tasks = ref.watch(taskListProvider);
+    final session = ref.watch(currentSessionProvider);
+    final connected = kIsWeb || session.valueOrNull != null;
+    final pending = ref.watch(taskPendingSyncCountProvider).valueOrNull ?? 0;
+    final blocked = ref.watch(taskBlockedSyncCountProvider).valueOrNull ?? 0;
+    final conflicts = ref.watch(taskConflictsProvider).valueOrNull ?? const <TaskConflictUi>[];
+    final syncState = ref.watch(taskSyncControllerProvider);
+
+    return Scaffold(
+      backgroundColor: C.bg,
+      floatingActionButton: FloatingActionButton.small(
+        backgroundColor: C.p,
+        foregroundColor: Colors.white,
+        onPressed: connected ? () => _composer(c) : () => push(c, const CloudConnection()),
+        child: Icon(connected ? Icons.add : Icons.cloud_outlined),
+      ),
+      body: tasks.when(
+        loading: () => page([
+          _header(connected, pending, blocked, syncState.isLoading),
+          const SizedBox(height: 80),
+          const Center(child: CircularProgressIndicator()),
+        ]),
+        error: (error, stack) => page([
+          _header(connected, pending, blocked, syncState.isLoading),
+          h('任务数据加载失败'),
+          panel(Text('$error', style: const TextStyle(fontSize: 10.5, color: C.red))),
+        ]),
+        data: (allTasks) {
+          final visible = allTasks.where(_matches).toList(growable: false);
+          return page([
+            _header(connected, pending, blocked, syncState.isLoading),
+            const SizedBox(height: 10),
+            _TaskOverview(allTasks),
+            if (!connected) ...[
+              const SizedBox(height: 10),
+              panel(
+                Row(children: [
+                  const Icon(Icons.cloud_off_outlined, size: 18, color: C.muted),
+                  const SizedBox(width: 9),
+                  const Expanded(
+                    child: Text(
+                      '连接 LifeTrace Cloud 后即可创建和同步任务',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => push(c, const CloudConnection()),
+                    child: const Text('连接'),
+                  ),
+                ]),
+                color: C.soft,
+              ),
+            ],
+            if (syncState.hasError) ...[
+              const SizedBox(height: 8),
+              Text(
+                '同步失败：${syncState.error}。本地任务不会丢失。',
+                style: const TextStyle(fontSize: 9.2, color: C.red),
+              ),
+            ],
+            if (conflicts.isNotEmpty) ...[
+              h('需要处理的同步冲突 · ${conflicts.length}'),
+              for (final conflict in conflicts) _ConflictRow(conflict),
+            ],
+            const SizedBox(height: 10),
+            TextField(
+              onChanged: (value) => setState(() => query = value.trim().toLowerCase()),
+              decoration: const InputDecoration(
+                hintText: '搜索任务...',
+                prefixIcon: Icon(Icons.search_rounded, size: 18),
+                suffixIcon: Icon(Icons.tune_rounded, size: 17, color: C.sky),
+              ),
+            ),
+            const SizedBox(height: 9),
+            _Tabs(
+              labels: const ['全部', '今天', '即将到期', '等待中'],
+              selected: filter,
+              onTap: (value) => setState(() => filter = value),
+            ),
+            h(
+              '任务 · ${visible.length}',
+              tail: chip('卡片视图', bg: C.skySoft, fg: C.sky),
+            ),
+            if (visible.isEmpty)
+              const _TaskEmptyState()
+            else
+              Column(
+                children: [
+                  for (final task in visible)
+                    _TaskRow(
+                      task,
+                      onTap: () => push(c, TaskDetail(task: task)),
+                      onToggle: () => ref.read(taskCommandsProvider).toggleDone(task),
+                    ),
+                ],
+              ),
+          ]);
+        },
+      ),
+    );
+  }
+
+  Widget _header(bool connected, int pending, int blocked, bool syncing) => Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            title('任务'),
+            sub(
+              connected
+                  ? 'Local-first · 待同步 $pending${blocked > 0 ? ' · 阻塞 $blocked' : ''}'
+                  : 'Local-first · 尚未连接 Cloud',
+            ),
+          ]),
+        ),
+        if (connected && !kIsWeb)
+          IconButton(
+            tooltip: '立即同步',
+            onPressed: syncing
+                ? null
+                : () => ref.read(taskSyncControllerProvider.notifier).syncNow(),
+            icon: syncing
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    blocked > 0 ? Icons.cloud_off_outlined : Icons.cloud_done_outlined,
+                    size: 18,
+                    color: blocked > 0 ? C.orange : C.green,
+                  ),
+          )
+        else
+          Icon(
+            connected ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
+            size: 18,
+            color: connected ? C.green : C.muted,
+          ),
+      ]);
+
+  bool _matches(ExecutionTask task) {
+    if (query.isNotEmpty) {
+      final haystack = '${task.title} ${task.description ?? ''}'.toLowerCase();
+      if (!haystack.contains(query)) return false;
+    }
+    if (filter == 3) return task.status == ExecutionTaskStatus.waiting;
+    if (filter == 0) return true;
+
+    final source = task.scheduledAt ?? task.dueAt;
+    if (source == null) return false;
+    final value = DateTime.tryParse(source)?.toLocal();
+    if (value == null) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(value.year, value.month, value.day);
+    final days = date.difference(today).inDays;
+    if (filter == 1) return days == 0;
+    return days >= 0 && days <= 3;
+  }
+
+  Future<void> _composer(BuildContext c) async {
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    var priority = ExecutionTaskPriority.normal;
+    DateTime? scheduledAt;
+    DateTime? dueAt;
+
+    await showModalBottomSheet<void>(
+      context: c,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: titleController,
+                autofocus: true,
+                decoration: const InputDecoration(hintText: '任务标题'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: descriptionController,
+                maxLines: 3,
+                decoration: const InputDecoration(hintText: '描述'),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<ExecutionTaskPriority>(
+                initialValue: priority,
+                decoration: const InputDecoration(labelText: '优先级'),
+                items: ExecutionTaskPriority.values
+                    .map((item) => DropdownMenuItem(value: item, child: Text(_priorityText(item))))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setSheetState(() => priority = value);
+                },
+              ),
+              const SizedBox(height: 10),
+              _DateField(
+                label: '计划时间',
+                value: scheduledAt,
+                onPick: () async {
+                  final value = await _pickDateTime(sheetContext, scheduledAt);
+                  if (value != null) setSheetState(() => scheduledAt = value);
+                },
+                onClear: scheduledAt == null ? null : () => setSheetState(() => scheduledAt = null),
+              ),
+              const SizedBox(height: 8),
+              _DateField(
+                label: '截止时间',
+                value: dueAt,
+                onPick: () async {
+                  final value = await _pickDateTime(sheetContext, dueAt);
+                  if (value != null) setSheetState(() => dueAt = value);
+                },
+                onClear: dueAt == null ? null : () => setSheetState(() => dueAt = null),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () async {
+                    try {
+                      await ref.read(taskCommandsProvider).create(
+                            title: titleController.text,
+                            description: descriptionController.text,
+                            priority: priority,
+                            scheduledAt: scheduledAt?.toUtc().toIso8601String(),
+                            dueAt: dueAt?.toUtc().toIso8601String(),
+                          );
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    } catch (error) {
+                      if (!sheetContext.mounted) return;
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        SnackBar(content: Text('$error')),
+                      );
+                    }
+                  },
+                  child: const Text('保存任务'),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+
+    titleController.dispose();
+    descriptionController.dispose();
+  }
+}
+
+class _TaskOverview extends StatelessWidget {
+  const _TaskOverview(this.tasks);
+  final List<ExecutionTask> tasks;
+
+  @override
+  Widget build(BuildContext c) {
+    final done = tasks.where((task) => task.isDone).length;
+    final urgent = tasks.where((task) => task.priority == ExecutionTaskPriority.urgent).length;
+    final waiting = tasks.where((task) => task.status == ExecutionTaskStatus.waiting).length;
+    final ratio = tasks.isEmpty ? 0.0 : done / tasks.length;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [C.skySoft, C.ps],
+        ),
+      ),
+      child: Row(children: [
+        SizedBox(
+          width: 58,
+          height: 58,
+          child: Stack(fit: StackFit.expand, children: [
+            CircularProgressIndicator(
+              value: ratio,
+              strokeWidth: 6,
+              color: C.sky,
+              backgroundColor: Colors.white,
+            ),
+            Center(
+              child: Text(
+                '${(ratio * 100).round()}%',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: C.sky),
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text(
+              '任务节奏',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              _CountBadge(Icons.check_rounded, '$done 完成', C.green, C.greenSoft),
+              _CountBadge(Icons.flag_rounded, '$urgent P1', C.red, C.redSoft),
+              _CountBadge(Icons.hourglass_bottom_rounded, '$waiting 等待', C.orange, C.orangeSoft),
+            ]),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  const _CountBadge(this.icon, this.label, this.color, this.background);
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(8)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: color)),
+        ]),
+      );
+}
+
+class _ConflictRow extends ConsumerWidget {
+  const _ConflictRow(this.conflict);
+  final TaskConflictUi conflict;
+
+  @override
+  Widget build(BuildContext c, WidgetRef ref) => panel(
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(
+            conflict.localTitle ?? '本地任务',
+            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            conflict.serverDeleted
+                ? '云端版本：已删除'
+                : '云端版本：${conflict.serverTitle ?? '内容已更新'}',
+            style: const TextStyle(fontSize: 9.2, color: C.muted),
+          ),
+          if (conflict.reason.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(conflict.reason, style: const TextStyle(fontSize: 8.8, color: C.muted)),
+          ],
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => ref
+                    .read(taskSyncControllerProvider.notifier)
+                    .keepLocal(conflict.conflictId),
+                child: const Text('保留本地'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton.tonal(
+                onPressed: () => ref
+                    .read(taskSyncControllerProvider.notifier)
+                    .keepServer(conflict.conflictId),
+                child: const Text('使用云端'),
+              ),
+            ),
+          ]),
+        ]),
+        color: const Color(0xfffffbf3),
+      );
+}
+
+class _Tabs extends StatelessWidget {
+  const _Tabs({required this.labels, required this.selected, required this.onTap});
+
+  final List<String> labels;
+  final int selected;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext c) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(
+            labels.length,
+            (i) => Padding(
+              padding: const EdgeInsets.only(right: 7),
+              child: InkWell(
+                onTap: () => onTap(i),
+                borderRadius: BorderRadius.circular(8),
+                child: chip(
+                  labels[i],
+                  bg: i == selected ? C.ps : C.soft,
+                  fg: i == selected ? C.p : C.muted,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+class _TaskEmptyState extends StatelessWidget {
+  const _TaskEmptyState();
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 28),
+        decoration: BoxDecoration(
+          color: C.skySoft,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Column(children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.white,
+            child: Icon(Icons.task_alt_rounded, color: C.sky, size: 25),
+          ),
+          SizedBox(height: 9),
+          Text('这里很清爽', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+          SizedBox(height: 3),
+          Text('暂无符合条件的任务', style: TextStyle(fontSize: 9.2, color: C.muted)),
+        ]),
+      );
+}
+
+class _TaskRow extends StatelessWidget {
+  const _TaskRow(this.task, {required this.onTap, required this.onToggle});
+
+  final ExecutionTask task;
+  final VoidCallback onTap;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext c) {
+    final urgent = task.priority == ExecutionTaskPriority.urgent;
+    final high = task.priority == ExecutionTaskPriority.high;
+    final waiting = task.status == ExecutionTaskStatus.waiting;
+
+    final accent = task.isDone
+        ? C.green
+        : waiting
+            ? C.purple
+            : urgent
+                ? C.red
+                : high
+                    ? C.orange
+                    : C.sky;
+    final tint = task.isDone
+        ? C.greenSoft
+        : waiting
+            ? C.purpleSoft
+            : urgent
+                ? C.redSoft
+                : high
+                    ? C.orangeSoft
+                    : C.skySoft;
+    final icon = task.isDone
+        ? Icons.done_all_rounded
+        : waiting
+            ? Icons.hourglass_bottom_rounded
+            : urgent
+                ? Icons.local_fire_department_rounded
+                : high
+                    ? Icons.flag_rounded
+                    : Icons.task_alt_rounded;
+    final priority = switch (task.priority) {
+      ExecutionTaskPriority.urgent => 'P1',
+      ExecutionTaskPriority.high => 'P2',
+      ExecutionTaskPriority.normal => '普通',
+      ExecutionTaskPriority.low => '低',
+    };
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 9),
+        padding: const EdgeInsets.fromLTRB(10, 10, 9, 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: accent.withValues(alpha: .12)),
+          boxShadow: [
+            BoxShadow(
+              color: C.ink.withValues(alpha: .035),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: tint,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Stack(alignment: Alignment.center, children: [
+                Icon(icon, size: 18, color: accent),
+                if (!task.isDone)
+                  Positioned(
+                    right: 5,
+                    bottom: 5,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: accent, width: 1.4),
+                      ),
+                    ),
+                  ),
+              ]),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(
+                  child: Text(
+                    task.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.7,
+                      height: 1.2,
+                      fontWeight: FontWeight.w900,
+                      decoration: task.isDone ? TextDecoration.lineThrough : null,
+                      color: task.isDone ? C.muted : C.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                chip(priority, bg: tint, fg: accent),
+              ]),
+              if ((task.description ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  task.description!.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 8.8, color: C.muted),
+                ),
+              ],
+              const SizedBox(height: 7),
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: C.soft,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Row(children: [
+                    Icon(Icons.schedule_rounded, size: 10, color: accent),
+                    const SizedBox(width: 4),
+                    Text(
+                      _taskMeta(task),
+                      style: const TextStyle(fontSize: 8.2, color: C.muted, fontWeight: FontWeight.w700),
+                    ),
+                  ]),
+                ),
+                const Spacer(),
+                Icon(Icons.chevron_right_rounded, size: 17, color: accent.withValues(alpha: .72)),
+              ]),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class TaskDetail extends ConsumerStatefulWidget {
+  const TaskDetail({super.key, this.task});
+
+  final ExecutionTask? task;
+
+  @override
+  ConsumerState<TaskDetail> createState() => _TaskDetailState();
+}
+
+class _TaskDetailState extends ConsumerState<TaskDetail> {
+  ExecutionTask? current;
+
+  @override
+  void initState() {
+    super.initState();
+    current = widget.task;
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final task = current;
+    final displayTitle = task?.title ?? '完成 LifeTrace Execute UI';
+    final description = task?.description ?? 'Flutter 重构正式客户端，并保持 Local-first 与 LifeTrace Cloud 的行为兼容。';
+    final priority = task?.priority ?? ExecutionTaskPriority.urgent;
+    final status = task?.status ?? ExecutionTaskStatus.inProgress;
+    final completed = task?.isDone == true;
+    final subtaskState = task == null
+        ? const AsyncData<List<TaskSubtaskUi>>(<TaskSubtaskUi>[])
+        : ref.watch(taskSubtasksProvider(task.id));
+    final subtasks =
+        subtaskState.valueOrNull ?? const <TaskSubtaskUi>[];
+    final completedSubtasks =
+        subtasks.where((item) => item.task.isDone).length;
+    final reminderItems = task == null
+        ? const <ExecutionReminder>[]
+        : ref
+                .watch(
+                  remindersForSubjectProvider(
+                    ReminderSubjectKey(
+                      subjectType: ReminderSubjectTypes.task,
+                      subjectId: task.id,
+                    ),
+                  ),
+                )
+                .valueOrNull ??
+            const <ExecutionReminder>[];
+    final reminder = _activeReminder(reminderItems);
+    final reminderConflicts =
+        ref.watch(reminderConflictsProvider).valueOrNull ??
+            const <ReminderConflictUi>[];
+    ReminderConflictUi? reminderConflict;
+    for (final conflict in reminderConflicts) {
+      if (reminderItems.any((item) => item.id == conflict.reminderId)) {
+        reminderConflict = conflict;
+        break;
+      }
+    }
+
+    final accent = completed
+        ? C.green
+        : switch (priority) {
+            ExecutionTaskPriority.urgent => C.red,
+            ExecutionTaskPriority.high => C.orange,
+            ExecutionTaskPriority.normal => C.sky,
+            ExecutionTaskPriority.low => C.teal,
+          };
+    final tint = completed
+        ? C.greenSoft
+        : switch (priority) {
+            ExecutionTaskPriority.urgent => C.redSoft,
+            ExecutionTaskPriority.high => C.orangeSoft,
+            ExecutionTaskPriority.normal => C.skySoft,
+            ExecutionTaskPriority.low => C.tealSoft,
+          };
+
+    return DetailFrame(
+      titleText: '任务详情',
+      actions: [
+        if (task != null)
+          IconButton(
+            tooltip: '删除任务',
+            onPressed: () async {
+              await ref.read(reminderCommandsProvider).cancelForSubject(
+                    subjectType: ReminderSubjectTypes.task,
+                    subjectId: task.id,
+                  );
+              await ref.read(taskCommandsProvider).delete(task);
+              if (c.mounted) Navigator.pop(c);
+            },
+            icon: const Icon(Icons.delete_outline_rounded, size: 19),
+          )
+        else
+          const Icon(Icons.more_vert_rounded, size: 19),
+      ],
+      child: page([
+        _TaskDetailHero(
+          title: displayTitle,
+          description: description,
+          accent: accent,
+          tint: tint,
+          completed: completed,
+          priority: _priorityBadge(priority),
+          status: _statusText(status),
+          onToggle: task == null
+              ? null
+              : () async {
+                  final updated =
+                      await ref.read(taskCommandsProvider).toggleDone(task);
+                  if (updated.isDone) {
+                    await ref.read(reminderCommandsProvider).cancelForSubject(
+                          subjectType: ReminderSubjectTypes.task,
+                          subjectId: task.id,
+                        );
+                  }
+                  if (mounted) setState(() => current = updated);
+                },
+        ),
+        const SizedBox(height: 14),
+        Row(children: [
+          Expanded(
+            child: _TaskMetaTile(
+              icon: Icons.event_available_rounded,
+              label: '计划时间',
+              value: _formatTaskDate(task?.scheduledAt),
+              color: C.sky,
+              background: C.skySoft,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _TaskMetaTile(
+              icon: Icons.flag_rounded,
+              label: '截止时间',
+              value: _formatTaskDate(task?.dueAt),
+              color: C.red,
+              background: C.redSoft,
+            ),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(
+            child: _TaskMetaTile(
+              icon: Icons.bolt_rounded,
+              label: '优先级',
+              value: _priorityText(priority),
+              color: accent,
+              background: tint,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _TaskMetaTile(
+              icon: Icons.folder_rounded,
+              label: '项目',
+              value: task?.projectId ?? '未归属',
+              color: C.purple,
+              background: C.purpleSoft,
+            ),
+          ),
+        ]),
+        h('说明'),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: C.border),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: C.soft,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.notes_rounded, size: 17, color: C.muted),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                description,
+                style: const TextStyle(fontSize: 10.2, color: C.muted, height: 1.45),
+              ),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        Row(children: [
+          if (task != null) ...[
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _edit(c, task),
+                icon: const Icon(Icons.edit_outlined, size: 16),
+                label: const Text('编辑任务'),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: () => push(c, Focus(task: task)),
+              icon: const Icon(Icons.play_arrow_rounded, size: 17),
+              label: const Text('开始专注'),
+            ),
+          ),
+        ]),
+        h(
+          '子任务',
+          tail: task == null || kIsWeb
+              ? null
+              : TextButton.icon(
+                  onPressed: () => _addSubtask(c, task),
+                  icon: const Icon(Icons.add_rounded, size: 15),
+                  label: const Text('添加'),
+                ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: C.purpleSoft,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: task == null
+              ? const Text(
+                  '保存任务后即可添加真实子任务。',
+                  style: TextStyle(fontSize: 9, color: C.muted),
+                )
+              : subtaskState.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : subtaskState.hasError
+                      ? Text(
+                          '子任务加载失败：${subtaskState.error}',
+                          style: const TextStyle(fontSize: 9, color: C.red),
+                        )
+                      : Column(children: [
+                          Row(children: [
+                            SizedBox(
+                              width: 42,
+                              height: 42,
+                              child: Stack(fit: StackFit.expand, children: [
+                                CircularProgressIndicator(
+                                  value: subtasks.isEmpty
+                                      ? 0
+                                      : completedSubtasks / subtasks.length,
+                                  strokeWidth: 5,
+                                  color: C.purple,
+                                  backgroundColor: Colors.white,
+                                ),
+                                Center(
+                                  child: Text(
+                                    '$completedSubtasks/${subtasks.length}',
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w900,
+                                      color: C.purple,
+                                    ),
+                                  ),
+                                ),
+                              ]),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    '推进任务步骤',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    subtasks.isEmpty
+                                        ? (kIsWeb
+                                            ? 'Web Preview 不写入生产子任务关系'
+                                            : '还没有子任务，点击“添加”创建')
+                                        : '子任务是独立 Task，并通过 entity.link 与当前任务关联',
+                                    style: const TextStyle(
+                                      fontSize: 8.8,
+                                      color: C.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ]),
+                          if (subtasks.isNotEmpty) const SizedBox(height: 10),
+                          for (var index = 0;
+                              index < subtasks.length;
+                              index++) ...[
+                            _SubtaskTile(
+                              value: subtasks[index].task.isDone,
+                              label: subtasks[index].task.title,
+                              color: C.purple,
+                              background: C.purpleSoft,
+                              onChanged: (_) => ref
+                                  .read(taskCommandsProvider)
+                                  .toggleDone(subtasks[index].task),
+                              onOpen: () => push(
+                                c,
+                                TaskDetail(task: subtasks[index].task),
+                              ),
+                              onUnlink: kIsWeb
+                                  ? null
+                                  : () => ref
+                                      .read(taskSubtaskCommandsProvider)
+                                      .unlink(subtasks[index]),
+                            ),
+                            if (index != subtasks.length - 1)
+                              const SizedBox(height: 7),
+                          ],
+                        ]),
+        ),
+        if (task != null) ...[
+          h('提醒'),
+          if (reminderConflict != null) ...[
+            _ReminderConflictBanner(conflict: reminderConflict),
+            const SizedBox(height: 8),
+          ],
+          InkWell(
+            onTap: completed
+                ? null
+                : () => _editReminder(
+                      c,
+                      ref,
+                      subjectType: ReminderSubjectTypes.task,
+                      subjectId: task.id,
+                      subjectTitle: task.title,
+                      suggestedAt: _suggestTaskReminder(task),
+                      existing: reminder,
+                    ),
+            borderRadius: BorderRadius.circular(13),
+            child: Opacity(
+              opacity: completed ? .55 : 1,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+                decoration: BoxDecoration(
+                  color: C.orangeSoft,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Row(children: [
+                  const CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.notifications_none_rounded,
+                      size: 16,
+                      color: C.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          reminder == null ? '设置提醒' : '已设置提醒',
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          completed
+                              ? '已完成任务不会继续触发提醒'
+                              : reminder == null
+                                  ? '点击选择提醒时间'
+                                  : _formatReminderTime(reminder),
+                          style:
+                              const TextStyle(fontSize: 8.5, color: C.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: C.orange,
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ],
+      ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 20)),
+    );
+  }
+
+  Future<void> _addSubtask(
+    BuildContext context,
+    ExecutionTask parent,
+  ) async {
+    final controller = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: '子任务',
+                hintText: '输入一个可独立完成的小步骤',
+              ),
+              onSubmitted: (_) => _submitSubtask(
+                sheetContext,
+                parent,
+                controller.text,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => _submitSubtask(
+                  sheetContext,
+                  parent,
+                  controller.text,
+                ),
+                child: const Text('创建子任务'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+  }
+
+  Future<void> _submitSubtask(
+    BuildContext sheetContext,
+    ExecutionTask parent,
+    String title,
+  ) async {
+    try {
+      await ref.read(taskSubtaskCommandsProvider).create(
+            parent: parent,
+            title: title,
+          );
+      if (sheetContext.mounted) Navigator.pop(sheetContext);
+    } catch (error) {
+      if (!sheetContext.mounted) return;
+      ScaffoldMessenger.of(sheetContext).showSnackBar(
+        SnackBar(content: Text('$error')),
+      );
+    }
+  }
+
+  Future<void> _edit(BuildContext context, ExecutionTask task) async {
+    final titleController = TextEditingController(text: task.title);
+    final descriptionController = TextEditingController(text: task.description ?? '');
+    var priority = task.priority;
+    var status = task.status;
+    DateTime? scheduledAt = DateTime.tryParse(task.scheduledAt ?? '')?.toLocal();
+    DateTime? dueAt = DateTime.tryParse(task.dueAt ?? '')?.toLocal();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: titleController, decoration: const InputDecoration(labelText: '标题')),
+              const SizedBox(height: 10),
+              TextField(
+                controller: descriptionController,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: '描述'),
+              ),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                  child: DropdownButtonFormField<ExecutionTaskStatus>(
+                    initialValue: status,
+                    decoration: const InputDecoration(labelText: '状态'),
+                    items: ExecutionTaskStatus.values
+                        .map((item) => DropdownMenuItem(value: item, child: Text(_statusText(item))))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) setSheetState(() => status = value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<ExecutionTaskPriority>(
+                    initialValue: priority,
+                    decoration: const InputDecoration(labelText: '优先级'),
+                    items: ExecutionTaskPriority.values
+                        .map((item) => DropdownMenuItem(value: item, child: Text(_priorityText(item))))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) setSheetState(() => priority = value);
+                    },
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 10),
+              _DateField(
+                label: '计划时间',
+                value: scheduledAt,
+                onPick: () async {
+                  final value = await _pickDateTime(sheetContext, scheduledAt);
+                  if (value != null) setSheetState(() => scheduledAt = value);
+                },
+                onClear: scheduledAt == null ? null : () => setSheetState(() => scheduledAt = null),
+              ),
+              const SizedBox(height: 8),
+              _DateField(
+                label: '截止时间',
+                value: dueAt,
+                onPick: () async {
+                  final value = await _pickDateTime(sheetContext, dueAt);
+                  if (value != null) setSheetState(() => dueAt = value);
+                },
+                onClear: dueAt == null ? null : () => setSheetState(() => dueAt = null),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () async {
+                    try {
+                      final updated = await ref.read(taskCommandsProvider).update(
+                            task: task,
+                            title: titleController.text,
+                            description: descriptionController.text,
+                            clearDescription: descriptionController.text.trim().isEmpty,
+                            status: status,
+                            priority: priority,
+                            scheduledAt: scheduledAt?.toUtc().toIso8601String(),
+                            dueAt: dueAt?.toUtc().toIso8601String(),
+                            clearScheduledAt: scheduledAt == null,
+                            clearDueAt: dueAt == null,
+                          );
+                      if (mounted) setState(() => current = updated);
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    } catch (error) {
+                      if (!sheetContext.mounted) return;
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        SnackBar(content: Text('$error')),
+                      );
+                    }
+                  },
+                  child: const Text('保存修改'),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+
+    titleController.dispose();
+    descriptionController.dispose();
+  }
+}
+
+class _TaskDetailHero extends StatelessWidget {
+  const _TaskDetailHero({
+    required this.title,
+    required this.description,
+    required this.accent,
+    required this.tint,
+    required this.completed,
+    required this.priority,
+    required this.status,
+    this.onToggle,
+  });
+
+  final String title;
+  final String description;
+  final Color accent;
+  final Color tint;
+  final bool completed;
+  final String priority;
+  final String status;
+  final VoidCallback? onToggle;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [tint, Colors.white],
+          ),
+          border: Border.all(color: accent.withValues(alpha: .14)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            InkWell(
+              onTap: onToggle,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  completed ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                  color: accent,
+                  size: 24,
+                ),
+              ),
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 17,
+                  height: 1.2,
+                  fontWeight: FontWeight.w900,
+                  color: completed ? C.muted : C.ink,
+                  decoration: completed ? TextDecoration.lineThrough : null,
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            chip(priority, bg: Colors.white, fg: accent),
+            chip(status, bg: Colors.white, fg: C.green),
+            if (completed) chip('已完成', bg: C.greenSoft, fg: C.green),
+          ]),
+        ]),
+      );
+}
+
+class _TaskMetaTile extends StatelessWidget {
+  const _TaskMetaTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.background,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        height: 76,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 27,
+              height: 27,
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, size: 14, color: color),
+            ),
+            const Spacer(),
+            Icon(Icons.more_horiz_rounded, size: 14, color: color.withValues(alpha: .65)),
+          ]),
+          const Spacer(),
+          Text(label, style: const TextStyle(fontSize: 8.2, color: C.muted)),
+          const SizedBox(height: 1),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: color),
+          ),
+        ]),
+      );
+}
+
+class _SubtaskTile extends StatelessWidget {
+  const _SubtaskTile({
+    required this.value,
+    required this.label,
+    required this.color,
+    required this.background,
+    required this.onChanged,
+    this.onOpen,
+    this.onUnlink,
+  });
+
+  final bool value;
+  final String label;
+  final Color color;
+  final Color background;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback? onOpen;
+  final VoidCallback? onUnlink;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: .9),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Row(children: [
+          InkWell(
+            onTap: () => onChanged(!value),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              width: 27,
+              height: 27,
+              decoration: BoxDecoration(
+                color: value ? background : C.soft,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                value ? Icons.check_rounded : Icons.circle_outlined,
+                size: 15,
+                color: value ? color : C.muted,
+              ),
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: InkWell(
+              onTap: onOpen,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10.2,
+                    fontWeight: FontWeight.w800,
+                    color: value ? C.muted : C.ink,
+                    decoration: value ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (onUnlink != null)
+            IconButton(
+              tooltip: '从当前任务移除',
+              visualDensity: VisualDensity.compact,
+              onPressed: onUnlink,
+              icon: const Icon(Icons.link_off_rounded, size: 16),
+            ),
+        ]),
+      );
+}
+
+class _ReminderConflictBanner extends ConsumerWidget {
+  const _ReminderConflictBanner({required this.conflict});
+
+  final ReminderConflictUi conflict;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: C.redSoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text(
+            '提醒存在同步冲突',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            conflict.serverDeleted ? '云端提醒已删除' : conflict.reason,
+            style: const TextStyle(fontSize: 8.5, color: C.muted),
+          ),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => ref
+                    .read(reminderCommandsProvider)
+                    .keepServer(conflict.conflictId),
+                child: const Text('保留云端'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton(
+                onPressed: () => ref
+                    .read(reminderCommandsProvider)
+                    .keepLocal(conflict.conflictId),
+                child: const Text('保留本地'),
+              ),
+            ),
+          ]),
+        ]),
+      );
+}
+
+ExecutionReminder? _activeReminder(List<ExecutionReminder> reminders) {
+  for (final reminder in reminders.reversed) {
+    if (reminder.status == ExecutionReminderStatus.scheduled) return reminder;
+  }
+  return null;
+}
+
+DateTime _suggestTaskReminder(ExecutionTask task) {
+  final now = DateTime.now();
+  for (final raw in [task.scheduledAt, task.dueAt]) {
+    final value = DateTime.tryParse(raw ?? '')?.toLocal();
+    if (value != null && value.isAfter(now)) return value;
+  }
+  return now.add(const Duration(hours: 1));
+}
+
+String _formatReminderTime(ExecutionReminder reminder) {
+  final value = DateTime.parse(reminder.effectiveTriggerAt).toLocal();
+  return _formatDateTime(value);
+}
+
+Future<void> _editReminder(
+  BuildContext context,
+  WidgetRef ref, {
+  required String subjectType,
+  required String subjectId,
+  required String subjectTitle,
+  required DateTime suggestedAt,
+  ExecutionReminder? existing,
+}) async {
+  DateTime triggerAt = existing == null
+      ? suggestedAt
+      : DateTime.parse(existing.effectiveTriggerAt).toLocal();
+  if (!triggerAt.isAfter(DateTime.now())) {
+    triggerAt = DateTime.now().add(const Duration(hours: 1));
+  }
+
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (sheetContext, setSheetState) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              existing == null ? '设置提醒' : '调整提醒',
+              style: Theme.of(sheetContext).textTheme.titleLarge,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              subjectTitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 9.5, color: C.muted),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _DateField(
+            label: '提醒时间',
+            value: triggerAt,
+            onPick: () async {
+              final value = await _pickDateTime(sheetContext, triggerAt);
+              if (value != null) setSheetState(() => triggerAt = value);
+            },
+          ),
+          const SizedBox(height: 14),
+          Row(children: [
+            if (existing != null) ...[
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () async {
+                    await ref.read(reminderCommandsProvider).cancel(existing);
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  },
+                  child: const Text('取消提醒'),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              flex: 2,
+              child: FilledButton(
+                onPressed: () async {
+                  try {
+                    await ref.read(reminderCommandsProvider).schedule(
+                          subjectType: subjectType,
+                          subjectId: subjectId,
+                          triggerAt: triggerAt,
+                          title: subjectTitle,
+                          body: 'LifeTrace Execute 提醒',
+                        );
+                    if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  } catch (error) {
+                    if (sheetContext.mounted) {
+                      ScaffoldMessenger.of(sheetContext).showSnackBar(
+                        SnackBar(content: Text('$error')),
+                      );
+                    }
+                  }
+                },
+                child: Text(existing == null ? '创建提醒' : '保存提醒'),
+              ),
+            ),
+          ]),
+        ]),
+      ),
+    ),
+  );
+}
+
+class _DateField extends StatelessWidget {
+  const _DateField({
+    required this.label,
+    required this.value,
+    required this.onPick,
+    this.onClear,
+  });
+
+  final String label;
+  final DateTime? value;
+  final VoidCallback onPick;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext c) => Container(
+        decoration: BoxDecoration(color: C.soft, borderRadius: BorderRadius.circular(12)),
+        child: Row(children: [
+          Expanded(
+            child: InkWell(
+              onTap: onPick,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(label, style: const TextStyle(fontSize: 8.5, color: C.muted)),
+                  const SizedBox(height: 2),
+                  Text(
+                    value == null ? '未设置' : _formatDateTime(value!),
+                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+          if (onClear != null)
+            IconButton(
+              tooltip: '清除',
+              onPressed: onClear,
+              icon: const Icon(Icons.close_rounded, size: 16),
+            )
+          else
+            const Padding(
+              padding: EdgeInsets.only(right: 10),
+              child: Icon(Icons.schedule_rounded, size: 16, color: C.muted),
+            ),
+        ]),
+      );
+}
+
+Future<DateTime?> _pickDateTime(BuildContext context, DateTime? initial) async {
+  final now = DateTime.now();
+  final start = initial ?? now;
+  final date = await showDatePicker(
+    context: context,
+    initialDate: start,
+    firstDate: DateTime(now.year - 2),
+    lastDate: DateTime(now.year + 10),
+  );
+  if (date == null || !context.mounted) return null;
+  final time = await showTimePicker(
+    context: context,
+    initialTime: TimeOfDay.fromDateTime(start),
+  );
+  if (time == null) return null;
+  return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+}
+
+String _priorityBadge(ExecutionTaskPriority priority) => switch (priority) {
+      ExecutionTaskPriority.urgent => 'P1',
+      ExecutionTaskPriority.high => 'P2',
+      ExecutionTaskPriority.normal => 'P3',
+      ExecutionTaskPriority.low => 'P4',
+    };
+
+String _priorityText(ExecutionTaskPriority priority) => switch (priority) {
+      ExecutionTaskPriority.urgent => '紧急',
+      ExecutionTaskPriority.high => '高',
+      ExecutionTaskPriority.normal => '普通',
+      ExecutionTaskPriority.low => '低',
+    };
+
+String _statusText(ExecutionTaskStatus status) => switch (status) {
+      ExecutionTaskStatus.todo => '待办',
+      ExecutionTaskStatus.inProgress => '进行中',
+      ExecutionTaskStatus.waiting => '等待中',
+      ExecutionTaskStatus.done => '已完成',
+    };
+
+String _taskMeta(ExecutionTask task) {
+  final parts = <String>[];
+  if (task.projectId != null) parts.add('项目');
+  if (task.scheduledAt != null) parts.add('计划 ${_formatTaskDate(task.scheduledAt)}');
+  if (task.dueAt != null) parts.add('截止 ${_formatTaskDate(task.dueAt)}');
+  if (task.status == ExecutionTaskStatus.waiting) parts.add('等待中');
+  if (parts.isEmpty) parts.add('本地任务');
+  return parts.join(' · ');
+}
+
+String _formatTaskDate(String? raw) {
+  if (raw == null) return '未设置';
+  final value = DateTime.tryParse(raw)?.toLocal();
+  return value == null ? raw : _formatDateTime(value);
+}
+
+String _formatDateTime(DateTime value) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${value.month}月${value.day}日 ${two(value.hour)}:${two(value.minute)}';
+}

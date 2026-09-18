@@ -1,40 +1,42 @@
 # LifeTrace Execute UI / Interaction Specification
 
-更新时间：2026-08-27
+更新时间：2026-09-10
 
 ## 1. 目标
 
-该文档定义 LifeTrace Execute 当前 UI 与交互基线。浏览器高保真预览 `web-preview/` 是当前视觉评审基准，Android Jetpack Compose 应逐步与其保持一致。
+该文档定义 LifeTrace Execute 当前 UI 与交互基线。正式客户端现以 `flutter_app/` 为实现目标；`flutter-preview/` 与既有设计稿作为视觉参考来源。
 
-本规范强调两个原则：
+原则：
 
-1. 高保真：浏览器预览应尽量接近最终 Android 成品，而不是线框图。
-2. 功能完整：优化导航与层级时不得删除已经确认的功能。
+1. Flutter 正式客户端应尽量还原已确认的高保真设计，而不是重新发明一套页面；
+2. 技术栈重构不得删除已经确认的功能；
+3. Android 生产构建使用真实系统状态栏/安全区，假的设备框和状态栏只允许出现在 Web Preview；
+4. Flutter 页面存在不等于业务功能完成。
 
 ## 2. 设备与布局基准
 
-主基准：
+主视觉基准：
 
 ```text
 360 × 800 dp
 ```
 
-桌面浏览器：
+桌面 Web Preview：
 
-- 使用手机设备框展示。
-- 页面内容区域独立滚动。
-- 保留 Android 状态栏、底部导航与手势条的视觉模拟。
+- 居中展示固定 360×800 手机画布；
+- 手机框可以模拟状态栏、底部导航和设备边框；
+- 页面内容区域独立滚动；
+- 浏览器宽度不得改变手机内部布局宽度。
 
-移动浏览器：
+移动浏览器与 Android：
 
-- 自动使用全屏布局。
-- 不强制显示桌面手机外壳。
+- 使用真实设备可用尺寸；
+- 使用 `SafeArea` / `MediaQuery` 处理系统 inset；
+- 不绘制假的状态栏或手势区。
 
 ## 3. 导航结构
 
-### 底部 Navigation Bar
-
-固定 5 个 destination：
+底部一级导航固定为：
 
 | 入口 | 作用 |
 | --- | --- |
@@ -46,235 +48,171 @@
 
 要求：
 
-- 使用正式 SVG / Material 风格图标。
-- Active destination 使用蓝色图标/文字与浅蓝背景指示。
-- Inactive destination 使用中性灰。
-- 不使用 `○`、`□`、`◇` 等字符充当正式图标。
-
-### 我的
-
-- 不占用底部导航。
-- 主页面右上角头像进入。
-- “我的”是完整账号与设置中心，而不是简单个人资料页。
-
-### 今日复盘
-
-- 保留在“今天”中作为高权重入口。
-- 点击进入独立页面。
-- 不从产品中移除。
+- Active destination 使用蓝色图标/文字；
+- Inactive destination 使用中性灰；
+- 不新增第六个一级导航；
+- “我的”从头像进入；
+- “今日复盘”从 Today 进入独立页面；
+- Focus/Pomodoro 属于任务执行工作流，不单独占一级导航。
 
 ## 4. 视觉 Token
 
-当前浏览器预览基准色：
-
 ```text
-Primary Blue       #2563EB
-Primary Blue Soft  #EAF1FF
-Ink                #18212F
+Primary Blue       #2468F2
+Primary Blue Soft  #EDF4FF
+Ink                #111827
 Muted              #6B7280
-Background         #FAFBFF
+Background         #FBFCFE
 Surface            #FFFFFF
-Surface Muted      #F4F6FA
-Border              #E4E7EC
-Orange              #F59E0B
-Orange Soft         #FFF4E5
-Green               #16A36A
-Green Soft          #E9F8F1
-Red                 #DC4C4C
+Surface Muted      #F5F7FB
+Border             #E6EAF0
+Orange             #FF9F2F
+Green              #16A36A
+Red                #F05252
+Purple             #7C3AED
+Teal               #0F9F83
 ```
 
-语义：
-
-- 蓝色：主操作、选中状态、核心产品强调。
-- 绿色：完成、成功、习惯完成等正向状态。
-- 橙色：复盘、提醒、次级注意事项。
-- 红色：错误、紧急、高优先级。
+视觉方向：明亮、克制、高信息密度、少投影、少大卡片。列表、时间线、层级排版优先于“每块内容都做成 Card”。
 
 ## 5. 圆角与层级
 
-建议层级：
+建议：
 
 ```text
-小控件 / Chip       8–10
-输入框 / 普通卡片   12–14
-主卡片              16–18
-特殊大卡片          20–24
-设备框              30+
+Chip / 小控件      7–9
+输入框              10–12
+普通 Panel          10–12
+主强调区域          14–18
+Web 设备框          28+
 ```
 
-卡片层级以浅边框为主，阴影保持低强度。避免所有元素都使用明显投影。
+正式 Android 不需要设备框圆角。
 
 ## 6. Typography
 
-中文优先字体：
+中文优先系统字体回退：
 
 ```text
 Noto Sans SC
 PingFang SC
 Microsoft YaHei
-System UI fallback
+System UI
 ```
 
-层级建议：
+建议：
 
-- Screen title：22–24，Bold / 700+
-- Section title：14–16，Semibold / Bold
-- Card title：12–14，Semibold
-- Body：11–13
-- Meta / caption：9–11
+- Screen title：20–22，800/900；
+- Section title：12–15，700/900；
+- Row title：10.5–13，700/900；
+- Body：10–12.5；
+- Meta：8.5–10.5。
 
-界面应保持紧凑，但文字不得因追求高密度而过小到影响真机可读性。
+360dp 宽度下必须保持真机可读性，不能为了“塞下设计稿”过度缩小文字。
 
 ## 7. 页面规范
 
 ### Today
 
-信息顺序建议：
+目标顺序：
 
-1. 问候 + 日期 + 头像
-2. 一周日期条
-3. 今日焦点
-4. 今日概览
-5. 时间线
-6. 今日任务
-7. 今日复盘
+1. `9月9日 · 星期三` / 问候 / 头像；
+2. 一周日期条；
+3. TODAY FOCUS；
+4. 今日统计：待完成 / 日程 / 习惯；
+5. “现在”；
+6. “接下来”；
+7. 今日任务；
+8. 复盘入口。
 
-今日焦点是首页视觉主卡片，应明显区别于普通统计卡片。
+避免恢复成大面积统计卡片堆叠。
 
 ### Tasks
 
-必须保留：
+必须保留搜索、状态/时间筛选、优先级、截止时间、新建任务入口。Task Detail 至少包含标题、状态、项目、截止时间、安排时间、提醒、优先级、备注、子任务与开始专注。
 
-- 搜索
-- 状态筛选
-- 优先级提示
-- 截止时间
-- 新建任务
+创建/编辑在移动端优先 Bottom Sheet 或独立编辑页，具体取决于字段复杂度；核心操作不得为空回调。
 
-创建任务优先使用 Bottom Sheet，以保持 Android 移动端交互习惯。
+### Focus
 
-后续 Task Detail 至少需要考虑：
+- 25:00 默认专注；
+- 显示关联任务；
+- 开始/暂停/继续/放弃/跳过；
+- 今日专注时间、番茄次数、连续天数；
+- 正式实现计时状态必须跨页面、后台与进程恢复保持一致。
 
-- 标题
-- 状态
-- 项目归属
-- 截止日期
-- 提醒
-- 优先级
-- 备注
-- 子任务
+### Projects / Project Detail
 
-具体是否全部进入首版实现，可后续根据产品范围裁剪，但现阶段不得通过 UI 重构删除已经存在的任务能力。
-
-### Projects
-
-项目卡片至少展示：
-
-- 项目名
-- 状态
-- 进度
-- 截止日期
-- 成员 / 协作信息（如果存在）
-
-项目作为一级功能保留独立底部导航入口。
+项目列表显示名称、状态、进度、任务完成数与截止时间。项目详情显示总体进度、总任务/已完成/待完成、下一步、里程碑、项目任务。
 
 ### Calendar
 
-月视图需要：
-
-- 当前月份
-- 当前 / 选中日期
-- 有事件日期标记
-- 下方对应日期的日程列表
-
-任务截止日期与日历事件后续应统一映射到同一时间视图。
+- 真实年月/月历；
+- 当前/选中日期；
+- 有内容日期 marker；
+- 月/周/日程视图入口；
+- 选中日下方统一时间线；
+- Important Date 与 Reminder 后续接真实数据。
 
 ### Collection
 
-快速收集入口固定保留：
-
-- 文本
-- 图片
-- 语音
-- 链接
-- 文件
-- 想法
-
-收集页不仅是创建入口，还需要保留 Inbox / 分类整理能力。
-
-### Profile / My
-
-至少保留：
-
-- 个人资料
-- 登录 / Cloud 状态
-- 账号与安全
-- 设备管理
-- 同步与数据
-- 通知
-- 外观
-- 通用设置
-- 关于
-
-未来增加设置项时，可以增加分组和二级页面，但不得把“我的”缩减为单纯头像资料卡。
+快速收集固定保留：文字、图片、语音、链接、文件、想法。必须保留 Inbox 与整理能力。
 
 ### Review
 
-当前字段：
+Daily Review 至少包含心情/评分、任务完成统计、收获、改进、明日第一优先级与保存；后续接历史复盘。Weekly Review 保留在 1.0 范围。
 
-- 今日评分
-- 心情
-- 今日收获
-- 改进项
-- 明日第一优先级
+### Profile / My
 
-保存操作完成后返回“今天”。后续应补充历史复盘查看。
+至少保留个人资料、Cloud 状态、账号与安全、设备、同步与数据、通知、外观、通用设置、关于。
 
-## 8. 组件规范
+## 8. Flutter 组件方向
 
-优先沉淀公共组件：
-
-- ScreenHeader
-- BottomNavigation
-- SectionHeader
-- MetricCard
-- TaskRow
-- ProjectCard
-- TimelineItem
-- StatusChip
-- SearchField
-- BottomSheet
-- SettingsRow
-- EmptyState
-
-浏览器和 Compose 组件命名不需要完全一致，但视觉语义与交互职责应保持一致。
-
-## 9. 浏览器预览与 Compose 同步规则
-
-当前工作流：
+逐步沉淀：
 
 ```text
-浏览器快速设计/验证
-        ↓
-确认视觉与交互
-        ↓
-抽取 Design Token / Component
-        ↓
-Jetpack Compose 实现
-        ↓
-Android Preview / 真机验证
+AppShell
+ScreenHeader
+SectionHeader
+TaskRow
+ProjectRow
+TimelineItem
+StatusChip
+SearchField
+BottomSheet
+SettingsRow
+EmptyState
+PhonePreviewFrame   # Web only
 ```
 
-浏览器代码不是最终 Android 产品代码，因此涉及 Android 特有行为时，以 Compose / Material 3 与 Android 平台规范为最终准则。
+正式业务页面应从 Theme / design tokens 获取通用样式，不要在每个页面复制一套颜色和尺寸。
 
-## 10. 当前下一步
+## 9. 设计到生产的当前流程
 
-UI 优先级：
+```text
+已确认高保真设计
+        ↓
+flutter_app/ UI 基线
+        ↓
+抽取 Flutter Design System
+        ↓
+接 Domain / Repository / SQLite
+        ↓
+接 Local-first / Sync
+        ↓
+Widget / integration / E2E
+        ↓
+Android 真机验证
+```
 
-1. Today 首页继续精修。
-2. Task Detail。
-3. Project Detail。
-4. Design Token 固化。
-5. Compose 同步。
+不再执行“设计 → Jetpack Compose”的旧流程。
 
-在上述内容收敛前，不优先继续增加新的一级导航功能。
+## 10. 当前 UI 下一步
+
+UI 层已经有主要页面基线，下一步不继续铺更多静态壳。优先：
+
+1. 把现有单文件/part 原型拆为正式 Flutter feature/component 结构；
+2. Task UI 接真实 Flutter state 与本地数据库；
+3. 抽取统一 Theme、spacing、typography 和交互组件；
+4. 用 golden/widget test 做关键页面视觉回归；
+5. 真实业务迁移后再逐模块精修。

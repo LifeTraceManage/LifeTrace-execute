@@ -1,0 +1,23 @@
+name: Legacy Flutter Preview CI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-preview:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter-preview
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
