@@ -29,7 +29,7 @@ import com.lifetrace.execute.ui.screens.CollectionScreen
 import com.lifetrace.execute.ui.screens.ProfileScreen
 import com.lifetrace.execute.ui.screens.ProjectsScreen
 import com.lifetrace.execute.ui.screens.ReviewScreen
-import com.lifetrace.execute.ui.screens.TasksScreen
+import com.lifetrace.execute.ui.screens.TasksRoute
 import com.lifetrace.execute.ui.screens.TodayScreen
 import com.lifetrace.execute.ui.theme.LifeBlue
 import com.lifetrace.execute.ui.theme.LifeBlueSoft
@@ -80,10 +80,7 @@ fun LifeTraceExecuteApp() {
                                 }
                             },
                             icon = {
-                                Icon(
-                                    destination.icon,
-                                    contentDescription = destination.label
-                                )
+                                Icon(destination.icon, contentDescription = destination.label)
                             },
                             label = { Text(destination.label) },
                             colors = NavigationBarItemDefaults.colors(
@@ -112,7 +109,7 @@ fun LifeTraceExecuteApp() {
                 )
             }
             composable("tasks") {
-                TasksScreen(
+                TasksRoute(
                     contentPadding = innerPadding,
                     onProfile = { navController.navigate("profile") },
                     onCloudConnection = { navController.navigate("cloud") },
@@ -121,7 +118,8 @@ fun LifeTraceExecuteApp() {
             composable("projects") {
                 ProjectsScreen(
                     contentPadding = innerPadding,
-                    onProfile = { navController.navigate("profile") }
+                    onProfile = { navController.navigate("profile") },
+                    onCloudConnection = { navController.navigate("cloud") },
                 )
             }
             composable("calendar") {

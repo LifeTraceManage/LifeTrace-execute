@@ -23,6 +23,24 @@ interface LifeTraceExecuteDao {
     @Query("UPDATE tasks SET serverVersion = :serverVersion WHERE id = :taskId AND userId = :userId")
     suspend fun updateTaskServerVersion(userId: String, taskId: String, serverVersion: String)
 
+    @Query("SELECT COUNT(*) FROM tasks WHERE userId = :userId AND projectId = :projectId")
+    suspend fun countTasksForProject(userId: String, projectId: String): Int
+
+    @Query("SELECT * FROM projects WHERE userId = :userId ORDER BY status, dueAt IS NULL, dueAt, updatedAt DESC")
+    fun observeProjects(userId: String): Flow<List<ProjectEntity>>
+
+    @Query("SELECT * FROM projects WHERE id = :projectId AND userId = :userId LIMIT 1")
+    suspend fun getProject(userId: String, projectId: String): ProjectEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertProject(project: ProjectEntity)
+
+    @Query("DELETE FROM projects WHERE id = :projectId AND userId = :userId")
+    suspend fun deleteProject(userId: String, projectId: String)
+
+    @Query("UPDATE projects SET serverVersion = :serverVersion WHERE id = :projectId AND userId = :userId")
+    suspend fun updateProjectServerVersion(userId: String, projectId: String, serverVersion: String)
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertOutbox(change: SyncOutboxEntity)
 
