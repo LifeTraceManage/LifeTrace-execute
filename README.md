@@ -4,11 +4,11 @@ LifeTrace Execute 是 LifeTrace 的独立执行中心，负责今天、任务、
 
 ## 当前客户端方向
 
-从 2026-09-10 起，项目正式从 Jetpack Compose 迁移到 **Flutter**：
+从 2026-09-18 起，`main` 是唯一正式生产分支，正式客户端为 **Flutter**：
 
-- `flutter_app/`：新的正式客户端目标；
-- `app/`：旧 Jetpack Compose Android 客户端，迁移期间保留为已实现业务、Local-first、Auth/Sync 行为参考；
-- `flutter-preview/`：此前高保真 Flutter 设计原型，保留作设计历史参考；
+- `flutter_app/`：正式生产客户端；
+- `app/`：旧 Jetpack Compose Android 客户端，仅保留为迁移/行为参考，不再承接新功能；
+- `flutter-preview/`：此前高保真 Flutter 设计原型，仅保留作设计历史参考；
 - `web-preview/`：旧浏览器设计原型；
 - LifeTrace Cloud：继续复用统一 Rust + Axum + PostgreSQL 后端，不建设第二套 Execute 云端。
 
@@ -45,7 +45,7 @@ flutter_app/
 
 当前第一批迁移已经把确认过的高保真 UI 提升为 `flutter_app/` 的正式 UI 基线。Android 生产入口使用真实系统安全区；模拟状态栏和手机外壳只用于 Web 评审预览。
 
-> 当前 Flutter UI 已迁移，但 Task/Cloud/Sync 等真实业务链还在迁移中。不能因为 Flutter 页面存在就把模块标记为完成。
+> Flutter 已完成 Local-first、Drift、Repository、Outbox、Cloud Sync v1，以及 Project、Calendar、Collection、Review、Goal/Habit、Today、Focus、Profile 等多条真实业务链。当前剩余重点是 Task Advanced（waiting / dependency / recurrence / occurrence / completion）、全实体多设备 E2E 与 Release hardening。
 
 ## 生产架构目标
 
@@ -96,7 +96,7 @@ M4  Project / Advanced Task / Calendar / Collection / Review / Focus / Today / P
 M5  Flutter Release Gate 与 Compose 下线
 ```
 
-旧 Compose `app/` 在 Flutter 对应业务 Gate 通过前保留，不再承接新的产品 UI 开发。
+旧 Compose `app/` 继续保留为参考代码，但不再参与正式生产 Gate；正式开发、CI 与发布均以 `main/flutter_app` 为准。
 
 ## 文档入口
 
