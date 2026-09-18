@@ -1246,9 +1246,6 @@ class TaskDetail extends ConsumerStatefulWidget {
 
 class _TaskDetailState extends ConsumerState<TaskDetail> {
   ExecutionTask? current;
-  bool a = true;
-  bool b = false;
-  bool c2 = false;
 
   @override
   void initState() {
@@ -1264,6 +1261,13 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
     final priority = task?.priority ?? ExecutionTaskPriority.urgent;
     final status = task?.status ?? ExecutionTaskStatus.inProgress;
     final completed = task?.isDone == true;
+    final subtaskState = task == null
+        ? const AsyncData<List<TaskSubtaskUi>>(<TaskSubtaskUi>[])
+        : ref.watch(taskSubtasksProvider(task.id));
+    final subtasks =
+        subtaskState.valueOrNull ?? const <TaskSubtaskUi>[];
+    final completedSubtasks =
+        subtasks.where((item) => item.task.isDone).length;
     final reminderItems = task == null
         ? const <ExecutionReminder>[]
         : ref
@@ -1440,67 +1444,114 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
             ),
           ),
         ]),
-        h('子任务'),
+        h(
+          '子任务',
+          tail: task == null || kIsWeb
+              ? null
+              : TextButton.icon(
+                  onPressed: () => _addSubtask(c, task),
+                  icon: const Icon(Icons.add_rounded, size: 15),
+                  label: const Text('添加'),
+                ),
+        ),
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: C.purpleSoft,
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Column(children: [
-            Row(children: [
-              SizedBox(
-                width: 42,
-                height: 42,
-                child: Stack(fit: StackFit.expand, children: [
-                  const CircularProgressIndicator(
-                    value: 1 / 3,
-                    strokeWidth: 5,
-                    color: C.purple,
-                    backgroundColor: Colors.white,
-                  ),
-                  const Center(
-                    child: Text(
-                      '1/3',
-                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: C.purple),
-                    ),
-                  ),
-                ]),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('推进任务步骤', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900)),
-                  SizedBox(height: 2),
-                  Text('完成一个小步骤，比盯着大任务更轻松', style: TextStyle(fontSize: 8.8, color: C.muted)),
-                ]),
-              ),
-            ]),
-            const SizedBox(height: 10),
-            _SubtaskTile(
-              value: a,
-              label: '分析现有页面',
-              color: C.green,
-              background: C.greenSoft,
-              onChanged: (v) => setState(() => a = v),
-            ),
-            const SizedBox(height: 7),
-            _SubtaskTile(
-              value: b,
-              label: '完成 UI Design',
-              color: C.purple,
-              background: C.pinkSoft,
-              onChanged: (v) => setState(() => b = v),
-            ),
-            const SizedBox(height: 7),
-            _SubtaskTile(
-              value: c2,
-              label: 'Flutter 实现',
-              color: C.sky,
-              background: C.skySoft,
-              onChanged: (v) => setState(() => c2 = v),
-            ),
-          ]),
+          child: task == null
+              ? const Text(
+                  '保存任务后即可添加真实子任务。',
+                  style: TextStyle(fontSize: 9, color: C.muted),
+                )
+              : subtaskState.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : subtaskState.hasError
+                      ? Text(
+                          '子任务加载失败：${subtaskState.error}',
+                          style: const TextStyle(fontSize: 9, color: C.red),
+                        )
+                      : Column(children: [
+                          Row(children: [
+                            SizedBox(
+                              width: 42,
+                              height: 42,
+                              child: Stack(fit: StackFit.expand, children: [
+                                CircularProgressIndicator(
+                                  value: subtasks.isEmpty
+                                      ? 0
+                                      : completedSubtasks / subtasks.length,
+                                  strokeWidth: 5,
+                                  color: C.purple,
+                                  backgroundColor: Colors.white,
+                                ),
+                                Center(
+                                  child: Text(
+                                    '$completedSubtasks/${subtasks.length}',
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w900,
+                                      color: C.purple,
+                                    ),
+                                  ),
+                                ),
+                              ]),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    '推进任务步骤',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    subtasks.isEmpty
+                                        ? (kIsWeb
+                                            ? 'Web Preview 不写入生产子任务关系'
+                                            : '还没有子任务，点击“添加”创建')
+                                        : '子任务是独立 Task，并通过 entity.link 与当前任务关联',
+                                    style: const TextStyle(
+                                      fontSize: 8.8,
+                                      color: C.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ]),
+                          if (subtasks.isNotEmpty) const SizedBox(height: 10),
+                          for (var index = 0;
+                              index < subtasks.length;
+                              index++) ...[
+                            _SubtaskTile(
+                              value: subtasks[index].task.isDone,
+                              label: subtasks[index].task.title,
+                              color: C.purple,
+                              background: C.purpleSoft,
+                              onChanged: (_) => ref
+                                  .read(taskCommandsProvider)
+                                  .toggleDone(subtasks[index].task),
+                              onOpen: () => push(
+                                c,
+                                TaskDetail(task: subtasks[index].task),
+                              ),
+                              onUnlink: kIsWeb
+                                  ? null
+                                  : () => ref
+                                      .read(taskSubtaskCommandsProvider)
+                                      .unlink(subtasks[index]),
+                            ),
+                            if (index != subtasks.length - 1)
+                              const SizedBox(height: 7),
+                          ],
+                        ]),
         ),
         if (task != null) ...[
           h('提醒'),
@@ -1576,6 +1627,76 @@ class _TaskDetailState extends ConsumerState<TaskDetail> {
         ],
       ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 20)),
     );
+  }
+
+  Future<void> _addSubtask(
+    BuildContext context,
+    ExecutionTask parent,
+  ) async {
+    final controller = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: '子任务',
+                hintText: '输入一个可独立完成的小步骤',
+              ),
+              onSubmitted: (_) => _submitSubtask(
+                sheetContext,
+                parent,
+                controller.text,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => _submitSubtask(
+                  sheetContext,
+                  parent,
+                  controller.text,
+                ),
+                child: const Text('创建子任务'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+  }
+
+  Future<void> _submitSubtask(
+    BuildContext sheetContext,
+    ExecutionTask parent,
+    String title,
+  ) async {
+    try {
+      await ref.read(taskSubtaskCommandsProvider).create(
+            parent: parent,
+            title: title,
+          );
+      if (sheetContext.mounted) Navigator.pop(sheetContext);
+    } catch (error) {
+      if (!sheetContext.mounted) return;
+      ScaffoldMessenger.of(sheetContext).showSnackBar(
+        SnackBar(content: Text('$error')),
+      );
+    }
   }
 
   Future<void> _edit(BuildContext context, ExecutionTask task) async {
@@ -1826,6 +1947,8 @@ class _SubtaskTile extends StatelessWidget {
     required this.color,
     required this.background,
     required this.onChanged,
+    this.onOpen,
+    this.onUnlink,
   });
 
   final bool value;
@@ -1833,19 +1956,21 @@ class _SubtaskTile extends StatelessWidget {
   final Color color;
   final Color background;
   final ValueChanged<bool> onChanged;
+  final VoidCallback? onOpen;
+  final VoidCallback? onUnlink;
 
   @override
-  Widget build(BuildContext c) => InkWell(
-        onTap: () => onChanged(!value),
-        borderRadius: BorderRadius.circular(11),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .9),
-            borderRadius: BorderRadius.circular(11),
-          ),
-          child: Row(children: [
-            Container(
+  Widget build(BuildContext c) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: .9),
+          borderRadius: BorderRadius.circular(11),
+        ),
+        child: Row(children: [
+          InkWell(
+            onTap: () => onChanged(!value),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
               width: 27,
               height: 27,
               decoration: BoxDecoration(
@@ -1858,20 +1983,33 @@ class _SubtaskTile extends StatelessWidget {
                 color: value ? color : C.muted,
               ),
             ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10.2,
-                  fontWeight: FontWeight.w800,
-                  color: value ? C.muted : C.ink,
-                  decoration: value ? TextDecoration.lineThrough : null,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: InkWell(
+              onTap: onOpen,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10.2,
+                    fontWeight: FontWeight.w800,
+                    color: value ? C.muted : C.ink,
+                    decoration: value ? TextDecoration.lineThrough : null,
+                  ),
                 ),
               ),
             ),
-          ]),
-        ),
+          ),
+          if (onUnlink != null)
+            IconButton(
+              tooltip: '从当前任务移除',
+              visualDensity: VisualDensity.compact,
+              onPressed: onUnlink,
+              icon: const Icon(Icons.link_off_rounded, size: 16),
+            ),
+        ]),
       );
 }
 

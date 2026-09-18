@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/task/execution_task.dart';
 import '../local/app_database.dart' as db;
+import 'entity_link_repository.dart';
 import 'task_database_mapper.dart';
 import 'task_wire_mapper.dart';
 
@@ -164,8 +165,45 @@ class DriftTaskRepository implements TaskRepository {
         .getSingleOrNull();
     if (existing == null) return;
 
+    final relatedLinks = await (database.select(database.entityLinks)
+          ..where(
+            (table) =>
+                table.userId.equals(userId) &
+                ((table.sourceType.equals(entityType) &
+                        table.sourceId.equals(taskId)) |
+                    (table.targetType.equals(entityType) &
+                        table.targetId.equals(taskId))),
+          ))
+        .get();
     final now = DateTime.now().toUtc().toIso8601String();
     await database.transaction(() async {
+      for (final link in relatedLinks) {
+        await database.into(database.syncOutbox).insert(
+              db.SyncOutboxCompanion.insert(
+                changeId: _uuid.v4(),
+                userId: userId,
+                entityType: DriftEntityLinkRepository.entityType,
+                entityId: link.id,
+                operation: 'delete',
+                baseServerVersion: link.serverVersion ?? '0',
+                clientModifiedAt: now,
+                createdAt: now,
+              ),
+            );
+      }
+      if (relatedLinks.isNotEmpty) {
+        await (database.delete(database.entityLinks)
+              ..where(
+                (table) =>
+                    table.userId.equals(userId) &
+                    ((table.sourceType.equals(entityType) &
+                            table.sourceId.equals(taskId)) |
+                        (table.targetType.equals(entityType) &
+                            table.targetId.equals(taskId))),
+              ))
+            .go();
+      }
+
       await database.into(database.syncOutbox).insert(
             db.SyncOutboxCompanion.insert(
               changeId: _uuid.v4(),

@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lifetrace_execute/data/local/app_database.dart';
+import 'package:lifetrace_execute/data/repository/entity_link_repository.dart';
 import 'package:lifetrace_execute/data/repository/task_repository.dart';
 import 'package:lifetrace_execute/domain/task/execution_task.dart';
 
@@ -52,4 +53,50 @@ void main() {
     expect(outbox, hasLength(3));
     expect(outbox.last.operation, 'delete');
   });
+
+  test('deleting a task tombstones task links without deleting the child task',
+      () async {
+    final parent = await repository.createTask(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      title: 'Parent',
+    );
+    final child = await repository.createTask(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      title: 'Child',
+    );
+    final links = DriftEntityLinkRepository(database);
+    await links.createLink(
+      userId: 'user-1',
+      deviceId: 'device-1',
+      sourceType: DriftTaskRepository.entityType,
+      sourceId: parent.id,
+      targetType: DriftTaskRepository.entityType,
+      targetId: child.id,
+      relationType: 'subtask',
+    );
+
+    expect(await database.select(database.entityLinks).get(), hasLength(1));
+
+    await database.delete(database.syncOutbox).go();
+    await repository.deleteTask(userId: 'user-1', taskId: parent.id);
+
+    final tasks = await database.select(database.tasks).get();
+    expect(tasks.map((item) => item.id), contains(child.id));
+    expect(tasks.map((item) => item.id), isNot(contains(parent.id)));
+    expect(await database.select(database.entityLinks).get(), isEmpty);
+
+    final outbox = await database.select(database.syncOutbox).get();
+    expect(outbox, hasLength(2));
+    expect(
+      outbox.map((item) => item.entityType),
+      containsAll(<String>[
+        DriftEntityLinkRepository.entityType,
+        DriftTaskRepository.entityType,
+      ]),
+    );
+    expect(outbox.every((item) => item.operation == 'delete'), isTrue);
+  });
+
 }
