@@ -1,14 +1,16 @@
 # LifeTrace Execute 项目进度
 
-更新时间：2026-09-15
+更新时间：2026-09-18
 
 ## 1. 当前阶段
 
-LifeTrace Execute 的正式生产客户端已经切换到 Flutter，当前分支：
+LifeTrace Execute 的正式生产客户端已经切换到 Flutter。自 2026-09-18 起，正式生产分支统一回归：
 
 ```text
-refactor/flutter-production
+main
 ```
+
+`refactor/flutter-production` 完成历史迁移使命，不再作为日常开发入口；后续功能从 `main` 建 feature 分支，通过 Flutter Production CI 后合回 `main`。
 
 旧 Compose `app/` 仍保留为迁移参考，在全功能 Release Gate 与 Compose cutover 完成前不删除。
 
