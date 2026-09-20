@@ -7,7 +7,6 @@ LifeTrace Execute 是 LifeTrace 的独立执行中心，负责今天、任务、
 从 2026-09-18 起，`main` 是唯一正式生产分支，正式客户端为 **Flutter**：
 
 - `flutter_app/`：正式生产客户端；
-- `app/`：旧 Jetpack Compose Android 客户端，仅保留为迁移/行为参考，不再承接新功能；
 - `flutter-preview/`：此前高保真 Flutter 设计原型，仅保留作设计历史参考；
 - `web-preview/`：旧浏览器设计原型；
 - LifeTrace Cloud：继续复用统一 Rust + Axum + PostgreSQL 后端，不建设第二套 Execute 云端。
@@ -93,10 +92,10 @@ M1  Flutter Foundation / Drift / Auth / Sync primitives
 M2  Task 完整纵向链迁移
 M3  Cloud Auth + Sync 运行时对齐
 M4  Project / Advanced Task / Calendar / Collection / Review / Focus / Today / Profile
-M5  Flutter Release Gate 与 Compose 下线
+M5  Flutter 客户端 Cutover（已完成）+ Release hardening
 ```
 
-旧 Compose `app/` 继续保留为参考代码，但不再参与正式生产 Gate；正式开发、CI 与发布均以 `main/flutter_app` 为准。
+旧 Compose `app/`、根级 Android Gradle 工程和 legacy Compose CI 已于 2026-09-20 从 `main` 删除；正式开发、CI 与发布均以 `main/flutter_app` 为准。
 
 ## 文档入口
 
