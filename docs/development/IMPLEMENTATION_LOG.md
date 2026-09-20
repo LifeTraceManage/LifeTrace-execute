@@ -1,8 +1,18 @@
 # LifeTrace Execute 工程实施记录
 
-更新时间：2026-09-18
+更新时间：2026-09-20
 
 > 本文档只记录已经提交到代码仓的实现事实、验证证据和剩余阻塞。设计意图看 `REQUIREMENTS.md`，客户端迁移看 `FLUTTER_REFACTOR_PLAN.md`。
+
+
+## 2026-09-20：Legacy Compose 客户端正式下线
+
+- 删除旧 Jetpack Compose 客户端 `app/`，包括 Kotlin UI、Room/Repository、旧 Sync/Auth 实现与 Android resources；
+- 删除仅服务于旧 Compose 工程的根级 `build.gradle.kts`、`settings.gradle.kts`、`gradle.properties`；
+- 删除 `.github/workflows/android-ci.yml`，不再维护 `:app` legacy Android Gate；
+- `flutter_app/` 成为唯一生产客户端，Flutter Production CI 继续负责 analyze/test/Android debug/Web release Gate；
+- 当前工作树不再保留旧 Kotlin 客户端；迁移前实现与旧 CI 证据仅通过 Git 历史和本文历史记录追溯。
+
 
 
 ## 2026-09-18：Flutter 正式客户端回归 main

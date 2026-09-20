@@ -88,14 +88,14 @@ zhouxingxing1279/LifeTrace
 
 ```text
 ┌──────────────────────────────┐
-│ LifeTrace Execute Android    │
+│ LifeTrace Execute Flutter    │
 │                              │
-│ Compose UI                   │
+│ Flutter UI / Riverpod        │
 │   ↓                          │
 │ Domain / Use Cases           │
 │   ↓                          │
 │ Repository                   │
-│   ├── Local DB (Room/SQLite) │
+│   ├── Drift / SQLite         │
 │   └── Sync Engine            │
 │          ↓ HTTPS             │
 └──────────┬───────────────────┘
@@ -111,15 +111,15 @@ zhouxingxing1279/LifeTrace
 
 UI 不直接调用 HTTP；网络层不直接修改 UI 状态。所有写入先进入统一领域/Repository 层，再以同一事务写本地实体与 Outbox。
 
-### 2.2 Android 推荐分层
+### 2.2 Flutter 推荐分层
 
 ```text
-app/
-├── ui/                 # Compose Screen / Component
-├── presentation/       # ViewModel / UI State
+flutter_app/lib/
+├── app/                # app shell / routing / providers
+├── features/           # Flutter Screen / state / interaction
 ├── domain/             # Entity / UseCase / business rules
 ├── data/
-│   ├── local/          # Room DAO / DB / migrations
+│   ├── local/          # Drift DAO / DB / migrations
 │   ├── remote/         # Auth / Sync / Files API
 │   ├── repository/     # Repository implementation
 │   └── sync/           # Outbox / Pull / Conflict / Snapshot
@@ -247,7 +247,7 @@ POST /api/v1/auth/login
 | --- | --- | --- | --- |
 | P0 | 需求/架构冻结 | Requirements + 本计划 | 无未登记核心需求 |
 | P1 | 浏览器 UI 收敛 | 全核心流程高保真原型 | 页面/交互评审通过 |
-| P2 | Android UI 对齐 | Compose 正式页面 | 与原型核心流程一致 |
+| P2 | Flutter UI 对齐 | Flutter 正式页面 | 与原型核心流程一致 |
 | P3 | 本地数据层 | Room + Repository + 本地 CRUD | 飞行模式完整可操作 |
 | P4 | Cloud 契约加固 | typed execution DTO + 新实体 | Contract tests 全绿 |
 | P5 | Auth + Sync Core | 登录、push/pull/snapshot/conflict | 双设备同步 Gate 通过 |
@@ -935,7 +935,7 @@ PROJECT_STATUS 状态更新
 
 #### P2 Android UI
 
-- Compose Preview / 真机截图；
+- Flutter widget/golden / 真机截图；
 - UI test；
 - 与浏览器基线差异说明。
 
@@ -986,7 +986,7 @@ LifeTrace 主仓库证据：
 - 浏览器高保真主页面已建立；
 - Important Dates 前端设计已建立；
 - Pomodoro 前端设计已建立；
-- Android Compose 基础页面存在；
+- Flutter Android 基础页面存在；
 - Android 仍主要是 UI/Mock 阶段；
 - 尚未完成正式 Room/Repository/Auth/Sync 集成。
 
