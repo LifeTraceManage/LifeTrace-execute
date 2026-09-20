@@ -1,6 +1,6 @@
 # LifeTrace Execute 项目进度
 
-更新时间：2026-09-18
+更新时间：2026-09-20
 
 ## 1. 当前阶段
 
@@ -12,7 +12,7 @@ main
 
 `refactor/flutter-production` 完成历史迁移使命，不再作为日常开发入口；后续功能从 `main` 建 feature 分支，通过 Flutter Production CI 后合回 `main`。
 
-旧 Compose `app/` 仍保留为迁移参考，在全功能 Release Gate 与 Compose cutover 完成前不删除。
+Flutter 客户端 cutover 已完成：旧 Compose `app/`、根级 Android Gradle 工程和 legacy Compose CI 已于 2026-09-20 从 `main` 删除。迁移前实现只通过 Git 历史保留。
 
 当前不是“UI 壳迁移阶段”。Flutter 已经建立真实 Local-first、Cloud Sync、后台同步、文件上传、Reminder/Notification、Important Date、Daily Review 与 Pomodoro/FocusSession 等纵向业务链。
 
@@ -260,7 +260,6 @@ workflow                    SUCCESS
 - Profile / Devices / Settings / Data；
 - full multi-device / offline / staging E2E；
 - release signing / release build / R8 / performance / security hardening；
-- Compose 最终 cutover。
 
 ## 5. 当前技术架构
 
