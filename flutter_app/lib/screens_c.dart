@@ -1923,12 +1923,6 @@ String _reviewDateLabel(String value) {
   return '${date.month}月${date.day}日 · 星期${weekdays[date.weekday - 1]}';
 }
 
-const _profileYellow = Color(0xffffc928);
-const _profileYellowSoft = Color(0xfffff4bf);
-const _profileInk = Color(0xff111111);
-const _profileMuted = Color(0xff747474);
-const _profileDivider = Color(0xffececec);
-
 class Profile extends ConsumerWidget {
   const Profile({super.key});
 
@@ -1957,9 +1951,8 @@ class Profile extends ConsumerWidget {
         break;
       }
     }
-    final deviceLabel = kIsWeb
-        ? 'Web Preview'
-        : currentDevice?.deviceName ?? '本机设备';
+    final deviceLabel =
+        kIsWeb ? 'Web Preview' : currentDevice?.deviceName ?? '本机设备';
 
     final syncSummary = !connected
         ? '未连接 Cloud · 数据继续保存在本机'
@@ -1979,7 +1972,6 @@ class Profile extends ConsumerWidget {
 
     return DetailFrame(
       titleText: '我的',
-      backgroundColor: Colors.white,
       child: page(
         [
           _ProfileHero(
@@ -1989,87 +1981,109 @@ class Profile extends ConsumerWidget {
             deviceLabel: deviceLabel,
             onTap: () => push(context, const ProfileDetails()),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 18),
           _ProfileSection(
             title: '数据与同步',
             children: [
               _ProfileRow(
                 icon: Icons.cloud_sync_outlined,
+                iconColor: C.p,
+                iconBackground: C.ps,
                 title: '云端同步',
                 subtitle: syncSummary,
                 trailing: connected ? '已连接' : '未连接',
+                trailingColor: connected ? C.green : C.muted,
+                trailingBackground: connected ? C.greenSoft : C.soft,
                 onTap: () => push(context, const CloudConnection()),
               ),
-              const Divider(height: 1, color: _profileDivider),
+              const SizedBox(height: 2),
               const _ProfileRow(
                 icon: Icons.storage_rounded,
+                iconColor: C.green,
+                iconBackground: C.greenSoft,
                 title: '本地数据',
                 subtitle: 'Drift / SQLite · Local-first，核心数据优先写入本机',
                 trailing: '本机优先',
               ),
-              const Divider(height: 1, color: _profileDivider),
+              const SizedBox(height: 2),
               _ProfileRow(
                 icon: Icons.devices_outlined,
+                iconColor: C.purple,
+                iconBackground: C.purpleSoft,
                 title: '设备管理',
                 subtitle: deviceSummary,
                 onTap: () => push(context, const DeviceManagement()),
               ),
-              const Divider(height: 1, color: _profileDivider),
+              const SizedBox(height: 2),
               _ProfileRow(
                 icon: Icons.privacy_tip_outlined,
+                iconColor: C.teal,
+                iconBackground: C.tealSoft,
                 title: '数据导出与隐私',
                 subtitle: '隐私策略 · Cloud 数据导出 · 账号删除',
                 onTap: () => push(context, const DataManagement()),
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 18),
           _ProfileSection(
             title: '应用',
             children: [
               _ProfileRow(
                 icon: Icons.notifications_none_rounded,
+                iconColor: C.orange,
+                iconBackground: C.orangeSoft,
                 title: '通知与提醒',
                 subtitle: '任务、日历与专注通知',
                 onTap: () => push(context, const NotificationSettings()),
               ),
-              const Divider(height: 1, color: _profileDivider),
+              const SizedBox(height: 2),
               _ProfileRow(
                 icon: Icons.palette_outlined,
+                iconColor: C.purple,
+                iconBackground: C.purpleSoft,
                 title: '外观',
                 subtitle: '界面密度与显示偏好',
                 onTap: () => push(context, const AppearanceSettings()),
               ),
-              const Divider(height: 1, color: _profileDivider),
+              const SizedBox(height: 2),
               _ProfileRow(
                 icon: Icons.tune_rounded,
+                iconColor: C.sky,
+                iconBackground: C.skySoft,
                 title: '应用设置',
                 subtitle: '日历与本机通用偏好',
                 onTap: () => push(context, const GeneralSettings()),
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 18),
           _ProfileSection(
             title: 'LifeTrace',
             children: [
               _ProfileRow(
                 icon: Icons.person_outline_rounded,
+                iconColor: C.p,
+                iconBackground: C.ps,
                 title: '个人资料',
                 subtitle:
                     connected ? accountLabel : '连接 Cloud 后查看 LifeTrace Account',
                 onTap: () => push(context, const ProfileDetails()),
               ),
-              const Divider(height: 1, color: _profileDivider),
+              const SizedBox(height: 2),
               _ProfileRow(
                 icon: Icons.lock_outline_rounded,
+                iconColor: C.purple,
+                iconBackground: C.purpleSoft,
                 title: '账户与安全',
                 subtitle: '密码、会话与全部设备退出',
                 onTap: () => push(context, const AccountSecurity()),
               ),
-              const Divider(height: 1, color: _profileDivider),
+              const SizedBox(height: 2),
               _ProfileRow(
                 icon: Icons.cloud_outlined,
+                iconColor: C.teal,
+                iconBackground: C.tealSoft,
                 title: 'LifeTrace Cloud',
                 subtitle:
                     connected ? '查看连接与同步协议状态' : '连接你的 LifeTrace Cloud',
@@ -2077,19 +2091,21 @@ class Profile extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 18),
           _ProfileSection(
             title: '其他',
             children: [
               _ProfileRow(
                 icon: Icons.info_outline_rounded,
+                iconColor: C.sky,
+                iconBackground: C.skySoft,
                 title: '关于 LifeTrace',
                 subtitle: '版本、架构与开源许可',
                 onTap: () => push(context, const AboutLifeTrace()),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 22),
           Center(
             child: Text(
               package == null
@@ -2097,21 +2113,20 @@ class Profile extends ConsumerWidget {
                   : 'LifeTrace Execute · v${package.version}',
               style: const TextStyle(
                 fontSize: 9,
-                color: _profileMuted,
+                color: C.muted,
                 fontWeight: FontWeight.w600,
-                letterSpacing: .2,
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           const Center(
             child: Text(
               'Local-first · LifeTrace Cloud',
-              style: TextStyle(fontSize: 8.5, color: Color(0xffa0a0a0)),
+              style: TextStyle(fontSize: 8.5, color: C.muted),
             ),
           ),
         ],
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+        padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
       ),
     );
   }
@@ -2134,97 +2149,135 @@ class _ProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: _profileInk,
-        borderRadius: BorderRadius.circular(18),
+        color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 14, 14),
-            child: Column(
+          borderRadius: BorderRadius.circular(17),
+          child: Ink(
+            padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(17),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [C.ps, C.purpleSoft],
+              ),
+              border: Border.all(
+                color: C.p.withValues(alpha: .08),
+              ),
+            ),
+            child: Stack(
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: _profileYellow,
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        size: 27,
-                        color: _profileInk,
-                      ),
+                Positioned(
+                  right: -22,
+                  top: -32,
+                  child: Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: C.purple.withValues(alpha: .06),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                            ),
+                  ),
+                ),
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: C.p.withValues(alpha: .08),
+                                blurRadius: 14,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 3),
-                          Text(
-                            accountLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 9.5,
-                              color: Color(0xffbdbdbd),
-                            ),
+                          child: const Icon(
+                            Icons.person_rounded,
+                            size: 25,
+                            color: C.purple,
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: C.ink,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                accountLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 9.2,
+                                  color: C.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: .82),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.chevron_right_rounded,
+                            color: C.muted,
+                            size: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          const _ProfileStatusPill(
+                            icon: Icons.check_circle_outline_rounded,
+                            label: '本地数据正常',
+                            color: C.green,
+                            background: C.greenSoft,
+                          ),
+                          _ProfileStatusPill(
+                            icon: connected
+                                ? Icons.cloud_done_rounded
+                                : Icons.cloud_off_outlined,
+                            label:
+                                connected ? 'Cloud 已连接' : 'Cloud 未连接',
+                            color: connected ? C.p : C.muted,
+                            background: connected ? C.ps : C.soft,
+                          ),
+                          _ProfileStatusPill(
+                            icon: kIsWeb
+                                ? Icons.language_rounded
+                                : Icons.phone_android_rounded,
+                            label: deviceLabel,
+                            color: C.purple,
+                            background: Colors.white.withValues(alpha: .78),
                           ),
                         ],
-                      ),
-                    ),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Color(0xff8f8f8f),
-                      size: 20,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  height: 1,
-                  color: const Color(0xff303030),
-                ),
-                const SizedBox(height: 11),
-                Row(
-                  children: [
-                    const _ProfileHeroStatus(
-                      icon: Icons.check_circle_rounded,
-                      label: '本地数据正常',
-                      active: true,
-                    ),
-                    const SizedBox(width: 14),
-                    _ProfileHeroStatus(
-                      icon: connected
-                          ? Icons.cloud_done_rounded
-                          : Icons.cloud_off_outlined,
-                      label: connected ? 'Cloud 已连接' : 'Cloud 未连接',
-                      active: connected,
-                    ),
-                    const Spacer(),
-                    Flexible(
-                      child: Text(
-                        deviceLabel,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(
-                          fontSize: 8.8,
-                          color: Color(0xffa8a8a8),
-                          fontWeight: FontWeight.w600,
-                        ),
                       ),
                     ),
                   ],
@@ -2234,39 +2287,48 @@ class _ProfileHero extends StatelessWidget {
           ),
         ),
       );
-
 }
 
-class _ProfileHeroStatus extends StatelessWidget {
-  const _ProfileHeroStatus({
+class _ProfileStatusPill extends StatelessWidget {
+  const _ProfileStatusPill({
     required this.icon,
     required this.label,
-    required this.active,
+    required this.color,
+    required this.background,
   });
 
   final IconData icon;
   final String label;
-  final bool active;
+  final Color color;
+  final Color background;
 
   @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 12,
-            color: active ? _profileYellow : const Color(0xff777777),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 8.6,
-              color: active ? Colors.white : const Color(0xff9a9a9a),
-              fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11, color: color),
+            const SizedBox(width: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 118),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 8.4,
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
 }
 
@@ -2284,24 +2346,22 @@ class _ProfileSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 2, bottom: 8),
+            padding: const EdgeInsets.only(left: 2, bottom: 7),
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 12,
-                color: _profileInk,
+                fontSize: 12.5,
+                color: C.ink,
                 fontWeight: FontWeight.w900,
-                letterSpacing: .1,
               ),
             ),
           ),
           Container(
-            decoration: const BoxDecoration(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
               color: Colors.white,
-              border: Border(
-                top: BorderSide(color: _profileDivider),
-                bottom: BorderSide(color: _profileDivider),
-              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: C.border),
             ),
             child: Column(children: children),
           ),
@@ -2312,34 +2372,42 @@ class _ProfileSection extends StatelessWidget {
 class _ProfileRow extends StatelessWidget {
   const _ProfileRow({
     required this.icon,
+    required this.iconColor,
+    required this.iconBackground,
     required this.title,
     required this.subtitle,
     this.trailing,
+    this.trailingColor = C.muted,
+    this.trailingBackground = C.soft,
     this.onTap,
   });
 
   final IconData icon;
+  final Color iconColor;
+  final Color iconBackground;
   final String title;
   final String subtitle;
   final String? trailing;
+  final Color trailingColor;
+  final Color trailingBackground;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final content = Padding(
-      padding: const EdgeInsets.symmetric(vertical: 11),
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
       child: Row(
         children: [
           Container(
-            width: 31,
-            height: 31,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
-              color: _profileYellowSoft,
-              borderRadius: BorderRadius.circular(9),
+              color: iconBackground,
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 16, color: _profileInk),
+            child: Icon(icon, size: 17, color: iconColor),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2348,7 +2416,7 @@ class _ProfileRow extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     fontSize: 10.8,
-                    color: _profileInk,
+                    color: C.ink,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -2359,7 +2427,7 @@ class _ProfileRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 8.7,
-                    color: _profileMuted,
+                    color: C.muted,
                     height: 1.3,
                   ),
                 ),
@@ -2367,29 +2435,41 @@ class _ProfileRow extends StatelessWidget {
             ),
           ),
           if (trailing != null) ...[
-            const SizedBox(width: 8),
-            Text(
-              trailing!,
-              style: const TextStyle(
-                fontSize: 8.5,
-                color: _profileMuted,
-                fontWeight: FontWeight.w700,
+            const SizedBox(width: 7),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: trailingBackground,
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Text(
+                trailing!,
+                style: TextStyle(
+                  fontSize: 8,
+                  color: trailingColor,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
           if (onTap != null) ...[
-            const SizedBox(width: 5),
+            const SizedBox(width: 4),
             const Icon(
               Icons.chevron_right_rounded,
               size: 17,
-              color: Color(0xffa5a5a5),
+              color: C.muted,
             ),
           ],
         ],
       ),
     );
-    if (onTap == null) return content;
-    return InkWell(onTap: onTap, child: content);
+
+    if (onTap == null) return row;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(11),
+      child: row,
+    );
   }
 }
 
