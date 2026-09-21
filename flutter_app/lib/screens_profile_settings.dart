@@ -474,7 +474,7 @@ class _AboutLifeTraceState extends ConsumerState<AboutLifeTrace> {
         release,
         onProgress: (progress) {
           if (!mounted) return;
-          setState(() => _downloadProgress = progress.clamp(0, 1));
+          setState(() => _downloadProgress = progress.clamp(0.0, 1.0).toDouble());
         },
       );
 
