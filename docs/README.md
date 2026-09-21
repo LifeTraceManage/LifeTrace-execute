@@ -51,13 +51,12 @@ docs/development/IMPLEMENTATION_LOG.md
 ## 当前生产客户端目录
 
 ```text
-flutter_app/      # 新生产 Flutter 客户端目标
-app/              # 旧 Compose 客户端，迁移期行为参考
+flutter_app/      # 唯一正式生产 Flutter 客户端，含已提交 android/ 平台工程
 flutter-preview/  # 高保真设计历史参考
 web-preview/      # 旧浏览器原型
 ```
 
-新的客户端业务实现优先进入 `flutter_app/`。旧 Compose 仅保留阻断修复或迁移支持，不继续承接新的产品 UI。
+旧 Compose `app/` 与根级 Android Gradle 工程已于 2026-09-20 从 `main` 删除；需要核对旧实现时使用 Git 历史。新的客户端业务实现统一进入 `flutter_app/`。
 
 ## 完成定义
 
