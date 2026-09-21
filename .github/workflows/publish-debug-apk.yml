@@ -1,0 +1,79 @@
+name: Publish Debug APK
+
+on:
+  workflow_run:
+    workflows:
+      - Flutter Production CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: debug-apk-release
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+
+    steps:
+      - name: Resolve release source
+        id: source
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+          else
+            SHA="${{ github.sha }}"
+          fi
+          SHORT_SHA="${SHA:0:7}"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "tag=debug-$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.4"
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate Drift code
+        run: dart run build_runner build
+
+      - name: Build debug APK
+        run: flutter build apk --debug
+
+      - name: Stage APK
+        shell: bash
+        run: |
+          APK_NAME="LifeTrace-Execute-${{ steps.source.outputs.short_sha }}-debug.apk"
+          cp build/app/outputs/flutter-apk/app-debug.apk "../$APK_NAME"
+          echo "APK_NAME=$APK_NAME" >> "$GITHUB_ENV"
+
+      - name: Create GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.source.outputs.tag }}
+          TARGET_SHA: ${{ steps.source.outputs.sha }}
+        shell: bash
+        working-directory: .
+        run: |
+          gh release create "$TAG"             --target "$TARGET_SHA"             --title "LifeTrace Execute Debug ${{ steps.source.outputs.short_sha }}"             --notes "Automated debug APK built from main commit \`${TARGET_SHA}\`. This package uses Flutter's debug signing and is intended for direct installation/testing, not store distribution."             --prerelease             "$APK_NAME#LifeTrace Execute Debug APK"
