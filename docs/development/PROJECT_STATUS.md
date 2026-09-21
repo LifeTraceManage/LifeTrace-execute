@@ -1,6 +1,6 @@
 # LifeTrace Execute 项目进度
 
-更新时间：2026-09-20
+更新时间：2026-09-21
 
 ## 1. 当前阶段
 
@@ -15,6 +15,32 @@ main
 Flutter 客户端 cutover 已完成：旧 Compose `app/`、根级 Android Gradle 工程和 legacy Compose CI 已于 2026-09-20 从 `main` 删除。迁移前实现只通过 Git 历史保留。
 
 当前不是“UI 壳迁移阶段”。Flutter 已经建立真实 Local-first、Cloud Sync、后台同步、文件上传、Reminder/Notification、Important Date、Daily Review 与 Pomodoro/FocusSession 等纵向业务链。
+
+## 1.1 Android 平台工程已固化
+
+2026-09-21 已将正式 Flutter Android 平台工程纳入版本控制：
+
+- `flutter_app/android/` 现在是生产 Android 工程的 Source of Truth；
+- `applicationId` 与 namespace 固定为 `com.lifetrace.execute`；
+- Android 启动入口固定为 `com.lifetrace.execute.MainActivity -> Flutter lib/main.dart`；
+- Flutter Production CI 不再通过 `flutter create --platforms=android` 临时生成并修补 Android 工程；
+- CI 固定使用 Flutter 3.47.4，并直接从已提交平台工程构建 APK；
+- 本地开发应从 `flutter_app/` 执行 `flutter run`，不再存在可运行的旧 Compose 生产工程。
+
+验证证据：
+
+```text
+run 35568941213
+Verify committed Android platform   PASS
+Drift code generation               PASS
+flutter analyze                     PASS
+flutter test                        PASS
+Android debug APK                   PASS
+Web release preview                 PASS
+workflow                            SUCCESS
+```
+
+这解决了本地仍可能启动旧 Kotlin/Compose APK、导致真机 UI 与 Flutter Pages 预览不一致的工程入口歧义。
 
 ## 2. 已验证的生产基础设施
 
