@@ -81,6 +81,7 @@ class AppUpdateRelease {
     required this.apkUrl,
     required this.apkSize,
     required this.sha256,
+    required this.sha256Url,
     required this.htmlUrl,
   });
 
@@ -92,6 +93,7 @@ class AppUpdateRelease {
   final String apkUrl;
   final int apkSize;
   final String? sha256;
+  final String? sha256Url;
   final String htmlUrl;
 
   static AppUpdateRelease fromGitHubJson(Map<String, dynamic> json) {
@@ -122,6 +124,17 @@ class AppUpdateRelease {
         ? digest.substring('sha256:'.length).toLowerCase()
         : null;
 
+    String? sha256Url;
+    final expectedChecksumName =
+        '${apk['name'] as String? ?? ''}.sha256'.toLowerCase();
+    for (final asset in assets) {
+      final name = (asset['name'] as String? ?? '').toLowerCase();
+      if (name == expectedChecksumName) {
+        sha256Url = asset['browser_download_url'] as String?;
+        break;
+      }
+    }
+
     return AppUpdateRelease(
       version: version,
       tagName: tagName,
@@ -131,6 +144,7 @@ class AppUpdateRelease {
       apkUrl: apk['browser_download_url'] as String? ?? '',
       apkSize: (apk['size'] as num?)?.toInt() ?? 0,
       sha256: sha256,
+      sha256Url: sha256Url,
       htmlUrl: json['html_url'] as String? ?? '',
     );
   }
@@ -214,8 +228,9 @@ class AppUpdateService {
       await directory.create(recursive: true);
     }
 
+    final expectedSha256 = await _resolveExpectedSha256(release);
     final target = File(p.join(directory.path, release.apkName));
-    if (await target.exists() && await _verify(target, release.sha256)) {
+    if (await target.exists() && await _verify(target, expectedSha256)) {
       onProgress?.call(1);
       return target;
     }
@@ -249,7 +264,7 @@ class AppUpdateService {
       );
     }
 
-    if (!await _verify(target, release.sha256)) {
+    if (!await _verify(target, expectedSha256)) {
       await target.delete();
       throw const AppUpdateException('APK SHA-256 校验失败，已删除下载文件。');
     }
@@ -280,10 +295,54 @@ class AppUpdateService {
     }
   }
 
-  Future<bool> _verify(File file, String? expectedSha256) async {
-    if (expectedSha256 == null || expectedSha256.isEmpty) {
-      return true;
+  Future<String> _resolveExpectedSha256(AppUpdateRelease release) async {
+    final direct = release.sha256?.trim().toLowerCase();
+    if (direct != null && direct.isNotEmpty) {
+      return direct;
     }
+
+    final checksumUrl = release.sha256Url;
+    if (checksumUrl == null || checksumUrl.isEmpty) {
+      throw const AppUpdateException(
+        'Release 没有提供 APK SHA-256，已拒绝下载未校验的更新。',
+      );
+    }
+
+    try {
+      final response = await _dio.get<String>(
+        checksumUrl,
+        options: Options(
+          responseType: ResponseType.plain,
+          headers: {
+            'Accept': 'text/plain',
+            'User-Agent': 'LifeTrace-Execute-Updater',
+          },
+        ),
+      );
+      final value = response.data?.trim().split(RegExp(r'\\s+')).first ?? '';
+      if (!RegExp(r'^[0-9a-fA-F]{64}
+}
+
+class AppUpdateException implements Exception {
+  const AppUpdateException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+).hasMatch(value)) {
+        throw const AppUpdateException('Release SHA-256 文件格式无效。');
+      }
+      return value.toLowerCase();
+    } on DioException catch (error) {
+      throw AppUpdateException(
+        '读取 APK SHA-256 失败：${error.message ?? '网络请求失败'}',
+      );
+    }
+  }
+
+  Future<bool> _verify(File file, String expectedSha256) async {
     final digest = await sha256.bind(file.openRead()).first;
     return digest.toString().toLowerCase() == expectedSha256.toLowerCase();
   }
