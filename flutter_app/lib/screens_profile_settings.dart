@@ -235,12 +235,25 @@ class GeneralSettings extends ConsumerWidget {
   }
 }
 
-class AboutLifeTrace extends ConsumerWidget {
+class AboutLifeTrace extends ConsumerStatefulWidget {
   const AboutLifeTrace({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AboutLifeTrace> createState() => _AboutLifeTraceState();
+}
+
+class _AboutLifeTraceState extends ConsumerState<AboutLifeTrace> {
+  bool _checkingUpdate = false;
+  bool _downloadingUpdate = false;
+  double _downloadProgress = 0;
+
+  bool get _supportsInAppUpdate =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  @override
+  Widget build(BuildContext context) {
     final package = ref.watch(packageInfoProvider);
+    final busy = _checkingUpdate || _downloadingUpdate;
 
     return DetailFrame(
       titleText: '关于',
@@ -278,6 +291,56 @@ class AboutLifeTrace extends ConsumerWidget {
             ]),
           ),
         ),
+        h('应用更新'),
+        panel(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '仅在你主动点击时检查 GitHub Release，不会在启动、后台或回到前台时自动检查。',
+                style: TextStyle(fontSize: 9, color: C.muted, height: 1.45),
+              ),
+              if (_downloadingUpdate) ...[
+                const SizedBox(height: 10),
+                LinearProgressIndicator(value: _downloadProgress),
+                const SizedBox(height: 5),
+                Text(
+                  '正在下载更新 · ${(_downloadProgress * 100).round()}%',
+                  style: const TextStyle(
+                    fontSize: 8.8,
+                    color: C.p,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  onPressed: _supportsInAppUpdate && !busy
+                      ? _checkForUpdate
+                      : null,
+                  icon: _checkingUpdate
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.system_update_alt_rounded, size: 17),
+                  label: Text(
+                    _checkingUpdate
+                        ? '正在检查…'
+                        : _downloadingUpdate
+                            ? '正在下载…'
+                            : _supportsInAppUpdate
+                                ? '检查更新'
+                                : '检查更新（仅 Android）',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         h('架构'),
         panel(
           const Column(children: [
@@ -311,5 +374,181 @@ class AboutLifeTrace extends ConsumerWidget {
         ),
       ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 22)),
     );
+  }
+
+  Future<void> _checkForUpdate() async {
+    if (_checkingUpdate || _downloadingUpdate) return;
+
+    setState(() => _checkingUpdate = true);
+    AppUpdateCheckResult? result;
+    try {
+      final package = await ref.read(packageInfoProvider.future);
+      result = await ref
+          .read(appUpdateServiceProvider)
+          .checkForUpdate(package);
+    } on AppUpdateException catch (error) {
+      if (mounted) {
+        await _showUpdateMessage(
+          title: '检查更新失败',
+          message: error.message,
+        );
+      }
+      return;
+    } catch (error) {
+      if (mounted) {
+        await _showUpdateMessage(
+          title: '检查更新失败',
+          message: error.toString(),
+        );
+      }
+      return;
+    } finally {
+      if (mounted) {
+        setState(() => _checkingUpdate = false);
+      }
+    }
+
+    if (!mounted) return;
+    if (!result.updateAvailable) {
+      await _showUpdateMessage(
+        title: '已是最新版本',
+        message: '当前版本 ${result.current.label}，GitHub Release 最新版本为 '
+            '${result.latest.version.label}。',
+      );
+      return;
+    }
+
+    final release = result.latest;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('发现新版本 ${release.version.label}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('当前版本：${result!.current.label}'),
+            const SizedBox(height: 4),
+            Text('安装包：${_formatBytes(release.apkSize)}'),
+            if (release.body.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                _releaseNotes(release.body),
+                style: const TextStyle(fontSize: 11, height: 1.4),
+              ),
+            ],
+            const SizedBox(height: 10),
+            const Text(
+              '确认后才会开始下载；下载完成后仍由 Android 系统安装器确认安装。',
+              style: TextStyle(fontSize: 10, color: C.muted, height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('下载并安装'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _downloadAndInstall(release);
+    }
+  }
+
+  Future<void> _downloadAndInstall(AppUpdateRelease release) async {
+    setState(() {
+      _downloadingUpdate = true;
+      _downloadProgress = 0;
+    });
+
+    try {
+      final service = ref.read(appUpdateServiceProvider);
+      final apk = await service.downloadRelease(
+        release,
+        onProgress: (progress) {
+          if (!mounted) return;
+          setState(() => _downloadProgress = progress.clamp(0.0, 1.0).toDouble());
+        },
+      );
+
+      final result = await service.install(apk);
+      if (!mounted) return;
+      switch (result) {
+        case ApkInstallResult.launched:
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('已打开 Android 系统安装器')),
+          );
+        case ApkInstallResult.permissionRequired:
+          await _showUpdateMessage(
+            title: '需要安装权限',
+            message:
+                '系统已打开“安装未知应用”设置。允许 LifeTrace Execute 安装应用后，返回这里再次点击“检查更新”；已下载且校验通过的 APK 会直接复用。',
+          );
+        case ApkInstallResult.signatureMismatch:
+          await _showUpdateMessage(
+            title: '无法覆盖安装',
+            message:
+                '新 APK 与当前安装版本的签名不一致，Android 不允许直接覆盖。需要后续发布版本使用同一套稳定签名，才能实现原地升级。',
+          );
+      }
+    } on AppUpdateException catch (error) {
+      if (mounted) {
+        await _showUpdateMessage(
+          title: '更新失败',
+          message: error.message,
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        await _showUpdateMessage(
+          title: '更新失败',
+          message: error.toString(),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _downloadingUpdate = false;
+          _downloadProgress = 0;
+        });
+      }
+    }
+  }
+
+  Future<void> _showUpdateMessage({
+    required String title,
+    required String message,
+  }) =>
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('知道了'),
+            ),
+          ],
+        ),
+      );
+
+  String _formatBytes(int bytes) {
+    if (bytes <= 0) return '未知大小';
+    final megabytes = bytes / (1024 * 1024);
+    return '${megabytes.toStringAsFixed(1)} MB';
+  }
+
+  String _releaseNotes(String value) {
+    final normalized = value.trim();
+    if (normalized.length <= 600) return normalized;
+    return '${normalized.substring(0, 600)}…';
   }
 }

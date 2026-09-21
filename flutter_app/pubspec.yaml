@@ -1,7 +1,7 @@
 name: lifetrace_execute
 description: Production Flutter client for LifeTrace Execute.
 publish_to: "none"
-version: 0.3.0+3
+version: 0.3.1+4
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

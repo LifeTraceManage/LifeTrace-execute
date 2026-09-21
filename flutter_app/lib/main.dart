@@ -8,6 +8,7 @@ import 'core/background/background_sync.dart';
 import 'core/cloud/cloud_device_contract.dart';
 import 'core/notifications/reminder_notification_service.dart';
 import 'core/settings/app_preferences.dart';
+import 'core/update/app_update_service.dart';
 import 'data/repository/habit_repository.dart';
 import 'data/repository/reminder_repository.dart';
 import 'domain/calendar/execution_calendar_event.dart';
