@@ -10,16 +10,19 @@ LifeTrace 系列 Android 客户端的“我的”不是单纯个人资料页，�
 
 ## 2. 视觉基线
 
-统一采用 LifeTrace 的白 / 黑 / 黄界面语言：
+Profile / Settings 统一的是**信息架构、交互语义和组件层级**，不强制所有 LifeTrace App 使用一套孤立色板。每个 App 的“我的”必须优先复用该 App 的正式 Theme / Design Token，避免 Profile 看起来像从另一个产品拼接进来。
 
-- 主背景：白色；
-- 主要文字：近黑色；
-- 品牌强调色：LifeTrace Yellow（Execute 当前使用 `#FFC928`）；
-- 次要背景：浅黄色；
-- 辅助文字：中性灰；
-- 成功、错误等语义色只用于状态，不替代品牌色；
-- 避免连续堆叠大量大圆角 Card；
-- Profile 顶部允许保留一个高识别度 Hero，其余设置项优先使用扁平 Section + Divider。
+Execute 当前遵循 `UI_SPEC.md` 的视觉基线：
+
+- 主背景使用 `C.bg` / Surface 使用 `C.surface`；
+- 主强调色使用 Primary Blue，辅助使用 Purple / Teal / Orange / Green 等已有语义色；
+- 顶部 Hero 可使用与 Today 相同的浅蓝紫渐变体系；
+- 账号、Cloud、设备状态使用小型 Status Pill，不制造第二套品牌组件；
+- Section 通过留白、圆角容器和图标色区分层级，不使用连续全宽分割线；
+- 少投影、少大卡片，不把每一个设置项独立做成 Card；
+- 主要文本、圆角、间距、边框全部复用当前 App 的正式 token。
+
+LifeTrace Yellow 可以作为其他产品的品牌强调色，但不应覆盖具体 App 已建立的视觉主题。
 
 ## 3. 固定信息架构
 
@@ -114,7 +117,7 @@ LifeTrace 系列 Android 客户端的“我的”不是单纯个人资料页，�
 后续 LifeTrace Assets、Finance 等客户端实现“我的”时：
 
 1. 保持固定 Section 名称和相对顺序；
-2. 复用同一白 / 黑 / 黄视觉 token；
+2. 复用各自 App 的正式 Theme / Design Token，不为“我的”单独建立第二套主题；
 3. 不复制假数据；
 4. 优先抽取共享 Widget / package，而不是各仓库复制后长期分叉；
 5. 各应用专属设置放在“应用”Section，不改变账户、Cloud、设备、隐私等公共入口的含义。
