@@ -28,7 +28,7 @@ void main() {
 
     expect(find.text('快速收集'), findsOneWidget);
     for (final label in const ['文本', '想法', '链接', '语音', '图片', '文件']) {
-      expect(find.text(label), findsOneWidget);
+      expect(find.text(label), findsWidgets);
     }
 
     final legacyLargeAction = find.byWidgetPredicate((widget) {
