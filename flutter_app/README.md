@@ -45,21 +45,30 @@ Requirement
 
 Do not replace real production data flows with Flutter mock data and then mark a module complete. Keep the verified Local-first, persistence, Sync, notification/file behavior and automated gates intact.
 
-## Bootstrap locally
+## Run locally
+
+The production Android platform project is committed under `flutter_app/android/`. Do not recreate or run the retired root Kotlin/Compose project.
 
 ```bash
 cd flutter_app
-flutter create . --platforms=android,web --org com.lifetrace --project-name lifetrace_execute
 flutter pub get
+dart run build_runner build
+flutter run
 ```
 
-After Android platform bootstrap, keep the production Android `applicationId` and namespace as:
+The production Android `applicationId` and namespace are fixed to:
 
 ```text
 com.lifetrace.execute
 ```
 
-This preserves continuity with the current Android package.
+For a clean device check, uninstall any previously installed legacy APK first:
+
+```bash
+adb uninstall com.lifetrace.execute
+```
+
+Then run `flutter run` from `flutter_app/`. This guarantees the installed app is built from the current Flutter production entrypoint `lib/main.dart`.
 
 ## Current status
 
