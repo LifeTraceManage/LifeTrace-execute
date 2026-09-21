@@ -47,6 +47,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('我的'), findsOneWidget);
+      expect(find.byType(Divider), findsNothing);
       expect(find.text('数据与同步'), findsOneWidget);
       expect(find.text('云端同步'), findsOneWidget);
       expect(find.text('本地数据'), findsWidgets);
