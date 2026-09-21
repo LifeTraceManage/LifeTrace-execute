@@ -2642,41 +2642,6 @@ class _InfoRow extends StatelessWidget {
       );
 }
 
-class _Setting extends StatelessWidget {
-  const _Setting(this.icon, this.label, {this.onTap});
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext c) => InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          child: Row(children: [
-            Icon(icon, size: 16, color: C.muted),
-            const SizedBox(width: 9),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
-            ),
-            const Spacer(),
-            if (onTap != null)
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 16,
-                color: C.muted,
-              )
-            else
-              const Text(
-                '待接入',
-                style: TextStyle(fontSize: 8.2, color: C.muted),
-              ),
-          ]),
-        ),
-      );
-}
-
 class DetailFrame extends StatelessWidget {
   const DetailFrame({
     required this.child,
