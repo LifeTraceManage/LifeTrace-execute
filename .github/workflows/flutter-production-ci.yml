@@ -7,7 +7,6 @@ on:
     paths:
       - "flutter_app/**"
       - ".github/workflows/flutter-production-ci.yml"
-      - ".github/workflows/publish-release-apk.yml"
       - "docs/development/FLUTTER_REFACTOR_PLAN.md"
   pull_request:
     branches:
