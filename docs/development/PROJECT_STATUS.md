@@ -61,6 +61,7 @@ Flutter 生产链已经具备：
 - Android local notification；
 - reboot notification recovery；
 - Cloud files API / upload queue；
+- 手动应用更新：关于页主动检查 GitHub Release、版本比较、APK 下载、SHA-256 校验、Android 系统安装器；
 - Android Debug APK 与 Web Release 构建 Gate。
 
 统一 Sync scope 当前包含：
@@ -285,7 +286,7 @@ workflow                    SUCCESS
 - Today 全量真实聚合，删除剩余静态假数据；
 - Profile / Devices / Settings / Data；
 - full multi-device / offline / staging E2E；
-- release signing / release build / R8 / performance / security hardening；
+- release signing / release build / R8 / performance / security hardening；其中手动更新已实现，但稳定覆盖升级仍要求后续 Release 使用同一套持久签名；
 
 ## 5. 当前技术架构
 
