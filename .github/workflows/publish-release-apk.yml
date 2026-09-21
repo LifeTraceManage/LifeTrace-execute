@@ -1,0 +1,112 @@
+name: Publish Release APK
+
+on:
+  workflow_run:
+    workflows:
+      - Flutter Production CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-apk-publish
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+
+    steps:
+      - name: Resolve release source
+        id: source
+        shell: bash
+        working-directory: .
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+          else
+            SHA="${{ github.sha }}"
+          fi
+
+          SHORT_SHA="${SHA:0:7}"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.4"
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate Drift code
+        run: dart run build_runner build
+
+      - name: Resolve app version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(awk '/^version:/ {print $2; exit}' pubspec.yaml)"
+          SAFE_VERSION="${VERSION/+/-build.}"
+          TAG="v${SAFE_VERSION}-${{ steps.source.outputs.short_sha }}"
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Stage APK
+        shell: bash
+        run: |
+          APK_SOURCE="build/app/outputs/flutter-apk/app-release.apk"
+          test -f "$APK_SOURCE"
+
+          APK_NAME="LifeTrace-Execute-v${{ steps.version.outputs.version }}-${{ steps.source.outputs.short_sha }}.apk"
+          cp "$APK_SOURCE" "../$APK_NAME"
+
+          cd ..
+          sha256sum "$APK_NAME" > "$APK_NAME.sha256"
+
+          echo "APK_NAME=$APK_NAME" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          TARGET_SHA: ${{ steps.source.outputs.sha }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        working-directory: .
+        run: |
+          gh release create "$TAG" \
+            --target "$TARGET_SHA" \
+            --title "LifeTrace Execute v$VERSION" \
+            --notes "Automated Flutter Android release-mode APK built from main commit \`$TARGET_SHA\`.
+
+No custom Android signing credentials or repository secrets are required. The current Android release build uses the repository's default debug keystore so the APK remains directly installable; it is intended for GitHub Release distribution/testing rather than Play Store publishing." \
+            "$APK_NAME#LifeTrace Execute Android APK" \
+            "$APK_NAME.sha256#SHA-256 checksum"
