@@ -1,8 +1,32 @@
 # LifeTrace Execute 工程实施记录
 
-更新时间：2026-09-20
+更新时间：2026-09-21
 
 > 本文档只记录已经提交到代码仓的实现事实、验证证据和剩余阻塞。设计意图看 `REQUIREMENTS.md`，客户端迁移看 `FLUTTER_REFACTOR_PLAN.md`。
+
+
+## 2026-09-21：Flutter Android 平台工程纳入版本控制
+
+- 将 `flutter_app/android/` 固化为正式 Android 平台工程，不再依赖 CI 临时执行 `flutter create --platforms=android` 后再脚本修改；
+- 固定 Android `namespace` / `applicationId` 为 `com.lifetrace.execute`；
+- 固定 `MainActivity` 为 Flutter embedding 入口，生产 Dart 入口继续为 `lib/main.dart`；
+- 保留 Internet、Android 13+ Notification、Boot receiver 与 `flutter_local_notifications` receiver 配置；
+- 提交 Gradle 9.3.1 wrapper，CI 固定 Flutter 3.47.4 / AGP 9.1.0 / Kotlin 2.4.0，对齐此前已验证生产环境；
+- Flutter Production CI 改为先验证已提交 Android 工程，再直接执行 Android APK 构建；仅 Web 平台仍允许 CI bootstrap；
+- `flutter_app/README.md` 已明确本地运行必须从 `flutter_app/` 执行，旧 APK 可通过 `adb uninstall com.lifetrace.execute` 清理。
+
+验证：
+
+```text
+run 35568941213
+Verify committed Android platform   PASS
+Drift code generation               PASS
+flutter analyze                     PASS
+flutter test                        PASS
+Android debug APK                   PASS
+Web release preview                 PASS
+workflow                            SUCCESS
+```
 
 
 ## 2026-09-20：Legacy Compose 客户端正式下线
