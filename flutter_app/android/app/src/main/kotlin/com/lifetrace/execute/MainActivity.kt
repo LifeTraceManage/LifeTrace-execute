@@ -94,6 +94,9 @@ class MainActivity : FlutterActivity() {
         val installed = packageManager.getPackageInfo(packageName, flags)
         val archive = packageManager.getPackageArchiveInfo(apk.absolutePath, flags)
             ?: return false
+        if (archive.packageName != packageName) {
+            return false
+        }
 
         val installedSignatures = signatureStrings(installed)
         val archiveSignatures = signatureStrings(archive)
