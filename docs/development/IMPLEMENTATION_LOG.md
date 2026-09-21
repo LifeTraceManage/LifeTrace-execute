@@ -5,6 +5,21 @@
 > 本文档只记录已经提交到代码仓的实现事实、验证证据和剩余阻塞。设计意图看 `REQUIREMENTS.md`，客户端迁移看 `FLUTTER_REFACTOR_PLAN.md`。
 
 
+## 2026-09-21：Android 手动应用更新
+
+- 仅在“我的 → 关于 → 检查更新”由用户主动触发，不在启动、后台或回到前台时自动检查；
+- 查询 `LifeTraceManage/LifeTrace-execute` 最新 GitHub Release，并按 semantic version + build number 判断是否存在新版本；
+- 用户二次确认后才下载 APK，页面展示下载进度；
+- 优先使用 GitHub Release asset `digest`，缺失时读取配套 `.apk.sha256`，没有 SHA-256 时拒绝安装；
+- Android 使用 `FileProvider` 将缓存 APK 交给系统安装器，不绕过系统安装确认；
+- Android 8+ 未授权“安装未知应用”时跳转系统设置，授权后由用户再次手动触发；
+- 安装前比较 APK package/signature 与当前安装包，签名不同则明确阻止覆盖安装并提示原因；
+- App 版本提升至 `0.3.1+4`，为后续 Release 版本比较建立单调版本基线；
+- 该能力不改变 Cloud Sync，不执行静默安装，也不增加后台更新任务。
+
+> Android 原地覆盖更新的系统前提仍然是：连续 Release 必须使用同一套持久签名。当前功能会检测签名不一致并停止安装，避免用户进入失败的系统覆盖流程。
+
+
 ## 2026-09-21：Flutter Android 平台工程纳入版本控制
 
 - 将 `flutter_app/android/` 固化为正式 Android 平台工程，不再依赖 CI 临时执行 `flutter create --platforms=android` 后再脚本修改；
