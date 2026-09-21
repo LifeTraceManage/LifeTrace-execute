@@ -102,11 +102,15 @@ jobs:
         shell: bash
         working-directory: .
         run: |
+          cat > release-notes.md <<EOF
+          Automated Flutter Android release-mode APK built from main commit $TARGET_SHA.
+
+          No custom Android signing credentials or repository secrets are required. The current Android release build uses the repository's default debug keystore so the APK remains directly installable; it is intended for GitHub Release distribution/testing rather than Play Store publishing.
+          EOF
+
           gh release create "$TAG" \
             --target "$TARGET_SHA" \
             --title "LifeTrace Execute v$VERSION" \
-            --notes "Automated Flutter Android release-mode APK built from main commit \`$TARGET_SHA\`.
-
-No custom Android signing credentials or repository secrets are required. The current Android release build uses the repository's default debug keystore so the APK remains directly installable; it is intended for GitHub Release distribution/testing rather than Play Store publishing." \
+            --notes-file release-notes.md \
             "$APK_NAME#LifeTrace Execute Android APK" \
             "$APK_NAME.sha256#SHA-256 checksum"
