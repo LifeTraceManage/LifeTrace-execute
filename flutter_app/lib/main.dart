@@ -118,6 +118,10 @@ ThemeData buildTheme() => ThemeData(
         titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         titleMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
         bodyMedium: TextStyle(fontSize: 12.5, height: 1.35),
+        bodySmall: TextStyle(fontSize: 9.2, height: 1.35, color: C.muted),
+        labelLarge: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        labelMedium: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+        labelSmall: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -128,11 +132,25 @@ ThemeData buildTheme() => ThemeData(
           borderSide: BorderSide.none,
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        hintStyle: const TextStyle(fontSize: 10, color: C.muted),
+        helperStyle: const TextStyle(fontSize: 9, color: C.muted),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size(0, 42),
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 40),
+          textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
         ),
       ),
     );
@@ -421,8 +439,8 @@ class _BottomNav extends StatelessWidget {
                     Text(
                       item.$3,
                       style: TextStyle(
-                        fontSize: 9.2,
-                        fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                        fontSize: 10.2,
+                        fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
                         color: selected ? item.$4 : C.muted,
                       ),
                     ),
@@ -448,8 +466,15 @@ Widget page(
 Widget title(String s) =>
     Text(s, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900));
 
-Widget sub(String s) =>
-    Text(s, style: const TextStyle(fontSize: 10.5, color: C.muted));
+Widget sub(String s) => Text(
+      s,
+      style: const TextStyle(
+        fontSize: 9.2,
+        color: C.muted,
+        height: 1.3,
+        fontWeight: FontWeight.w500,
+      ),
+    );
 
 Widget h(String s, {Widget? tail}) => Padding(
       padding: const EdgeInsets.only(top: 15, bottom: 8),
@@ -498,6 +523,6 @@ Widget chip(String s, {Color bg = C.soft, Color fg = C.muted}) => Container(
       ),
       child: Text(
         s,
-        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: fg),
+        style: TextStyle(fontSize: 9.8, fontWeight: FontWeight.w800, color: fg),
       ),
     );
