@@ -230,6 +230,7 @@ class AppUpdateService {
 
     final expectedSha256 = await _resolveExpectedSha256(release);
     final target = File(p.join(directory.path, release.apkName));
+
     if (await target.exists() && await _verify(target, expectedSha256)) {
       onProgress?.call(1);
       return target;
@@ -268,6 +269,7 @@ class AppUpdateService {
       await target.delete();
       throw const AppUpdateException('APK SHA-256 校验失败，已删除下载文件。');
     }
+
     onProgress?.call(1);
     return target;
   }
@@ -319,19 +321,9 @@ class AppUpdateService {
           },
         ),
       );
-      final value = response.data?.trim().split(RegExp(r'\\s+')).first ?? '';
-      if (!RegExp(r'^[0-9a-fA-F]{64}
-}
-
-class AppUpdateException implements Exception {
-  const AppUpdateException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
-}
-).hasMatch(value)) {
+      final raw = response.data?.trim() ?? '';
+      final value = raw.isEmpty ? '' : raw.split(RegExp(r'\s+')).first;
+      if (!RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(value)) {
         throw const AppUpdateException('Release SHA-256 文件格式无效。');
       }
       return value.toLowerCase();
