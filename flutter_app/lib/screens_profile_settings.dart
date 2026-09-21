@@ -408,7 +408,7 @@ class _AboutLifeTraceState extends ConsumerState<AboutLifeTrace> {
       }
     }
 
-    if (!mounted || result == null) return;
+    if (!mounted) return;
     if (!result.updateAvailable) {
       await _showUpdateMessage(
         title: '已是最新版本',
