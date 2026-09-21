@@ -363,8 +363,8 @@ class _Quick extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 9.3,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
                       color: C.ink,
                     ),
                   ),
@@ -504,8 +504,8 @@ class _InboxFilters extends StatelessWidget {
               onSelected: (_) => onChanged(index),
               selectedColor: C.tealSoft,
               labelStyle: TextStyle(
-                fontSize: 8.8,
-                fontWeight: FontWeight.w800,
+                fontSize: 10,
+                fontWeight: active ? FontWeight.w900 : FontWeight.w800,
                 color: active ? C.teal : C.muted,
               ),
             ),
@@ -883,8 +883,8 @@ class _InboxDestination extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 8.7,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
                     color: color,
                   ),
                 ),
