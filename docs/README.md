@@ -101,3 +101,8 @@ Flutter 迁移阶段 M0-M5 描述“用什么客户端技术完成这些 Phase�
 ## 每批提交后
 
 必须同步：代码、自动化测试、`PROJECT_STATUS.md`、`IMPLEMENTATION_LOG.md`；需求变化才改 `REQUIREMENTS.md`，Phase/Gate 变化才改 `FOUNDATION_EXECUTION_PLAN.md`，Flutter 技术路线变化才改 `FLUTTER_REFACTOR_PLAN.md`。
+
+
+## 设计规范
+
+- [LifeTrace Profile / Settings 统一规范](design/LIFETRACE_PROFILE_SETTINGS.md)
