@@ -7,6 +7,7 @@ on:
     paths:
       - "flutter_app/**"
       - ".github/workflows/flutter-production-ci.yml"
+      - ".github/workflows/publish-debug-apk.yml"
       - "docs/development/FLUTTER_REFACTOR_PLAN.md"
   pull_request:
     branches:
@@ -14,6 +15,7 @@ on:
     paths:
       - "flutter_app/**"
       - ".github/workflows/flutter-production-ci.yml"
+      - ".github/workflows/publish-debug-apk.yml"
   workflow_dispatch:
 
 permissions:

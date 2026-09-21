@@ -21,10 +21,6 @@ jobs:
   publish:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: flutter_app
-
     steps:
       - name: Resolve release source
         id: source
@@ -53,19 +49,22 @@ jobs:
           cache: true
 
       - name: Get dependencies
+        working-directory: flutter_app
         run: flutter pub get
 
       - name: Generate Drift code
+        working-directory: flutter_app
         run: dart run build_runner build
 
       - name: Build debug APK
+        working-directory: flutter_app
         run: flutter build apk --debug
 
       - name: Stage APK
         shell: bash
         run: |
           APK_NAME="LifeTrace-Execute-${{ steps.source.outputs.short_sha }}-debug.apk"
-          cp build/app/outputs/flutter-apk/app-debug.apk "../$APK_NAME"
+          cp flutter_app/build/app/outputs/flutter-apk/app-debug.apk "$APK_NAME"
           echo "APK_NAME=$APK_NAME" >> "$GITHUB_ENV"
 
       - name: Create GitHub prerelease
