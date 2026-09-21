@@ -57,6 +57,10 @@ void main() {
       expect(release.apkUrl, 'https://example.test/app.apk');
       expect(release.apkSize, 73400320);
       expect(release.sha256, 'abcdef');
+      expect(
+        release.sha256Url,
+        'https://example.test/checksum',
+      );
     });
 
     test('rejects a release without APK', () {
