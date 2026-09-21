@@ -54,62 +54,110 @@ class _CollectionState extends ConsumerState<Collection> {
             ),
       ),
       h('快速收集'),
-      Wrap(spacing: 7, runSpacing: 7, children: [
-        _Quick(
-          Icons.edit_note_rounded,
-          '文本',
-          C.p,
-          C.ps,
-          () => _showMemoEditor(context, ref, kind: ExecutionMemoKind.text),
+      Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: C.border),
         ),
-        _Quick(
-          Icons.lightbulb_outline_rounded,
-          '想法',
-          C.amber,
-          C.amberSoft,
-          () => _showMemoEditor(context, ref, kind: ExecutionMemoKind.idea),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            const spacing = 4.0;
+            final itemWidth = (constraints.maxWidth - spacing * 2) / 3;
+            return Wrap(
+              spacing: spacing,
+              runSpacing: 2,
+              children: [
+                SizedBox(
+                  width: itemWidth,
+                  child: _Quick(
+                    Icons.edit_note_rounded,
+                    '文本',
+                    C.p,
+                    C.ps,
+                    () => _showMemoEditor(
+                      context,
+                      ref,
+                      kind: ExecutionMemoKind.text,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: itemWidth,
+                  child: _Quick(
+                    Icons.lightbulb_outline_rounded,
+                    '想法',
+                    C.amber,
+                    C.amberSoft,
+                    () => _showMemoEditor(
+                      context,
+                      ref,
+                      kind: ExecutionMemoKind.idea,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: itemWidth,
+                  child: _Quick(
+                    Icons.link_rounded,
+                    '链接',
+                    C.teal,
+                    C.tealSoft,
+                    () => _showMemoEditor(
+                      context,
+                      ref,
+                      kind: ExecutionMemoKind.link,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: itemWidth,
+                  child: _Quick(
+                    Icons.mic_none_rounded,
+                    '语音',
+                    C.purple,
+                    C.purpleSoft,
+                    () => _pickMediaForInbox(
+                      context,
+                      ref,
+                      ExecutionMemoKind.audio,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: itemWidth,
+                  child: _Quick(
+                    Icons.image_outlined,
+                    '图片',
+                    C.pink,
+                    C.pinkSoft,
+                    () => _pickMediaForInbox(
+                      context,
+                      ref,
+                      ExecutionMemoKind.image,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: itemWidth,
+                  child: _Quick(
+                    Icons.insert_drive_file_outlined,
+                    '文件',
+                    C.orange,
+                    C.orangeSoft,
+                    () => _pickMediaForInbox(
+                      context,
+                      ref,
+                      ExecutionMemoKind.file,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
-        _Quick(
-          Icons.link_rounded,
-          '链接',
-          C.teal,
-          C.tealSoft,
-          () => _showMemoEditor(context, ref, kind: ExecutionMemoKind.link),
-        ),
-        _Quick(
-          Icons.mic_none_rounded,
-          '语音',
-          C.purple,
-          C.purpleSoft,
-          () => _pickMediaForInbox(
-            context,
-            ref,
-            ExecutionMemoKind.audio,
-          ),
-        ),
-        _Quick(
-          Icons.image_outlined,
-          '图片',
-          C.pink,
-          C.pinkSoft,
-          () => _pickMediaForInbox(
-            context,
-            ref,
-            ExecutionMemoKind.image,
-          ),
-        ),
-        _Quick(
-          Icons.insert_drive_file_outlined,
-          '文件',
-          C.orange,
-          C.orangeSoft,
-          () => _pickMediaForInbox(
-            context,
-            ref,
-            ExecutionMemoKind.file,
-          ),
-        ),
-      ]),
+      ),
       const SizedBox(height: 16),
       _InboxOverview(items: inbox),
       const SizedBox(height: 12),
@@ -290,39 +338,39 @@ class _Quick extends StatelessWidget {
   final VoidCallback tap;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: tap,
-        borderRadius: BorderRadius.circular(13),
-        child: Container(
-          width: 96,
-          height: 68,
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 29,
-                height: 29,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(9),
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: tap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 7),
+            child: Row(
+              children: [
+                Container(
+                  width: 29,
+                  height: 29,
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(icon, size: 15, color: color),
                 ),
-                child: Icon(icon, size: 15, color: color),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 9.3,
-                  fontWeight: FontWeight.w800,
-                  color: color,
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 9.3,
+                      fontWeight: FontWeight.w800,
+                      color: C.ink,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
