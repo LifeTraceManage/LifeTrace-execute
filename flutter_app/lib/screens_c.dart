@@ -55,22 +55,18 @@ class _CollectionState extends ConsumerState<Collection> {
       ),
       h('快速收集'),
       Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: C.border),
         ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            const spacing = 4.0;
-            final itemWidth = (constraints.maxWidth - spacing * 2) / 3;
-            return Wrap(
-              spacing: spacing,
-              runSpacing: 2,
+        child: Column(
+          children: [
+            Row(
               children: [
-                SizedBox(
-                  width: itemWidth,
+                Expanded(
                   child: _Quick(
                     Icons.edit_note_rounded,
                     '文本',
@@ -83,8 +79,8 @@ class _CollectionState extends ConsumerState<Collection> {
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: itemWidth,
+                const SizedBox(width: 4),
+                Expanded(
                   child: _Quick(
                     Icons.lightbulb_outline_rounded,
                     '想法',
@@ -97,8 +93,8 @@ class _CollectionState extends ConsumerState<Collection> {
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: itemWidth,
+                const SizedBox(width: 4),
+                Expanded(
                   child: _Quick(
                     Icons.link_rounded,
                     '链接',
@@ -111,8 +107,12 @@ class _CollectionState extends ConsumerState<Collection> {
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: itemWidth,
+              ],
+            ),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Expanded(
                   child: _Quick(
                     Icons.mic_none_rounded,
                     '语音',
@@ -125,8 +125,8 @@ class _CollectionState extends ConsumerState<Collection> {
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: itemWidth,
+                const SizedBox(width: 4),
+                Expanded(
                   child: _Quick(
                     Icons.image_outlined,
                     '图片',
@@ -139,8 +139,8 @@ class _CollectionState extends ConsumerState<Collection> {
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: itemWidth,
+                const SizedBox(width: 4),
+                Expanded(
                   child: _Quick(
                     Icons.insert_drive_file_outlined,
                     '文件',
@@ -154,8 +154,8 @@ class _CollectionState extends ConsumerState<Collection> {
                   ),
                 ),
               ],
-            );
-          },
+            ),
+          ],
         ),
       ),
       const SizedBox(height: 16),
@@ -283,6 +283,7 @@ class _CaptureComposerState extends State<_CaptureComposer> {
 
   @override
   Widget build(BuildContext context) => Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(17),
@@ -391,6 +392,7 @@ class _InboxOverview extends StatelessWidget {
     final progress = items.isEmpty ? 1.0 : important / items.length;
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: C.ink,
@@ -530,6 +532,7 @@ class _InboxCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
       child: Container(
+        width: double.infinity,
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
