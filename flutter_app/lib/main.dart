@@ -116,12 +116,13 @@ ThemeData buildTheme() => ThemeData(
           height: 1.12,
         ),
         titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-        titleMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-        bodyMedium: TextStyle(fontSize: 12.5, height: 1.35),
-        bodySmall: TextStyle(fontSize: 9.2, height: 1.35, color: C.muted),
-        labelLarge: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-        labelMedium: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
-        labelSmall: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700),
+        titleMedium: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+        bodyLarge: TextStyle(fontSize: 14, height: 1.4),
+        bodyMedium: TextStyle(fontSize: 13.5, height: 1.4),
+        bodySmall: TextStyle(fontSize: 11.5, height: 1.4, color: C.muted),
+        labelLarge: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+        labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        labelSmall: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -132,25 +133,25 @@ ThemeData buildTheme() => ThemeData(
           borderSide: BorderSide.none,
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        hintStyle: const TextStyle(fontSize: 10, color: C.muted),
-        helperStyle: const TextStyle(fontSize: 9, color: C.muted),
+        hintStyle: const TextStyle(fontSize: 12, color: C.muted),
+        helperStyle: const TextStyle(fontSize: 11, color: C.muted),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(0, 42),
-          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+          minimumSize: const Size(0, 44),
+          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 40),
-          textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+          minimumSize: const Size(0, 44),
+          textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+          textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
         ),
       ),
     );
@@ -171,9 +172,12 @@ class LifeTraceExecuteApp extends ConsumerWidget {
       theme: buildTheme(),
       builder: (context, child) {
         final media = MediaQuery.of(context);
+        final systemTextScale = media.textScaler.scale(1);
         return MediaQuery(
           data: media.copyWith(
-            textScaler: TextScaler.linear(preferences.uiScale),
+            textScaler: TextScaler.linear(
+              systemTextScale * preferences.uiScale,
+            ),
           ),
           child: child ?? const SizedBox.shrink(),
         );
@@ -405,7 +409,7 @@ class _BottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        height: 57,
+        height: 62,
         decoration: const BoxDecoration(
           color: Colors.white,
           border: Border(top: BorderSide(color: C.border)),
@@ -439,7 +443,7 @@ class _BottomNav extends StatelessWidget {
                     Text(
                       item.$3,
                       style: TextStyle(
-                        fontSize: 10.2,
+                        fontSize: 11.5,
                         fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
                         color: selected ? item.$4 : C.muted,
                       ),
@@ -469,7 +473,7 @@ Widget title(String s) =>
 Widget sub(String s) => Text(
       s,
       style: const TextStyle(
-        fontSize: 9.2,
+        fontSize: 11,
         color: C.muted,
         height: 1.3,
         fontWeight: FontWeight.w500,
@@ -483,7 +487,7 @@ Widget h(String s, {Widget? tail}) => Padding(
           Expanded(
             child: Text(
               s,
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
             ),
           ),
           if (tail != null) tail,
@@ -523,6 +527,6 @@ Widget chip(String s, {Color bg = C.soft, Color fg = C.muted}) => Container(
       ),
       child: Text(
         s,
-        style: TextStyle(fontSize: 9.8, fontWeight: FontWeight.w800, color: fg),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: fg),
       ),
     );
