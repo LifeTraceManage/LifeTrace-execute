@@ -1,4 +1,4 @@
-name: lifetrace
+name: lifetrace_execute
 description: Unified LifeTrace mobile client with workspace switching.
 publish_to: "none"
 version: 0.3.0+3
