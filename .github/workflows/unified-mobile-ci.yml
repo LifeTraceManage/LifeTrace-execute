@@ -28,10 +28,18 @@ jobs:
       - name: Generate Drift code
         run: dart run build_runner build
       - name: Analyze
-        run: flutter analyze
+        continue-on-error: true
+        run: |
+          flutter analyze 2>&1 | tee analyze.log
+          echo '## Flutter analyze' >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          cat analyze.log >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
       - name: Test
         run: flutter test
       - name: Build Android debug APK
         run: flutter build apk --debug
       - name: Build Web preview
         run: flutter build web --release --target lib/web_preview_main.dart --base-href "/LifeTrace-execute/"
+      - name: Analyze gate
+        run: grep -q "No issues found" analyze.log
