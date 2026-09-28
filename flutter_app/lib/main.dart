@@ -46,6 +46,7 @@ import 'features/tasks/task_providers.dart';
 import 'features/tasks/task_subtask_providers.dart';
 import 'features/today/today_aggregation.dart';
 import 'features/today/today_providers.dart';
+import 'workspaces/assets/assets_workspace.dart';
 
 part 'screens_a.dart';
 part 'screens_b.dart';
@@ -148,7 +149,7 @@ class LifeTraceExecuteApp extends ConsumerWidget {
             AppPreferencesState.defaults;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'LifeTrace Execute',
+      title: 'LifeTrace',
       theme: buildTheme(),
       builder: (context, child) {
         final media = MediaQuery.of(context);
@@ -159,7 +160,7 @@ class LifeTraceExecuteApp extends ConsumerWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: Shell(simulateSystemChrome: simulateSystemChrome),
+      home: LifeTraceShell(simulateSystemChrome: simulateSystemChrome),
     );
   }
 }
@@ -205,6 +206,74 @@ class PhoneStatusBar extends StatelessWidget {
           ],
         ),
       );
+}
+
+enum LifeTraceWorkspace { execute, assets }
+
+class LifeTraceShell extends StatefulWidget {
+  const LifeTraceShell({super.key, this.simulateSystemChrome = false});
+
+  final bool simulateSystemChrome;
+
+  @override
+  State<LifeTraceShell> createState() => _LifeTraceShellState();
+}
+
+class _LifeTraceShellState extends State<LifeTraceShell> {
+  LifeTraceWorkspace workspace = LifeTraceWorkspace.execute;
+
+  String get _workspaceName => switch (workspace) {
+        LifeTraceWorkspace.execute => 'Execute',
+        LifeTraceWorkspace.assets => 'Assets',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Column(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: SizedBox(
+              height: 44,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  children: [
+                    const Text('LifeTrace', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                    const Spacer(),
+                    PopupMenuButton<LifeTraceWorkspace>(
+                      tooltip: '切换工作空间',
+                      initialValue: workspace,
+                      onSelected: (value) => setState(() => workspace = value),
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(value: LifeTraceWorkspace.execute, child: ListTile(leading: Icon(Icons.check_circle_outline), title: Text('Execute'), subtitle: Text('任务、项目、日程与复盘'))),
+                        PopupMenuItem(value: LifeTraceWorkspace.assets, child: ListTile(leading: Icon(Icons.inventory_2_outlined), title: Text('Assets'), subtitle: Text('个人资产与生命周期'))),
+                      ],
+                      child: Chip(
+                        avatar: Icon(workspace == LifeTraceWorkspace.execute ? Icons.check_circle_outline : Icons.inventory_2_outlined, size: 17),
+                        label: Text('\$_workspaceName  ▾'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: IndexedStack(
+              index: workspace.index,
+              children: [
+                Shell(simulateSystemChrome: widget.simulateSystemChrome),
+                const AssetsWorkspace(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class Shell extends ConsumerStatefulWidget {
