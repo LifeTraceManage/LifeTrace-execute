@@ -36,10 +36,18 @@ jobs:
           cat analyze.log >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
       - name: Test
-        run: flutter test
+        continue-on-error: true
+        run: |
+          flutter test 2>&1 | tee test.log
+          echo '## Flutter test' >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 120 test.log >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
       - name: Build Android debug APK
         run: flutter build apk --debug
       - name: Build Web preview
         run: flutter build web --release --target lib/web_preview_main.dart --base-href "/LifeTrace-execute/"
       - name: Analyze gate
         run: grep -q "No issues found" analyze.log
+      - name: Test gate
+        run: grep -q "All tests passed" test.log
