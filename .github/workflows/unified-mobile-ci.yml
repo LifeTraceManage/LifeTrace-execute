@@ -23,6 +23,20 @@ jobs:
           cache: true
       - name: Bootstrap platform files
         run: flutter create . --platforms=android,web --org com.lifetrace --project-name lifetrace_execute --no-pub
+      - name: Preserve production Android configuration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          gradle = Path('android/app/build.gradle.kts')
+          text = gradle.read_text()
+          text = text.replace('sourceCompatibility = JavaVersion.VERSION_11', 'sourceCompatibility = JavaVersion.VERSION_17')
+          text = text.replace('targetCompatibility = JavaVersion.VERSION_11', 'targetCompatibility = JavaVersion.VERSION_17')
+          if 'isCoreLibraryDesugaringEnabled = true' not in text:
+              text = text.replace('compileOptions {', 'compileOptions {\\n        isCoreLibraryDesugaringEnabled = true', 1)
+          if 'coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")' not in text:
+              text += '\\n\\ndependencies {\\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\\n}\\n'
+          gradle.write_text(text)
+          PY
       - name: Get dependencies
         run: flutter pub get
       - name: Generate Drift code
