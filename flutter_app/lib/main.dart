@@ -252,7 +252,7 @@ class _LifeTraceShellState extends State<LifeTraceShell> {
                       ],
                       child: Chip(
                         avatar: Icon(workspace == LifeTraceWorkspace.execute ? Icons.check_circle_outline : Icons.inventory_2_outlined, size: 17),
-                        label: Text('\$_workspaceName  ▾'),
+                        label: Text('$_workspaceName  ▾'),
                       ),
                     ),
                   ],
