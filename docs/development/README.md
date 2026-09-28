@@ -4,7 +4,7 @@
 
 ## 当前客户端技术路线
 
-从 2026-09-10 起，正式客户端实现目标是 `flutter_app/`。旧 Jetpack Compose `app/` 在迁移阶段保留为已经实现的 Local-first / Auth / Sync 行为参考，但不再承接新的产品 UI 开发。
+正式客户端为 `flutter_app/`。旧 Jetpack Compose `app/`、根级 Android Gradle 工程与 legacy Compose CI 已于 2026-09-20 从 `main` 删除；需要核对迁移前实现时使用 Git 历史。
 
 旧文档中的 `Compose / ViewModel / Room / WorkManager` 客户端技术描述，由 [`FLUTTER_REFACTOR_PLAN.md`](FLUTTER_REFACTOR_PLAN.md) 映射到 Flutter 实现；产品范围与业务 Gate 不变。
 
@@ -84,7 +84,7 @@ Task tests
 Offline / Cloud smoke
 ```
 
-当前最优先的是把旧 Compose 已经真实可用的 Task 纵向链迁到 Flutter，再继续 F2-F10。
+当前优先级以 `PROJECT_STATUS.md` 的未完成真实纵向能力为准；所有新增与补齐工作只进入 Flutter 生产链。
 
 ## Flutter 基础验证
 
@@ -100,7 +100,7 @@ Web Preview 相关变化再执行 Flutter Web build。数据库、后台同步�
 
 ## 禁止事项
 
-- 不得用 Flutter Mock 页面替换旧 Compose 真实业务后宣称迁移完成；
+- 不得用 Flutter Mock 页面替代真实业务链后宣称功能完成；
 - 不得把网络请求设为业务写入前置条件；
 - 不得为每个实体复制独立 Sync Engine；
 - SQLite schema 变化必须有 migration 与测试；

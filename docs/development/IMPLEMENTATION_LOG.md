@@ -1,8 +1,57 @@
 # LifeTrace Execute 工程实施记录
 
-更新时间：2026-09-18
+更新时间：2026-09-21
 
 > 本文档只记录已经提交到代码仓的实现事实、验证证据和剩余阻塞。设计意图看 `REQUIREMENTS.md`，客户端迁移看 `FLUTTER_REFACTOR_PLAN.md`。
+
+
+## 2026-09-21：Android 手动应用更新
+
+- 仅在“我的 → 关于 → 检查更新”由用户主动触发，不在启动、后台或回到前台时自动检查；
+- 查询 `LifeTraceManage/LifeTrace-execute` 最新 GitHub Release，并按 semantic version + build number 判断是否存在新版本；
+- 用户二次确认后才下载 APK，页面展示下载进度；
+- 优先使用 GitHub Release asset `digest`，缺失时读取配套 `.apk.sha256`，没有 SHA-256 时拒绝安装；
+- Android 使用 `FileProvider` 将缓存 APK 交给系统安装器，不绕过系统安装确认；
+- Android 8+ 未授权“安装未知应用”时跳转系统设置，授权后由用户再次手动触发；
+- 安装前比较 APK package/signature 与当前安装包，签名不同则明确阻止覆盖安装并提示原因；
+- App 版本提升至 `0.3.1+4`，为后续 Release 版本比较建立单调版本基线；
+- 该能力不改变 Cloud Sync，不执行静默安装，也不增加后台更新任务。
+
+> Android 原地覆盖更新的系统前提仍然是：连续 Release 必须使用同一套持久签名。当前功能会检测签名不一致并停止安装，避免用户进入失败的系统覆盖流程。
+
+
+## 2026-09-21：Flutter Android 平台工程纳入版本控制
+
+- 将 `flutter_app/android/` 固化为正式 Android 平台工程，不再依赖 CI 临时执行 `flutter create --platforms=android` 后再脚本修改；
+- 固定 Android `namespace` / `applicationId` 为 `com.lifetrace.execute`；
+- 固定 `MainActivity` 为 Flutter embedding 入口，生产 Dart 入口继续为 `lib/main.dart`；
+- 保留 Internet、Android 13+ Notification、Boot receiver 与 `flutter_local_notifications` receiver 配置；
+- 提交 Gradle 9.3.1 wrapper，CI 固定 Flutter 3.47.4 / AGP 9.1.0 / Kotlin 2.4.0，对齐此前已验证生产环境；
+- Flutter Production CI 改为先验证已提交 Android 工程，再直接执行 Android APK 构建；仅 Web 平台仍允许 CI bootstrap；
+- `flutter_app/README.md` 已明确本地运行必须从 `flutter_app/` 执行，旧 APK 可通过 `adb uninstall com.lifetrace.execute` 清理。
+
+验证：
+
+```text
+run 35568941213
+Verify committed Android platform   PASS
+Drift code generation               PASS
+flutter analyze                     PASS
+flutter test                        PASS
+Android debug APK                   PASS
+Web release preview                 PASS
+workflow                            SUCCESS
+```
+
+
+## 2026-09-20：Legacy Compose 客户端正式下线
+
+- 删除旧 Jetpack Compose 客户端 `app/`，包括 Kotlin UI、Room/Repository、旧 Sync/Auth 实现与 Android resources；
+- 删除仅服务于旧 Compose 工程的根级 `build.gradle.kts`、`settings.gradle.kts`、`gradle.properties`；
+- 删除 `.github/workflows/android-ci.yml`，不再维护 `:app` legacy Android Gate；
+- `flutter_app/` 成为唯一生产客户端，Flutter Production CI 继续负责 analyze/test/Android debug/Web release Gate；
+- 当前工作树不再保留旧 Kotlin 客户端；迁移前实现与旧 CI 证据仅通过 Git 历史和本文历史记录追溯。
+
 
 
 ## 2026-09-18：Flutter 正式客户端回归 main

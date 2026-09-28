@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/settings/app_preferences.dart';
+import '../../core/update/app_update_service.dart';
 
 final appPreferencesStoreProvider = Provider<AppPreferencesStore>(
   (ref) => AppPreferencesStore(),
@@ -16,6 +17,10 @@ final appPreferencesCommandsProvider =
 
 final packageInfoProvider = FutureProvider<PackageInfo>(
   (ref) => PackageInfo.fromPlatform(),
+);
+
+final appUpdateServiceProvider = Provider<AppUpdateService>(
+  (ref) => AppUpdateService(),
 );
 
 class AppPreferencesCommands {

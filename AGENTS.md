@@ -19,13 +19,13 @@ For long-term architecture decisions also read `docs/development/EXECUTION_PLAN.
 
 ## Current client architecture decision
 
-LifeTrace Execute is migrating its production client from Jetpack Compose to Flutter.
+LifeTrace Execute uses Flutter as its sole production client.
 
-- `flutter_app/` is the new production client target.
-- `app/` is the legacy Compose client and remains temporarily as the behavioral/data/sync reference during migration.
+- `flutter_app/` is the production client.
 - `flutter-preview/` is a design/history reference and must not be confused with the production Flutter client.
-- New product UI and new client-side feature implementation should target `flutter_app/`.
-- The legacy Compose client should receive only blocking fixes or migration-support changes until Flutter cutover.
+- New product UI and all client-side feature implementation must target `flutter_app/`.
+- The legacy Jetpack Compose client, root Android Gradle project and legacy Compose CI were retired from `main` on 2026-09-20.
+- Do not reintroduce a parallel Compose client under `app/`; use Git history when historical implementation details are needed.
 
 `docs/development/FLUTTER_REFACTOR_PLAN.md` is the architecture override for client-technology references in older documents. Product scope and Phase order still come from `REQUIREMENTS.md` and `FOUNDATION_EXECUTION_PLAN.md`.
 
@@ -71,7 +71,7 @@ If important parts of this chain are missing, document the module as `Flutter UI
 
 ## Migration rule
 
-Do not replace a real Compose production behavior with a Flutter mock and call the migration complete. Port existing working behavior module by module, verify parity, then retire the legacy implementation only after the corresponding Flutter Gate passes.
+Do not regress verified production behavior while evolving the Flutter implementation. A Flutter screen or mock is not sufficient: preserve the full Local-first, persistence, sync and test gates for each vertical slice.
 
 ## Documentation updates after implementation
 
@@ -99,7 +99,7 @@ For Web preview changes also run a Flutter Web build.
 
 For sync, offline, database migration, notification, timer or multi-device behavior, also perform the specific smoke/E2E Gate defined by the Foundation and Flutter refactor plans.
 
-The legacy Android Compose CI may remain during migration as regression evidence, but it is no longer the target for new product implementation.
+The legacy Android Compose CI has been removed. Flutter Production CI is the production client gate.
 
 ## Source of truth
 

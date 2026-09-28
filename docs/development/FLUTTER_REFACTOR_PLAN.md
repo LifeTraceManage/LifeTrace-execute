@@ -1,21 +1,20 @@
 # Flutter Production Refactor Plan
 
-更新时间：2026-09-10
+更新时间：2026-09-20
 
 ## 1. Architecture decision
 
-LifeTrace Execute production client is migrating from Jetpack Compose to Flutter.
+LifeTrace Execute production client has completed the Jetpack Compose → Flutter client cutover. Flutter is now the sole production client.
 
 Target:
 
 ```text
-flutter_app/                 # production client target
+flutter_app/                 # sole production client
   lib/
   test/
-  android/                   # generated/committed after foundation bootstrap
+  android/                   # bootstrapped by Flutter tooling/CI when needed
   web/                       # preview/review target
 
-app/                         # legacy Compose client, frozen during migration
 flutter-preview/             # design/history reference; no longer production target
 ```
 
@@ -54,7 +53,7 @@ Package choices are introduced only when the corresponding vertical slice is imp
 - promote the approved high-fidelity UI baseline;
 - remove preview naming from the production entrypoint;
 - add Flutter production CI;
-- keep Compose client intact as behavioral reference.
+- keep migration behavior verifiable until Flutter parity gates are established (historical step; legacy Compose source was removed on 2026-09-20).
 
 Gate: analyze + widget tests + Android debug build + Web build.
 
@@ -118,13 +117,18 @@ Each module still needs the complete vertical slice before being marked complete
 
 ### M5 — Cutover
 
-Only after Flutter reaches functional parity and Release Gate passes:
+Client implementation cutover completed on 2026-09-20:
 
-- make Flutter the only production client;
-- archive/remove legacy Compose build files;
-- update all docs and CI;
-- run migration/reinstall/upgrade tests using `com.lifetrace.execute`;
-- publish signed Android release.
+- Flutter is the only production client;
+- legacy `app/`, root Android Gradle files and legacy Compose CI were removed from `main`;
+- active docs and CI now point to Flutter.
+
+Release hardening still requires:
+
+- migration/reinstall/upgrade tests using `com.lifetrace.execute`;
+- full multi-device/offline staging E2E;
+- signing/R8/performance/security gates;
+- signed Android release publication.
 
 ## 5. UI migration rule
 

@@ -54,62 +54,110 @@ class _CollectionState extends ConsumerState<Collection> {
             ),
       ),
       h('快速收集'),
-      Wrap(spacing: 7, runSpacing: 7, children: [
-        _Quick(
-          Icons.edit_note_rounded,
-          '文本',
-          C.p,
-          C.ps,
-          () => _showMemoEditor(context, ref, kind: ExecutionMemoKind.text),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: C.border),
         ),
-        _Quick(
-          Icons.lightbulb_outline_rounded,
-          '想法',
-          C.amber,
-          C.amberSoft,
-          () => _showMemoEditor(context, ref, kind: ExecutionMemoKind.idea),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _Quick(
+                    Icons.edit_note_rounded,
+                    '文本',
+                    C.p,
+                    C.ps,
+                    () => _showMemoEditor(
+                      context,
+                      ref,
+                      kind: ExecutionMemoKind.text,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: _Quick(
+                    Icons.lightbulb_outline_rounded,
+                    '想法',
+                    C.amber,
+                    C.amberSoft,
+                    () => _showMemoEditor(
+                      context,
+                      ref,
+                      kind: ExecutionMemoKind.idea,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: _Quick(
+                    Icons.link_rounded,
+                    '链接',
+                    C.teal,
+                    C.tealSoft,
+                    () => _showMemoEditor(
+                      context,
+                      ref,
+                      kind: ExecutionMemoKind.link,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Expanded(
+                  child: _Quick(
+                    Icons.mic_none_rounded,
+                    '语音',
+                    C.purple,
+                    C.purpleSoft,
+                    () => _pickMediaForInbox(
+                      context,
+                      ref,
+                      ExecutionMemoKind.audio,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: _Quick(
+                    Icons.image_outlined,
+                    '图片',
+                    C.pink,
+                    C.pinkSoft,
+                    () => _pickMediaForInbox(
+                      context,
+                      ref,
+                      ExecutionMemoKind.image,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: _Quick(
+                    Icons.insert_drive_file_outlined,
+                    '文件',
+                    C.orange,
+                    C.orangeSoft,
+                    () => _pickMediaForInbox(
+                      context,
+                      ref,
+                      ExecutionMemoKind.file,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        _Quick(
-          Icons.link_rounded,
-          '链接',
-          C.teal,
-          C.tealSoft,
-          () => _showMemoEditor(context, ref, kind: ExecutionMemoKind.link),
-        ),
-        _Quick(
-          Icons.mic_none_rounded,
-          '语音',
-          C.purple,
-          C.purpleSoft,
-          () => _pickMediaForInbox(
-            context,
-            ref,
-            ExecutionMemoKind.audio,
-          ),
-        ),
-        _Quick(
-          Icons.image_outlined,
-          '图片',
-          C.pink,
-          C.pinkSoft,
-          () => _pickMediaForInbox(
-            context,
-            ref,
-            ExecutionMemoKind.image,
-          ),
-        ),
-        _Quick(
-          Icons.insert_drive_file_outlined,
-          '文件',
-          C.orange,
-          C.orangeSoft,
-          () => _pickMediaForInbox(
-            context,
-            ref,
-            ExecutionMemoKind.file,
-          ),
-        ),
-      ]),
+      ),
       const SizedBox(height: 16),
       _InboxOverview(items: inbox),
       const SizedBox(height: 12),
@@ -235,6 +283,7 @@ class _CaptureComposerState extends State<_CaptureComposer> {
 
   @override
   Widget build(BuildContext context) => Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(17),
@@ -290,39 +339,39 @@ class _Quick extends StatelessWidget {
   final VoidCallback tap;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: tap,
-        borderRadius: BorderRadius.circular(13),
-        child: Container(
-          width: 96,
-          height: 68,
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(13),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 29,
-                height: 29,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(9),
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: tap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 7),
+            child: Row(
+              children: [
+                Container(
+                  width: 29,
+                  height: 29,
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(icon, size: 15, color: color),
                 ),
-                child: Icon(icon, size: 15, color: color),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 9.3,
-                  fontWeight: FontWeight.w800,
-                  color: color,
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w900,
+                      color: C.ink,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
@@ -343,6 +392,7 @@ class _InboxOverview extends StatelessWidget {
     final progress = items.isEmpty ? 1.0 : important / items.length;
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: C.ink,
@@ -456,8 +506,8 @@ class _InboxFilters extends StatelessWidget {
               onSelected: (_) => onChanged(index),
               selectedColor: C.tealSoft,
               labelStyle: TextStyle(
-                fontSize: 8.8,
-                fontWeight: FontWeight.w800,
+                fontSize: 10,
+                fontWeight: active ? FontWeight.w900 : FontWeight.w800,
                 color: active ? C.teal : C.muted,
               ),
             ),
@@ -482,6 +532,7 @@ class _InboxCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
       child: Container(
+        width: double.infinity,
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
@@ -835,8 +886,8 @@ class _InboxDestination extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 8.7,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
                     color: color,
                   ),
                 ),
@@ -1927,120 +1978,548 @@ class Profile extends ConsumerWidget {
   const Profile({super.key});
 
   @override
-  Widget build(BuildContext c, WidgetRef ref) {
-    final session = ref.watch(currentSessionProvider);
-    final connected = session.valueOrNull != null;
-    final cloud = session.valueOrNull;
-    final name = cloud?.displayName?.trim().isNotEmpty == true
-        ? cloud!.displayName!
-        : cloud?.email.split('@').first ?? 'LifeTrace';
-    final email = cloud?.email ?? '未连接账户';
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(currentSessionProvider).valueOrNull;
+    final devices = ref.watch(cloudDevicesProvider).valueOrNull ??
+        const <CloudDeviceInstallation>[];
+    final pending = ref.watch(taskPendingSyncCountProvider).valueOrNull ?? 0;
+    final blocked = ref.watch(taskBlockedSyncCountProvider).valueOrNull ?? 0;
+    final conflicts =
+        ref.watch(syncUnresolvedConflictCountProvider).valueOrNull ?? 0;
+    final package = ref.watch(packageInfoProvider).valueOrNull;
+
+    final connected = session != null;
+    final name = session?.displayName?.trim().isNotEmpty == true
+        ? session!.displayName!
+        : session?.email.split('@').first ?? 'LifeTrace';
+    final accountLabel =
+        connected ? session.email : '本地模式 · 未连接 LifeTrace Cloud';
+
+    CloudDeviceInstallation? currentDevice;
+    for (final device in devices) {
+      if (device.current) {
+        currentDevice = device;
+        break;
+      }
+    }
+    final deviceLabel =
+        kIsWeb ? 'Web Preview' : currentDevice?.deviceName ?? '本机设备';
+
+    final syncSummary = !connected
+        ? '未连接 Cloud · 数据继续保存在本机'
+        : blocked > 0
+            ? '$blocked 项同步被阻塞'
+            : conflicts > 0
+                ? '$conflicts 项冲突待处理'
+                : pending > 0
+                    ? '$pending 项变更待同步'
+                    : 'Cloud 已连接 · 当前无待同步变更';
+
+    final deviceSummary = !connected
+        ? '连接 Cloud 后管理登录设备与会话'
+        : devices.isEmpty
+            ? 'Cloud 设备列表暂未返回'
+            : '${devices.length} 台 Cloud 设备 · 当前 $deviceLabel';
 
     return DetailFrame(
       titleText: '我的',
-      child: page([
-        Row(children: [
-          const CircleAvatar(
-            radius: 23,
-            backgroundColor: C.purpleSoft,
-            child: Icon(Icons.person, color: C.purple),
+      child: page(
+        [
+          _ProfileHero(
+            name: name,
+            accountLabel: accountLabel,
+            connected: connected,
+            deviceLabel: deviceLabel,
+            onTap: () => push(context, const ProfileDetails()),
           ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(
-                name,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+          const SizedBox(height: 18),
+          _ProfileSection(
+            title: '数据与同步',
+            children: [
+              _ProfileRow(
+                icon: Icons.cloud_sync_outlined,
+                iconColor: C.p,
+                iconBackground: C.ps,
+                title: '云端同步',
+                subtitle: syncSummary,
+                trailing: connected ? '已连接' : '未连接',
+                trailingColor: connected ? C.green : C.muted,
+                trailingBackground: connected ? C.greenSoft : C.soft,
+                onTap: () => push(context, const CloudConnection()),
               ),
-              Text(email, style: const TextStyle(fontSize: 9, color: C.muted)),
-            ]),
+              const SizedBox(height: 2),
+              const _ProfileRow(
+                icon: Icons.storage_rounded,
+                iconColor: C.green,
+                iconBackground: C.greenSoft,
+                title: '本地数据',
+                subtitle: 'Drift / SQLite · Local-first，核心数据优先写入本机',
+                trailing: '本机优先',
+              ),
+              const SizedBox(height: 2),
+              _ProfileRow(
+                icon: Icons.devices_outlined,
+                iconColor: C.purple,
+                iconBackground: C.purpleSoft,
+                title: '设备管理',
+                subtitle: deviceSummary,
+                onTap: () => push(context, const DeviceManagement()),
+              ),
+              const SizedBox(height: 2),
+              _ProfileRow(
+                icon: Icons.privacy_tip_outlined,
+                iconColor: C.teal,
+                iconBackground: C.tealSoft,
+                title: '数据导出与隐私',
+                subtitle: '隐私策略 · Cloud 数据导出 · 账号删除',
+                onTap: () => push(context, const DataManagement()),
+              ),
+            ],
           ),
-        ]),
-        const SizedBox(height: 10),
-        InkWell(
-          onTap: () => push(c, const CloudConnection()),
-          child: Row(children: [
-            Icon(
-              connected ? Icons.cloud_done_rounded : Icons.cloud_off_outlined,
-              size: 14,
-              color: connected ? C.green : C.muted,
+          const SizedBox(height: 18),
+          _ProfileSection(
+            title: '应用',
+            children: [
+              _ProfileRow(
+                icon: Icons.notifications_none_rounded,
+                iconColor: C.orange,
+                iconBackground: C.orangeSoft,
+                title: '通知与提醒',
+                subtitle: '任务、日历与专注通知',
+                onTap: () => push(context, const NotificationSettings()),
+              ),
+              const SizedBox(height: 2),
+              _ProfileRow(
+                icon: Icons.palette_outlined,
+                iconColor: C.purple,
+                iconBackground: C.purpleSoft,
+                title: '外观',
+                subtitle: '界面密度与显示偏好',
+                onTap: () => push(context, const AppearanceSettings()),
+              ),
+              const SizedBox(height: 2),
+              _ProfileRow(
+                icon: Icons.tune_rounded,
+                iconColor: C.sky,
+                iconBackground: C.skySoft,
+                title: '应用设置',
+                subtitle: '日历与本机通用偏好',
+                onTap: () => push(context, const GeneralSettings()),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _ProfileSection(
+            title: 'LifeTrace',
+            children: [
+              _ProfileRow(
+                icon: Icons.person_outline_rounded,
+                iconColor: C.p,
+                iconBackground: C.ps,
+                title: '个人资料',
+                subtitle:
+                    connected ? accountLabel : '连接 Cloud 后查看 LifeTrace Account',
+                onTap: () => push(context, const ProfileDetails()),
+              ),
+              const SizedBox(height: 2),
+              _ProfileRow(
+                icon: Icons.lock_outline_rounded,
+                iconColor: C.purple,
+                iconBackground: C.purpleSoft,
+                title: '账户与安全',
+                subtitle: '密码、会话与全部设备退出',
+                onTap: () => push(context, const AccountSecurity()),
+              ),
+              const SizedBox(height: 2),
+              _ProfileRow(
+                icon: Icons.cloud_outlined,
+                iconColor: C.teal,
+                iconBackground: C.tealSoft,
+                title: 'LifeTrace Cloud',
+                subtitle:
+                    connected ? '查看连接与同步协议状态' : '连接你的 LifeTrace Cloud',
+                onTap: () => push(context, const CloudConnection()),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _ProfileSection(
+            title: '其他',
+            children: [
+              _ProfileRow(
+                icon: Icons.info_outline_rounded,
+                iconColor: C.sky,
+                iconBackground: C.skySoft,
+                title: '关于 LifeTrace',
+                subtitle: '版本、架构与开源许可',
+                onTap: () => push(context, const AboutLifeTrace()),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Center(
+            child: Text(
+              package == null
+                  ? 'LifeTrace Execute'
+                  : 'LifeTrace Execute · v${package.version}',
+              style: const TextStyle(
+                fontSize: 9,
+                color: C.muted,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            const SizedBox(width: 6),
-            Text(
-              connected ? 'LifeTrace Cloud 已连接' : 'LifeTrace Cloud 未连接',
-              style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          const Center(
+            child: Text(
+              'Local-first · LifeTrace Cloud',
+              style: TextStyle(fontSize: 8.5, color: C.muted),
             ),
-            const Spacer(),
-            const Icon(Icons.chevron_right_rounded, size: 15, color: C.muted),
-          ]),
+          ),
+        ],
+        padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
+      ),
+    );
+  }
+}
+
+class _ProfileHero extends StatelessWidget {
+  const _ProfileHero({
+    required this.name,
+    required this.accountLabel,
+    required this.connected,
+    required this.deviceLabel,
+    required this.onTap,
+  });
+
+  final String name;
+  final String accountLabel;
+  final bool connected;
+  final String deviceLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(17),
+          child: Ink(
+            padding: const EdgeInsets.fromLTRB(14, 14, 12, 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(17),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [C.ps, C.purpleSoft],
+              ),
+              border: Border.all(
+                color: C.p.withValues(alpha: .08),
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  right: -22,
+                  top: -32,
+                  child: Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: C.purple.withValues(alpha: .06),
+                    ),
+                  ),
+                ),
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: C.p.withValues(alpha: .08),
+                                blurRadius: 14,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.person_rounded,
+                            size: 25,
+                            color: C.purple,
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  color: C.ink,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                accountLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 9.2,
+                                  color: C.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: .82),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.chevron_right_rounded,
+                            color: C.muted,
+                            size: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          const _ProfileStatusPill(
+                            icon: Icons.check_circle_outline_rounded,
+                            label: '本地数据正常',
+                            color: C.green,
+                            background: C.greenSoft,
+                          ),
+                          _ProfileStatusPill(
+                            icon: connected
+                                ? Icons.cloud_done_rounded
+                                : Icons.cloud_off_outlined,
+                            label:
+                                connected ? 'Cloud 已连接' : 'Cloud 未连接',
+                            color: connected ? C.p : C.muted,
+                            background: connected ? C.ps : C.soft,
+                          ),
+                          _ProfileStatusPill(
+                            icon: kIsWeb
+                                ? Icons.language_rounded
+                                : Icons.phone_android_rounded,
+                            label: deviceLabel,
+                            color: C.purple,
+                            background: Colors.white.withValues(alpha: .78),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
-        h('账户'),
-        panel(
-          Column(children: [
-            _Setting(
-              Icons.person_outline_rounded,
-              '个人资料',
-              onTap: () => push(c, const ProfileDetails()),
-            ),
-            const Divider(height: 1),
-            _Setting(
-              Icons.lock_outline_rounded,
-              '账户与安全',
-              onTap: () => push(c, const AccountSecurity()),
-            ),
-            const Divider(height: 1),
-            _Setting(
-              Icons.devices_outlined,
-              '设备管理',
-              onTap: () => push(c, const DeviceManagement()),
-            ),
-          ]),
+      );
+}
+
+class _ProfileStatusPill extends StatelessWidget {
+  const _ProfileStatusPill({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.background,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(8),
         ),
-        h('LifeTrace'),
-        panel(
-          Column(children: [
-            _Setting(
-              Icons.cloud_sync_outlined,
-              '同步状态',
-              onTap: () => push(c, const CloudConnection()),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 11, color: color),
+            const SizedBox(width: 4),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 118),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 8.4,
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-            const Divider(height: 1),
-            _Setting(
-              Icons.privacy_tip_outlined,
-              '数据与隐私',
-              onTap: () => push(c, const DataManagement()),
-            ),
-            const Divider(height: 1),
-            _Setting(
-              Icons.notifications_none_rounded,
-              '通知',
-              onTap: () => push(c, const NotificationSettings()),
-            ),
-            const Divider(height: 1),
-            _Setting(
-              Icons.palette_outlined,
-              '外观',
-              onTap: () => push(c, const AppearanceSettings()),
-            ),
-          ]),
+          ],
         ),
-        h('应用'),
-        panel(
-          Column(children: [
-            _Setting(
-              Icons.settings_outlined,
-              '通用',
-              onTap: () => push(c, const GeneralSettings()),
+      );
+}
+
+class _ProfileSection extends StatelessWidget {
+  const _ProfileSection({
+    required this.title,
+    required this.children,
+  });
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 7),
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12.5,
+                color: C.ink,
+                fontWeight: FontWeight.w900,
+              ),
             ),
-            const Divider(height: 1),
-            _Setting(
-              Icons.info_outline_rounded,
-              '关于',
-              onTap: () => push(c, const AboutLifeTrace()),
+          ),
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: C.border),
             ),
-          ]),
-        ),
-      ], padding: const EdgeInsets.fromLTRB(14, 4, 14, 18)),
+            child: Column(children: children),
+          ),
+        ],
+      );
+}
+
+class _ProfileRow extends StatelessWidget {
+  const _ProfileRow({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackground,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+    this.trailingColor = C.muted,
+    this.trailingBackground = C.soft,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackground;
+  final String title;
+  final String subtitle;
+  final String? trailing;
+  final Color trailingColor;
+  final Color trailingBackground;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final row = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: iconBackground,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 17, color: iconColor),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 10.8,
+                    color: C.ink,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 8.7,
+                    color: C.muted,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 7),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: trailingBackground,
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Text(
+                trailing!,
+                style: TextStyle(
+                  fontSize: 8,
+                  color: trailingColor,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+          if (onTap != null) ...[
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 17,
+              color: C.muted,
+            ),
+          ],
+        ],
+      ),
+    );
+
+    if (onTap == null) return row;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(11),
+      child: row,
     );
   }
 }
@@ -2294,47 +2773,13 @@ class _InfoRow extends StatelessWidget {
       );
 }
 
-class _Setting extends StatelessWidget {
-  const _Setting(this.icon, this.label, {this.onTap});
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext c) => InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          child: Row(children: [
-            Icon(icon, size: 16, color: C.muted),
-            const SizedBox(width: 9),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
-            ),
-            const Spacer(),
-            if (onTap != null)
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 16,
-                color: C.muted,
-              )
-            else
-              const Text(
-                '待接入',
-                style: TextStyle(fontSize: 8.2, color: C.muted),
-              ),
-          ]),
-        ),
-      );
-}
-
 class DetailFrame extends StatelessWidget {
   const DetailFrame({
     required this.child,
     this.titleText = '',
     this.leading = Icons.arrow_back,
     this.actions = const [],
+    this.backgroundColor = C.bg,
     super.key,
   });
 
@@ -2342,10 +2787,11 @@ class DetailFrame extends StatelessWidget {
   final String titleText;
   final IconData leading;
   final List<Widget> actions;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext c) => Scaffold(
-        backgroundColor: C.bg,
+        backgroundColor: backgroundColor,
         body: SafeArea(
           child: Column(children: [
             SizedBox(

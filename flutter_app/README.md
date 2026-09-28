@@ -1,8 +1,8 @@
 # LifeTrace Execute Flutter App
 
-`flutter_app/` is the new production client target for LifeTrace Execute.
+`flutter_app/` is the production client for LifeTrace Execute.
 
-The project is being migrated from the legacy Jetpack Compose client under `app/` to Flutter. The legacy Android implementation stays in the repository temporarily as the source for already-implemented Local-first, Auth and Sync behavior. It must not receive new product UI work during the migration except for blocking fixes.
+The Jetpack Compose implementation that previously lived under `app/` was retired from `main` on 2026-09-20 after Flutter became the production implementation. Historical Compose behavior remains available through Git history; new work belongs only in this Flutter client.
 
 ## Online preview
 
@@ -26,7 +26,7 @@ The current Flutter screens are promoted from the high-fidelity preview and pres
 
 “我的”仍从头像进入；“今日复盘”仍从 Today 进入。
 
-## Migration rule
+## Production completeness rule
 
 A screen existing in Flutter does not mean the business module is complete. Production completion still requires the vertical slice:
 
@@ -43,24 +43,33 @@ Requirement
 → CI / smoke / E2E
 ```
 
-During migration, already-working Compose behavior is ported module by module. Do not replace real Compose data flows with Flutter mock data and then mark the module complete.
+Do not replace real production data flows with Flutter mock data and then mark a module complete. Keep the verified Local-first, persistence, Sync, notification/file behavior and automated gates intact.
 
-## Bootstrap locally
+## Run locally
+
+The production Android platform project is committed under `flutter_app/android/`. Do not recreate or run the retired root Kotlin/Compose project.
 
 ```bash
 cd flutter_app
-flutter create . --platforms=android,web --org com.lifetrace --project-name lifetrace_execute
 flutter pub get
+dart run build_runner build
+flutter run
 ```
 
-After Android platform bootstrap, keep the production Android `applicationId` and namespace as:
+The production Android `applicationId` and namespace are fixed to:
 
 ```text
 com.lifetrace.execute
 ```
 
-This preserves continuity with the current Android package.
+For a clean device check, uninstall any previously installed legacy APK first:
+
+```bash
+adb uninstall com.lifetrace.execute
+```
+
+Then run `flutter run` from `flutter_app/`. This guarantees the installed app is built from the current Flutter production entrypoint `lib/main.dart`.
 
 ## Current status
 
-M0 is verified: Flutter analyze, widget tests, Android debug build and Web build pass in CI. The data, auth, local-first and sync layers are not yet ported; the Compose implementation remains the behavioral reference until each Flutter vertical slice is verified.
+Flutter is the sole production client. The repository already contains real Drift/SQLite, Riverpod/Repository, Auth v1, Local-first Outbox, Sync v1, background sync, reminder/notification, file upload and multiple business vertical slices. Remaining 1.0 work is tracked in `../docs/development/PROJECT_STATUS.md`; legacy Compose source is no longer part of the active codebase.

@@ -27,7 +27,7 @@ Repository / UseCase
         ↓
 ViewModel / UI State
         ↓
-Compose UI / Real Interaction
+Flutter UI / Real Interaction
         ↓
 Offline Behavior
         ↓
@@ -40,7 +40,7 @@ CI / Smoke / E2E Evidence
 
 以下情况一律不计为功能完成：
 
-- 只有 Compose 页面；
+- 只有 Flutter 页面；
 - 仍依赖 `MockData`；
 - 使用固定用户名、固定日期、固定统计数字代替真实数据；
 - 核心按钮仍是空 `onClick = {}`；
@@ -595,7 +595,7 @@ Entity Handler 只负责：
 - 连接 `keepServer()` / `keepLocal()`；
 - 冲突处理后解除 blocked；
 - keepLocal 自动重新排队同步；
-- 建立 `app/src/test`；
+- 建立 `flutter_app/test`；
 - Task Mapper 测试；
 - Repository CRUD + Outbox 事务测试；
 - localVersion / serverVersion 测试；
@@ -1024,7 +1024,7 @@ Profile 中不存在“看起来可以点但没有结果”的正式入口；数
 - [ ] 生产路径无 `MockData`；
 - [ ] 无核心空 `onClick = {}`；
 - [ ] 无静态假用户/假统计；
-- [ ] 需要持久化的数据不使用 Compose `remember` 代替；
+- [ ] 需要持久化的数据不使用 Widget/Provider 临时状态代替；
 - [ ] 未实现功能不得伪装成可用。
 
 ### Local-first
@@ -1153,7 +1153,7 @@ docs/development/IMPLEMENTATION_LOG.md
 当前仍从 F0 开始，不因为目标扩大为“全部功能”而跳过基础质量：
 
 1. 接通 Task Conflict UI；
-2. 建立真实 `app/src/test`；
+2. 建立真实 `flutter_app/test`；
 3. 补 Task Mapper / Repository / Conflict / Rebase 测试；
 4. 确认 Task offline/conflict smoke；
 5. 抽取 Generic Sync Core；

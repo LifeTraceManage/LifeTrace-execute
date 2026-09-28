@@ -37,9 +37,9 @@ class AppPreferencesState {
   final bool weekStartsMonday;
 
   double get uiScale => switch (uiDensity) {
-        UiDensityPreference.compact => 0.92,
-        UiDensityPreference.standard => 1.0,
-        UiDensityPreference.comfortable => 1.08,
+        UiDensityPreference.compact => 1.08,
+        UiDensityPreference.standard => 1.20,
+        UiDensityPreference.comfortable => 1.32,
       };
 }
 
