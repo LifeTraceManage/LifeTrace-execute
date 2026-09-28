@@ -129,3 +129,7 @@ flutter build web --release
 涉及数据库、离线、同步、后台任务、通知、计时和多设备时，仍需执行相应 migration / smoke / E2E Gate。
 
 项目 1.0 的完成定义仍然是：**所有已确认功能形成真实纵向闭环，生产路径不依赖 MockData，核心数据可本地持久化与离线使用，需要同步的实体可跨设备同步，并有真实自动化测试、CI 和发布证据。**
+
+## Unified mobile architecture
+
+LifeTrace mobile is evolving from a single Execute application into a unified shell with independently bounded workspaces. Execute remains the production task/project/calendar workspace; Assets is now migrated into the same Flutter client as an Assets workspace. See [docs/MOBILE_WORKSPACE_ARCHITECTURE.md](docs/MOBILE_WORKSPACE_ARCHITECTURE.md).
