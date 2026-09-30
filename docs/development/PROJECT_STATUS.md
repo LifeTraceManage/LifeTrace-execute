@@ -1,6 +1,6 @@
 # LifeTrace Execute 项目进度
 
-更新时间：2026-09-21
+更新时间：2026-09-30
 
 ## 1. 当前阶段
 
@@ -94,7 +94,10 @@ entity.link
 - Sync v1；
 - conflict / keepLocal / keepServer；
 - Reminder 接入；
-- Task Detail 真实数据链。
+- Task Detail 真实数据链；
+- 已完成任务历史视图：独立“已完成”筛选、按完成时间排序、完成时间展示、完成统计直达、恢复为未完成。
+
+已完成任务历史视图通过 Flutter Production CI run `36679452040` 验证：Drift generation、Analyze、Test、Android debug APK、Web release preview 全部通过。
 
 仍未把 Task 1.0 全部高级能力标记完成，重复规则 / occurrence / waiting / dependency 等仍按长期计划继续推进。
 
