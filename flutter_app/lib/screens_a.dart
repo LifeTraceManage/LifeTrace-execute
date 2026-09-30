@@ -673,11 +673,17 @@ class _TasksState extends ConsumerState<Tasks> {
           panel(Text('$error', style: const TextStyle(fontSize: 10.5, color: C.red))),
         ]),
         data: (allTasks) {
-          final visible = allTasks.where(_matches).toList(growable: false);
+          final visible = allTasks.where(_matches).toList();
+          if (filter == 4) {
+            visible.sort((a, b) => _completedTaskSortKey(b).compareTo(_completedTaskSortKey(a)));
+          }
           return page([
             _header(connected, pending, blocked, syncState.isLoading),
             const SizedBox(height: 10),
-            _TaskOverview(allTasks),
+            _TaskOverview(
+              allTasks,
+              onCompletedTap: () => setState(() => filter = 4),
+            ),
             if (!connected) ...[
               const SizedBox(height: 10),
               panel(
@@ -720,16 +726,20 @@ class _TasksState extends ConsumerState<Tasks> {
             ),
             const SizedBox(height: 9),
             _Tabs(
-              labels: const ['全部', '今天', '即将到期', '等待中'],
+              labels: const ['全部', '今天', '即将到期', '等待中', '已完成'],
               selected: filter,
               onTap: (value) => setState(() => filter = value),
             ),
             h(
-              '任务 · ${visible.length}',
-              tail: chip('卡片视图', bg: C.skySoft, fg: C.sky),
+              filter == 4 ? '已完成记录 · ${visible.length}' : '任务 · ${visible.length}',
+              tail: chip(
+                filter == 4 ? '按完成时间' : '卡片视图',
+                bg: C.skySoft,
+                fg: C.sky,
+              ),
             ),
             if (visible.isEmpty)
-              const _TaskEmptyState()
+              _TaskEmptyState(completed: filter == 4)
             else
               Column(
                 children: [
@@ -789,6 +799,7 @@ class _TasksState extends ConsumerState<Tasks> {
       final haystack = '${task.title} ${task.description ?? ''}'.toLowerCase();
       if (!haystack.contains(query)) return false;
     }
+    if (filter == 4) return task.isDone;
     if (filter == 3) return task.status == ExecutionTaskStatus.waiting;
     if (filter == 0) return true;
 
@@ -903,8 +914,9 @@ class _TasksState extends ConsumerState<Tasks> {
 }
 
 class _TaskOverview extends StatelessWidget {
-  const _TaskOverview(this.tasks);
+  const _TaskOverview(this.tasks, {required this.onCompletedTap});
   final List<ExecutionTask> tasks;
+  final VoidCallback onCompletedTap;
 
   @override
   Widget build(BuildContext c) {
@@ -951,7 +963,13 @@ class _TaskOverview extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Wrap(spacing: 6, runSpacing: 6, children: [
-              _CountBadge(Icons.check_rounded, '$done 完成', C.green, C.greenSoft),
+              _CountBadge(
+                Icons.check_rounded,
+                '$done 完成',
+                C.green,
+                C.greenSoft,
+                onTap: onCompletedTap,
+              ),
               _CountBadge(Icons.flag_rounded, '$urgent P1', C.red, C.redSoft),
               _CountBadge(Icons.hourglass_bottom_rounded, '$waiting 等待', C.orange, C.orangeSoft),
             ]),
@@ -963,22 +981,38 @@ class _TaskOverview extends StatelessWidget {
 }
 
 class _CountBadge extends StatelessWidget {
-  const _CountBadge(this.icon, this.label, this.color, this.background);
+  const _CountBadge(
+    this.icon,
+    this.label,
+    this.color,
+    this.background, {
+    this.onTap,
+  });
+
   final IconData icon;
   final String label;
   final Color color;
   final Color background;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext c) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-        decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(8)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: color)),
-        ]),
-      );
+  Widget build(BuildContext c) {
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(8)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 11, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w800, color: color)),
+      ]),
+    );
+    if (onTap == null) return badge;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: badge,
+    );
+  }
 }
 
 class _ConflictRow extends ConsumerWidget {
@@ -1059,7 +1093,9 @@ class _Tabs extends StatelessWidget {
 }
 
 class _TaskEmptyState extends StatelessWidget {
-  const _TaskEmptyState();
+  const _TaskEmptyState({this.completed = false});
+
+  final bool completed;
 
   @override
   Widget build(BuildContext c) => Container(
@@ -1068,16 +1104,26 @@ class _TaskEmptyState extends StatelessWidget {
           color: C.skySoft,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Column(children: [
+        child: Column(children: [
           CircleAvatar(
             radius: 24,
             backgroundColor: Colors.white,
-            child: Icon(Icons.task_alt_rounded, color: C.sky, size: 25),
+            child: Icon(
+              completed ? Icons.history_rounded : Icons.task_alt_rounded,
+              color: C.sky,
+              size: 25,
+            ),
           ),
-          SizedBox(height: 9),
-          Text('这里很清爽', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
-          SizedBox(height: 3),
-          Text('暂无符合条件的任务', style: TextStyle(fontSize: 9.2, color: C.muted)),
+          const SizedBox(height: 9),
+          Text(
+            completed ? '还没有已完成任务' : '这里很清爽',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            completed ? '完成任务后会保留在这里，可随时查看或恢复' : '暂无符合条件的任务',
+            style: const TextStyle(fontSize: 9.2, color: C.muted),
+          ),
         ]),
       );
 }
@@ -2264,12 +2310,20 @@ String _statusText(ExecutionTaskStatus status) => switch (status) {
 
 String _taskMeta(ExecutionTask task) {
   final parts = <String>[];
+  if (task.isDone && task.completedAt != null) {
+    parts.add('完成 ${_formatTaskDate(task.completedAt)}');
+  }
   if (task.projectId != null) parts.add('项目');
   if (task.scheduledAt != null) parts.add('计划 ${_formatTaskDate(task.scheduledAt)}');
   if (task.dueAt != null) parts.add('截止 ${_formatTaskDate(task.dueAt)}');
   if (task.status == ExecutionTaskStatus.waiting) parts.add('等待中');
   if (parts.isEmpty) parts.add('本地任务');
   return parts.join(' · ');
+}
+
+DateTime _completedTaskSortKey(ExecutionTask task) {
+  return DateTime.tryParse(task.completedAt ?? task.updatedAt) ??
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 }
 
 String _formatTaskDate(String? raw) {
