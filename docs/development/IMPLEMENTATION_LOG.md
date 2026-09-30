@@ -1,8 +1,34 @@
 # LifeTrace Execute 工程实施记录
 
-更新时间：2026-09-21
+更新时间：2026-09-30
 
 > 本文档只记录已经提交到代码仓的实现事实、验证证据和剩余阻塞。设计意图看 `REQUIREMENTS.md`，客户端迁移看 `FLUTTER_REFACTOR_PLAN.md`。
+
+
+## 2026-09-30：Task 已完成记录可访问
+
+- 任务页新增独立“已完成”筛选，完成任务不再只有状态数据而缺少明确访问入口；
+- 已完成任务按 `completedAt` 优先、`updatedAt` 兜底倒序展示，并在任务卡片元信息中显示完成时间；
+- “任务节奏”中的完成数量可直接进入已完成视图；
+- 已完成任务继续复用真实 Task Detail 与 `toggleDone` Local-first 写入链，可恢复为未完成并正常进入 Outbox / Sync；
+- 未修改 Task schema、Repository 或 Cloud contract，直接复用现有 `completedAt` 与状态同步语义；
+- 新增 Widget Test 验证已完成任务可从独立筛选查看，且活跃任务不会混入该视图；
+- CI 暴露出既有 `app_preferences_test.dart` 仍断言旧字体缩放值，已将测试断言与生产代码现有 `standard=1.20`、`comfortable=1.32` 对齐，不改变生产设置行为。
+
+验证：
+
+```text
+PR #29
+run 36679452040
+
+Verify committed Android platform   PASS
+Drift generation                    PASS
+flutter analyze                     PASS
+flutter test                        PASS
+Android debug APK                   PASS
+Web release preview                 PASS
+workflow                            SUCCESS
+```
 
 
 ## 2026-09-21：Android 手动应用更新
