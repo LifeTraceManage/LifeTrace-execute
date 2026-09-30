@@ -15,7 +15,7 @@ void main() {
     expect(value.focusNotificationsEnabled, isTrue);
     expect(value.uiDensity, UiDensityPreference.standard);
     expect(value.weekStartsMonday, isTrue);
-    expect(value.uiScale, 1);
+    expect(value.uiScale, 1.20);
   });
 
   test('app preferences persist notification, density and calendar settings',
@@ -33,7 +33,7 @@ void main() {
     expect(value.reminderNotificationsEnabled, isFalse);
     expect(value.focusNotificationsEnabled, isFalse);
     expect(value.uiDensity, UiDensityPreference.comfortable);
-    expect(value.uiScale, 1.08);
+    expect(value.uiScale, 1.32);
     expect(value.weekStartsMonday, isFalse);
   });
 }
