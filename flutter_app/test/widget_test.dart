@@ -51,15 +51,15 @@ void main() {
         child: const LifeTraceExecuteApp(),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
 
     await tester.tap(find.text('任务'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     final completedTab = find.text('已完成');
-    await tester.ensureVisible(completedTab);
     await tester.tap(completedTab);
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.text('已完成测试任务'), findsOneWidget);
     expect(find.text('完成论文 Experiment 1'), findsNothing);
