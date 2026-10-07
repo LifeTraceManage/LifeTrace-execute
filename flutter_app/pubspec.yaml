@@ -1,5 +1,5 @@
 name: lifetrace_execute
-description: Production Flutter client for LifeTrace Execute.
+description: Unified LifeTrace mobile client with workspace switching.
 publish_to: "none"
 version: 0.3.1+4
 
@@ -23,8 +23,11 @@ dependencies:
   path_provider: ^2.1.5
   mime: ^2.1.0
   shared_preferences: ^2.5.3
+  sembast: ^3.8.10
+  sembast_web: ^2.4.5+1
   sqlite3_flutter_libs: ^0.5.32
   timezone: ^0.11.1
+  url_launcher: ^6.3.2
   uuid: ^4.5.1
   workmanager: ^0.10.10
 
@@ -32,8 +35,8 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  build_runner: ^2.4.15
-  drift_dev: ^2.26.1
+  build_runner: 2.4.15
+  drift_dev: 2.26.1
 
 flutter:
   uses-material-design: true
