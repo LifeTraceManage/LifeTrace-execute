@@ -355,7 +355,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 10),
                 ],
               const SizedBox(height: 12),
-              _SectionHeader(title: '资产提醒'),
+              const _SectionHeader(title: '资产提醒'),
               const SizedBox(height: 10),
               _ReminderCard(
                 icon: Icons.verified_user_outlined,
@@ -2558,7 +2558,7 @@ class _TimelineRow extends StatelessWidget {
             width: 34,
             child: Column(
               children: [
-                Container(width: 28, height: 28, decoration: const BoxDecoration(color: Color(0xFFFFF5CC), shape: BoxShape.circle), child: Icon(_eventIcon(event.type), size: 15, color: Color(0xFFF5C400))),
+                Container(width: 28, height: 28, decoration: const BoxDecoration(color: Color(0xFFFFF5CC), shape: BoxShape.circle), child: Icon(_eventIcon(event.type), size: 15, color: const Color(0xFFF5C400))),
                 if (!isLast) Expanded(child: Container(width: 2, color: const Color(0xFFE8E1BA))),
               ],
             ),
@@ -2601,7 +2601,7 @@ class _GlobalTimelineRow extends StatelessWidget {
             width: 38,
             child: Column(
               children: [
-                Container(width: 30, height: 30, decoration: const BoxDecoration(color: Color(0xFFFFF5CC), shape: BoxShape.circle), child: Icon(_eventIcon(event.type), size: 16, color: Color(0xFFF5C400))),
+                Container(width: 30, height: 30, decoration: const BoxDecoration(color: Color(0xFFFFF5CC), shape: BoxShape.circle), child: Icon(_eventIcon(event.type), size: 16, color: const Color(0xFFF5C400))),
                 if (!isLast) Expanded(child: Container(width: 2, color: const Color(0xFFE4E4DC))),
               ],
             ),
